@@ -5,7 +5,7 @@
  *
  * Outputs PNG + thin SVG wrappers (`<image href="…"/>`) for each target directory.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -15,8 +15,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "../../..");
 
 const LOGO_SRC = join(repoRoot, "site/assets/brand/openadminjs-logo-new.png");
-const ICON_SRC = join(repoRoot, "site/assets/brand/openadminjs-icon-new.png");
-
 const targets = [
   "apps/admin/public/brand",
   "apps/web/public/brand",
@@ -27,14 +25,93 @@ const targets = [
   "site/assets/brand"
 ];
 
+const UNUSED_BRAND_FILES = [
+  "openadminjs-logo-horizontal.svg",
+  "openadminjs-logo.svg",
+  "openadminjs-logo-dark.svg",
+  "openadminjs-logo-monochrome.svg",
+  "openadminjs-icon.png",
+  "openadminjs-icon.svg",
+  "og-image.svg",
+  "favicon.png"
+];
+
 /** SVG shell so browsers can scale; raster lives alongside as `href`. */
 function svgRasterImage(href, w, h, label) {
   const safe = String(label).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${w} ${h}" role="img" aria-label="${safe}"><image xlink:href="${href}" href="${href}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/></svg>`;
 }
 
-function svgLogoOnDarkBg(w, h) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${w} ${h}" role="img" aria-label="OpenAdminJS"><rect width="${w}" height="${h}" fill="#0f172a"/><image xlink:href="openadminjs-logo-new.png" href="openadminjs-logo-new.png" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet" opacity="0.94"/></svg>`;
+async function extractLogoMark(logoBuf) {
+  const { data, info } = await sharp(logoBuf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = info;
+  const alphaIndex = channels - 1;
+
+  const activeCols = new Array(width).fill(false);
+  for (let x = 0; x < width; x += 1) {
+    for (let y = 0; y < height; y += 1) {
+      const idx = (y * width + x) * channels + alphaIndex;
+      if (data[idx] > 18) {
+        activeCols[x] = true;
+        break;
+      }
+    }
+  }
+
+  let symbolStart = activeCols.findIndex(Boolean);
+  if (symbolStart < 0) symbolStart = 0;
+
+  let symbolEnd = width - 1;
+  let gap = 0;
+  for (let x = symbolStart; x < width; x += 1) {
+    if (activeCols[x]) {
+      gap = 0;
+      symbolEnd = x;
+      continue;
+    }
+    gap += 1;
+    if (gap >= 10) break;
+  }
+
+  const activeRows = new Array(height).fill(false);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = symbolStart; x <= symbolEnd; x += 1) {
+      const idx = (y * width + x) * channels + alphaIndex;
+      if (data[idx] > 18) {
+        activeRows[y] = true;
+        break;
+      }
+    }
+  }
+
+  let top = activeRows.findIndex(Boolean);
+  if (top < 0) top = 0;
+  let bottom = height - 1;
+  for (let y = height - 1; y >= 0; y -= 1) {
+    if (activeRows[y]) {
+      bottom = y;
+      break;
+    }
+  }
+
+  const markW = Math.max(1, symbolEnd - symbolStart + 1);
+  const markH = Math.max(1, bottom - top + 1);
+  const side = Math.max(markW, markH);
+  const cx = symbolStart + markW / 2;
+  const cy = top + markH / 2;
+
+  let left = Math.floor(cx - side / 2);
+  let cropTop = Math.floor(cy - side / 2);
+  if (left < 0) left = 0;
+  if (cropTop < 0) cropTop = 0;
+  if (left + side > width) left = width - side;
+  if (cropTop + side > height) cropTop = height - side;
+
+  return sharp(logoBuf)
+    .extract({ left: Math.max(0, left), top: Math.max(0, cropTop), width: Math.min(side, width), height: Math.min(side, height) })
+    .resize(512, 512, { fit: "cover" })
+    .png()
+    .toBuffer();
 }
 
 async function writeBrandToDir(targetDir) {
@@ -46,26 +123,14 @@ async function writeBrandToDir(targetDir) {
   const lh = logoMeta.height ?? 200;
 
   writeFileSync(join(targetDir, "openadminjs-logo-new.png"), logoBuf);
-  const horizSvg = svgRasterImage("openadminjs-logo-new.png", lw, lh, "OpenAdminJS");
-  writeFileSync(join(targetDir, "openadminjs-logo-horizontal.svg"), horizSvg);
-  writeFileSync(join(targetDir, "openadminjs-logo.svg"), horizSvg);
-  writeFileSync(join(targetDir, "openadminjs-logo-dark.svg"), svgLogoOnDarkBg(lw, lh));
-
-  const iconBuf = existsSync(ICON_SRC) ? readFileSync(ICON_SRC) : logoBuf;
-  const icon96 = await sharp(iconBuf).resize(96, 96, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
-  writeFileSync(join(targetDir, "openadminjs-icon.png"), icon96);
-  writeFileSync(join(targetDir, "openadminjs-icon.svg"), svgRasterImage("openadminjs-icon.png", 96, 96, "OpenAdminJS icon"));
 
   const monoPng = await sharp(logoBuf).grayscale().png().toBuffer();
-  const monoMeta = await sharp(monoPng).metadata();
-  const mw = monoMeta.width ?? lw;
-  const mh = monoMeta.height ?? lh;
   writeFileSync(join(targetDir, "openadminjs-logo-monochrome.png"), monoPng);
-  writeFileSync(join(targetDir, "openadminjs-logo-monochrome.svg"), svgRasterImage("openadminjs-logo-monochrome.png", mw, mh, "OpenAdminJS"));
 
-  const fav32 = await sharp(iconBuf).resize(32, 32, { fit: "cover" }).png().toBuffer();
-  writeFileSync(join(targetDir, "favicon.png"), fav32);
-  writeFileSync(join(targetDir, "favicon.svg"), svgRasterImage("favicon.png", 32, 32, "OpenAdminJS"));
+  const iconBuf = await extractLogoMark(logoBuf);
+  writeFileSync(join(targetDir, "openadminjs-icon-new.png"), iconBuf);
+
+  writeFileSync(join(targetDir, "favicon.svg"), svgRasterImage("openadminjs-icon-new.png", 512, 512, "OpenAdminJS"));
 
   const apple = await sharp(iconBuf).resize(180, 180, { fit: "cover" }).png().toBuffer();
   writeFileSync(join(targetDir, "apple-touch-icon.png"), apple);
@@ -83,7 +148,11 @@ async function writeBrandToDir(targetDir) {
     .png()
     .toBuffer();
   writeFileSync(join(targetDir, "og-image.png"), ogPng);
-  writeFileSync(join(targetDir, "og-image.svg"), svgRasterImage("og-image.png", ogW, ogH, "OpenAdminJS"));
+
+  for (const filename of UNUSED_BRAND_FILES) {
+    const full = join(targetDir, filename);
+    if (existsSync(full)) unlinkSync(full);
+  }
 }
 
 async function main() {

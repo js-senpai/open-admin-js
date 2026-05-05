@@ -1,6 +1,7 @@
 {
   "name": "create-openadminjs",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "bin": {
     "create-openadminjs": "dist/index.js"

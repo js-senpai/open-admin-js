@@ -43,7 +43,7 @@
           <span>Quick install</span>
           <div class="docs-code-block docs-code-block--inline" data-language="bash">
             <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-            <pre><code>npm install -g @openadminjs/cli
+            <pre><code>npm install -g openadminjs
 openadminjs create my-app</code></pre>
           </div>
         </div>
@@ -164,7 +164,7 @@ openadminjs create my-app</code></pre>
             </p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>npm install -g @openadminjs/cli
+              <pre><code>npm install -g openadminjs
 openadminjs create my-app
 cd my-app
 pnpm db:migrate
@@ -247,13 +247,13 @@ pnpm --filter @openadminjs/api build</code></pre>
 
           <section id="cli">
             <h2>CLI reference</h2>
-            <p>Install <code>@openadminjs/cli</code> globally, then use <code>openadminjs</code> (short alias may be <code>oajs</code> depending on your install).</p>
+            <p>Install <code>openadminjs</code> globally, then use <code>openadminjs</code> (short alias may be <code>oajs</code> depending on your install).</p>
 
             <h3 id="cli-create">openadminjs create</h3>
             <p>Scaffolds a monorepo with <code>apps/api</code>, <code>apps/admin</code>, <code>apps/web</code>, shared packages, Prisma schema, and automatically installs dependencies with the selected package manager.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>npm install -g @openadminjs/cli
+              <pre><code>npm install -g openadminjs
 openadminjs create              # interactive prompts
 openadminjs create my-app       # non-interactive project name</code></pre>
             </div>

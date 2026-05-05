@@ -1,5 +1,5 @@
 {
-  "name": "openadminjs",
+  "name": "openadminjs-monorepo",
   "version": "0.1.0",
   "private": true,
   "description": "Free open-source Laravel/Django-style admin framework for Node.js.",
@@ -21,7 +21,7 @@
     "brand:assets": "node packages/brand/src/generate-assets.mjs"
   },
   "devDependencies": {
-    "@openadminjs/cli": "workspace:*",
+    "openadminjs": "workspace:*",
     "@prisma/client": "^6.1.0",
     "@types/node": "^22.10.2",
     "eslint": "^9.17.0",

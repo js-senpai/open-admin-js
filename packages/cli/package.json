@@ -1,5 +1,5 @@
 {
-  "name": "@openadminjs/cli",
+  "name": "openadminjs",
   "version": "0.1.0",
   "type": "module",
   "bin": {
@@ -17,6 +17,13 @@
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node ../../scripts/make-executable.mjs dist/index.js",
     "lint": "tsc -p tsconfig.json --noEmit",
