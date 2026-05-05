@@ -28,7 +28,7 @@
     "@openadminjs/payments": "workspace:*",
     "@openadminjs/permissions": "workspace:*",
     "@openadminjs/plugin-sdk": "workspace:*",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^8.0.7",
     "stripe": "^17.7.0",
     "@prisma/client": "^6.1.0",
     "bcryptjs": "^2.4.3",
@@ -44,7 +44,7 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.8",
     "@types/bcryptjs": "^2.4.6",
-    "@types/nodemailer": "^6.4.17",
+    "@types/nodemailer": "^8.0.0",
     "prisma": "^6.1.0",
     "tsx": "4.19.2",
     "typescript": "^5.7.2",
