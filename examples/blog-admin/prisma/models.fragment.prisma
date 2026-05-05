@@ -1,0 +1,30 @@
+// Append to schema.prisma, then extend your existing `Post` model with the fields below.
+
+model Author {
+  id    String @id @default(cuid())
+  name  String
+  slug  String @unique
+  bio   String?
+  posts Post[]
+}
+
+model Tag {
+  id    String    @id @default(cuid())
+  name  String
+  slug  String    @unique
+  posts PostTag[]
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+// On model Post, add (if not present):
+//   authorId String?
+//   author   Author?   @relation(fields: [authorId], references: [id])
+//   postTags PostTag[]

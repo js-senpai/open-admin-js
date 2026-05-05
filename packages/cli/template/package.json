@@ -1,0 +1,19 @@
+{
+  "name": "__PACKAGE_NAME__",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "openadminjs dev",
+    "build": "openadminjs build",
+    "start": "openadminjs start",
+    "db:migrate": "openadminjs db migrate",
+    "db:seed": "openadminjs db seed",
+    "db:studio": "openadminjs db studio",
+    "generate": "openadminjs generate",
+    "doctor": "openadminjs doctor",
+    "security:check": "openadminjs security check"
+  },
+  "dependencies": {
+    "@openadminjs/cli": "^0.1.0"
+  }
+}

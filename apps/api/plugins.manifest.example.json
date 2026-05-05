@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "io.openadminjs.hello",
+      "enabled": true,
+      "bundled": "hello",
+      "config": { "tag": "optional-config-passed-to-plugin" }
+    },
+    {
+      "id": "com.vendor.billing",
+      "enabled": false,
+      "package": "@vendor/openadmin-billing",
+      "marketplace": {
+        "listingUrl": "https://example.com/plugins/billing",
+        "productId": "sku-123",
+        "licenseKey": "signing-key-or-token-for-future-use"
+      },
+      "config": { "currency": "EUR" }
+    }
+  ]
+}

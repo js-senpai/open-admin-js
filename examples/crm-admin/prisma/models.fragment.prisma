@@ -1,0 +1,50 @@
+// Append to schema.prisma, then migrate.
+
+model Contact {
+  id         String     @id @default(cuid())
+  email      String?
+  firstName  String
+  lastName   String?
+  phone      String?
+  companyId  String?
+  company    Company?   @relation(fields: [companyId], references: [id])
+  deals      Deal[]
+  activities Activity[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Company {
+  id        String    @id @default(cuid())
+  name      String
+  website   String?
+  contacts  Contact[]
+  deals     Deal[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Deal {
+  id         String     @id @default(cuid())
+  title      String
+  stage      String     @default("lead")
+  amount     Int        @default(0)
+  companyId  String?
+  company    Company?   @relation(fields: [companyId], references: [id])
+  contactId  String?
+  contact    Contact?   @relation(fields: [contactId], references: [id])
+  activities Activity[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  type      String
+  body      String?
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
