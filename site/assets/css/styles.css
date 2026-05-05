@@ -1111,6 +1111,46 @@ h3 {
   margin-bottom: 1.15rem;
 }
 
+.docs-search-wrap {
+  margin: 0 0.2rem 1rem;
+}
+
+.docs-search-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7a87b8;
+  margin: 0 0 0.35rem;
+}
+
+.docs-search-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(145, 167, 255, 0.25);
+  background: rgba(7, 11, 24, 0.95);
+  color: #eef2ff;
+  padding: 0.52rem 0.62rem;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.docs-search-input:focus {
+  border-color: #5d89ff;
+  box-shadow: 0 0 0 3px rgba(93, 137, 255, 0.2);
+}
+
+.docs-search-input::placeholder {
+  color: #8996c2;
+}
+
+.docs-search-meta {
+  margin: 0.4rem 0 0;
+  font-size: 0.73rem;
+  color: #8f9ac3;
+}
+
 .docs-nav-group:last-child {
   margin-bottom: 0;
 }
@@ -1160,6 +1200,10 @@ h3 {
 
 .docs-content--nest section:last-of-type {
   border-bottom: none;
+}
+
+.docs-hidden {
+  display: none !important;
 }
 
 .docs-content--nest h2 {

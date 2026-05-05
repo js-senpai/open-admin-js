@@ -57,6 +57,8 @@ function initDocsPage() {
 
   const navLinks = document.querySelectorAll(".docs-sidebar--nest a[href^='#']");
   const contentEl = document.querySelector(".docs-content--nest");
+  const searchInput = document.querySelector("[data-docs-search]");
+  const searchMeta = document.querySelector("[data-docs-search-meta]");
 
   const sectionIdForAnchor = (id) => {
     if (!id || !contentEl) return id;
@@ -117,6 +119,49 @@ function initDocsPage() {
   };
   fromHash();
   window.addEventListener("hashchange", fromHash);
+
+  if (searchInput instanceof HTMLInputElement && contentEl instanceof HTMLElement) {
+    const sections = Array.from(contentEl.querySelectorAll("section[id]"));
+
+    const updateSearch = () => {
+      const query = searchInput.value.trim().toLowerCase();
+      let visibleCount = 0;
+
+      for (const section of sections) {
+        const haystack = (section.textContent ?? "").toLowerCase();
+        const visible = !query || haystack.includes(query);
+        section.classList.toggle("docs-hidden", !visible);
+        if (visible) visibleCount += 1;
+      }
+
+      for (const link of navLinks) {
+        const href = link.getAttribute("href");
+        const targetId = href?.startsWith("#") ? href.slice(1) : "";
+        const targetSection = targetId ? contentEl.querySelector(`section[id="${targetId}"]`) : null;
+        const visible = targetSection ? !targetSection.classList.contains("docs-hidden") : true;
+        link.classList.toggle("docs-hidden", !visible);
+      }
+
+      const navGroups = document.querySelectorAll(".docs-sidebar--nest .docs-nav-group");
+      for (const group of navGroups) {
+        const hasVisibleLink = Array.from(group.querySelectorAll("a")).some((a) => !a.classList.contains("docs-hidden"));
+        group.classList.toggle("docs-hidden", !hasVisibleLink);
+      }
+
+      if (searchMeta instanceof HTMLElement) {
+        if (!query) {
+          searchMeta.textContent = "Type to filter documentation sections.";
+        } else if (visibleCount === 0) {
+          searchMeta.textContent = "No matches. Try a broader phrase.";
+        } else {
+          searchMeta.textContent = `Found ${visibleCount} matching section${visibleCount === 1 ? "" : "s"}.`;
+        }
+      }
+    };
+
+    searchInput.addEventListener("input", updateSearch);
+    updateSearch();
+  }
 }
 
 if (document.body.classList.contains("site-body--docs")) {
