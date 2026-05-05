@@ -1,0 +1,15 @@
+{
+  "name": "@openadminjs/payments",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "Payment provider abstractions for OpenAdminJS (Stripe, Mock, extensible)",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "stripe": "^17.0.0"
+  }
+}
