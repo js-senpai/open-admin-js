@@ -1,0 +1,33 @@
+{
+  "name": "openadminjs",
+  "version": "0.1.0",
+  "description": "Resource-driven admin platform for Node.js teams.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin dev",
+    "site:check": "node scripts/check-static-site.mjs",
+    "build": "pnpm -r build",
+    "start": "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin start",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @openadminjs/admin exec vitest run lib/auth-flow.e2e.test.ts && node scripts/e2e-smoke.mjs",
+    "doctor": "node packages/cli/dist/index.js doctor",
+    "security:check": "node packages/cli/dist/index.js security check",
+    "db:migrate": "pnpm --filter @openadminjs/api db:migrate",
+    "db:seed": "pnpm --filter @openadminjs/api db:seed",
+    "brand:assets": "node packages/brand/src/generate-assets.mjs"
+  },
+  "devDependencies": {
+    "openadminjs": "workspace:*",
+    "@prisma/client": "^6.1.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

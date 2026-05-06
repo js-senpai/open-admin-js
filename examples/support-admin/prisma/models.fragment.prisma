@@ -1,0 +1,20 @@
+// Append to schema.prisma, then migrate.
+
+model Ticket {
+  id         String          @id @default(cuid())
+  subject    String
+  status     String          @default("open")
+  priority   String          @default("normal")
+  messages   TicketMessage[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  body      String
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

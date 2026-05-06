@@ -1,0 +1,17 @@
+{
+  "name": "@openadminjs/example-crm",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Reference code: contacts, companies, deals, activities for a sales CRM slice.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@openadminjs/core": "workspace:*",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
