@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenAdminJS - Premium Admin Platform</title>
+    <meta name="description" content="OpenAdminJS helps teams launch premium admin panels, scalable APIs and SEO-ready web experiences from one resource model." />
+    <meta property="og:title" content="OpenAdminJS" />
+    <meta property="og:description" content="A modern open-source admin platform for teams that need speed, control and strong conversion UX." />
+    <meta property="og:image" content="./assets/brand/og-image.png" />
+    <link rel="icon" href="./assets/brand/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./assets/brand/openadminjs-icon-new.png" type="image/png" sizes="32x32" />
+    <link rel="stylesheet" href="./assets/css/styles.css" />
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true"></div>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="./index.html" aria-label="OpenAdminJS home">
+          <img src="./assets/brand/openadminjs-logo-new.png" alt="OpenAdminJS" />
+        </a>
+        <nav class="nav" aria-label="Main navigation">
+          <a href="#features">Features</a>
+          <a href="#demos">Demos</a>
+          <a href="#examples">Examples</a>
+          <a href="#apps">Modules</a>
+          <a href="#partners">Partners</a>
+          <a href="#faq">FAQ</a>
+          <a href="./docs.html">Docs</a>
+          <a class="nav-cta" href="https://github.com/" rel="noreferrer">Start now</a>
+        </nav>
+        <button class="menu-button" type="button" aria-label="Open menu" data-menu-button>Menu</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-content reveal-on-scroll">
+          <p class="eyebrow hero-eyebrow">Open-source admin platform for growth teams</p>
+          <h1>Launch a modern back-office that feels premium and sells your product.</h1>
+          <p class="hero-lead">
+            OpenAdminJS gives you a complete resource-driven stack: polished admin UI, secure API, and public web capabilities
+            with SEO automation. Build faster, look better, and keep full control.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="./docs.html">Build your first app</a>
+            <a class="button secondary" href="#examples">Browse examples</a>
+          </div>
+          <ul class="hero-checklist">
+            <li>Enterprise-style UI architecture out of the box</li>
+            <li>RBAC, audit logs, tokens, files and SEO flows included</li>
+            <li>Customizable open-core foundation without lock-in</li>
+          </ul>
+          <div class="command-chip command-chip-glow">
+            <span>Quick start</span>
+            <code>npm i -g openadminjs && openadminjs create</code>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal-on-scroll reveal-delay-1" aria-label="OpenAdminJS admin preview">
+          <div class="visual-shell visual-float">
+            <div class="visual-head">
+              <span></span><span></span><span></span>
+              <strong>Growth workspace</strong>
+            </div>
+            <div class="visual-body">
+              <aside class="visual-side">
+                <a class="active">Overview</a>
+                <a>Revenue</a>
+                <a>Leads</a>
+                <a>Content</a>
+                <a>Automation</a>
+                <a>Settings</a>
+              </aside>
+              <section class="visual-main">
+                <div class="visual-metrics">
+                  <article class="metric-pop"><small>MRR</small><strong>$128k</strong><em>+24%</em></article>
+                  <article class="metric-pop metric-pop-delay"><small>Leads</small><strong>4.2k</strong><em>+31%</em></article>
+                  <article class="metric-pop metric-pop-delay-2"><small>Orders</small><strong>1.9k</strong><em>+17%</em></article>
+                </div>
+                <div class="visual-panels">
+                  <article class="chart-panel">
+                    <small>Conversion trend</small>
+                    <div class="bars"><b></b><b></b><b></b><b></b><b></b><b></b></div>
+                  </article>
+                  <article class="score-panel score-pulse">
+                    <small>Health score</small>
+                    <div>96</div>
+                    <span>Campaigns, SEO and forms aligned</span>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="proof-rail reveal-on-scroll" aria-label="Who OpenAdminJS is for">
+        <p>Designed for SaaS, marketplaces, agencies and product teams shipping conversion-focused internal tools.</p>
+        <div class="proof-tags">
+          <span>SaaS Ops</span>
+          <span>Marketplace</span>
+          <span>B2B CRM</span>
+          <span>Headless CMS</span>
+          <span>Enterprise back office</span>
+        </div>
+      </section>
+
+      <section class="section value-section reveal-on-scroll" id="features">
+        <div class="section-heading centered">
+          <p class="eyebrow">Why teams choose OpenAdminJS</p>
+          <h2>Premium design language + engineering speed in one framework.</h2>
+        </div>
+        <div class="value-grid">
+          <article class="lift-card"><h3>Faster launch</h3><p>Ship your first production-ready admin stack in days instead of months of custom screen building.</p></article>
+          <article class="lift-card"><h3>Stronger trust</h3><p>Modern UI structure, visual hierarchy and clear actions increase confidence for internal and external stakeholders.</p></article>
+          <article class="lift-card"><h3>Lower risk</h3><p>Secure defaults, permissions, auditability and typed resource configuration reduce costly mistakes.</p></article>
+        </div>
+      </section>
+
+      <section class="section architecture-section reveal-on-scroll" id="demos">
+        <div class="section-heading">
+          <p class="eyebrow">One model, three surfaces</p>
+          <h2>Define resources once and power API, Admin and Public Web together.</h2>
+          <p>No duplicated business logic, no fragmented tooling, and no compromise on UX quality. Build internal frontend modules and customer-facing pages from the same backend contracts.</p>
+        </div>
+        <div class="architecture-grid">
+          <article class="lift-card">
+            <span>API Core</span>
+            <h3>Secure backend engine</h3>
+            <p>Prisma + Nest.js + RBAC + audit flows for predictable operations and scaling.</p>
+          </article>
+          <article class="lift-card">
+            <span>Admin UI</span>
+            <h3>Operational command center</h3>
+            <p>Searchable resources, robust forms, table filters and workflow actions for teams.</p>
+          </article>
+          <article class="lift-card">
+            <span>Public Web</span>
+            <h3>SEO-ready growth surface</h3>
+            <p>Canonical metadata, sitemap, robots and customizable public presentation from shared resources.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section examples-section reveal-on-scroll" id="examples">
+        <div class="section-heading centered">
+          <p class="eyebrow">Starter blueprints</p>
+          <h2>Real patterns you can lift into your next admin product.</h2>
+          <p class="examples-lead">
+            Each example ships Prisma fragments and <code>defineResource</code> modules in the monorepo—copy, adapt, and ship.
+          </p>
+        </div>
+        <div class="examples-grid">
+          <article class="example-card">
+            <span class="example-tag">Minimal</span>
+            <h3>Basic admin</h3>
+            <p>Leads, users, roles, posts and audit-ready defaults for a clean internal launch.</p>
+            <ul class="example-meta">
+              <li>Lead capture</li>
+              <li>RBAC-ready</li>
+            </ul>
+          </article>
+          <article class="example-card">
+            <span class="example-tag">Editorial</span>
+            <h3>Blog &amp; CMS</h3>
+            <p>Authors, tags, publishing states and SEO-friendly content flows.</p>
+            <ul class="example-meta">
+              <li>Authors / tags</li>
+              <li>Slug pipeline</li>
+            </ul>
+          </article>
+          <article class="example-card">
+            <span class="example-tag">Revenue</span>
+            <h3>CRM slice</h3>
+            <p>Contacts, companies, deals and activities for B2B sales teams.</p>
+            <ul class="example-meta">
+              <li>Pipelines</li>
+              <li>Ownership</li>
+            </ul>
+          </article>
+          <article class="example-card">
+            <span class="example-tag">Commerce</span>
+            <h3>E-commerce</h3>
+            <p>Products, orders, line items and customers for catalog operations.</p>
+            <ul class="example-meta">
+              <li>Inventory</li>
+              <li>Order desk</li>
+            </ul>
+          </article>
+          <article class="example-card">
+            <span class="example-tag">Two-sided</span>
+            <h3>Marketplace</h3>
+            <p>Sellers, listings and payouts tuned for trust &amp; safety workflows.</p>
+            <ul class="example-meta">
+              <li>Payout batches</li>
+              <li>Moderation</li>
+            </ul>
+          </article>
+          <article class="example-card">
+            <span class="example-tag">Operations</span>
+            <h3>Support desk</h3>
+            <p>Tickets, priorities, internal notes and SLA-friendly messaging.</p>
+            <ul class="example-meta">
+              <li>Queues</li>
+              <li>Macros-ready</li>
+            </ul>
+          </article>
+        </div>
+        <div class="examples-cta">
+          <a class="button primary" href="./docs.html">Follow the merge guide</a>
+          <span class="examples-hint">See <code>examples/</code> in the repository for source.</span>
+        </div>
+      </section>
+
+      <section class="section modules-section reveal-on-scroll" id="apps">
+        <div class="section-heading centered">
+          <p class="eyebrow">Revenue-ready modules</p>
+          <h2>Everything needed to run and grow serious digital products.</h2>
+        </div>
+        <div class="module-grid">
+          <article class="lift-card"><span>CMS</span><h3>Content workflows</h3><p>Posts, pages, states, slugs and editorial controls.</p></article>
+          <article class="lift-card"><span>CRM</span><h3>Customer data</h3><p>Contacts, lifecycle pipelines, ownership and relationship context.</p></article>
+          <article class="lift-card"><span>FILES</span><h3>Asset management</h3><p>Secure uploads, media fields and storage integrations.</p></article>
+          <article class="lift-card"><span>SECURITY</span><h3>Audit and policies</h3><p>Permission boundaries, action logs and compliance-oriented visibility.</p></article>
+          <article class="lift-card"><span>SEO</span><h3>Publishing layer</h3><p>Metadata controls, indexing routes and search-friendly output.</p></article>
+          <article class="lift-card"><span>DX</span><h3>CLI generators</h3><p>Repeatable project bootstrapping for teams and agencies.</p></article>
+        </div>
+      </section>
+
+      <section class="section partners-section reveal-on-scroll" id="partners">
+        <div class="section-heading centered">
+          <p class="eyebrow">Community powered</p>
+          <h2>Partners &amp; supporters keep OpenAdminJS free for everyone.</h2>
+          <p class="partners-lead">
+            OpenAdminJS is <strong>free and open source</strong>. There is no paid tier on this site—organizations and individuals can
+            sponsor design, docs, hosting or engineering time. Want your logo here? Open a discussion on GitHub or email the maintainers.
+            If you want to become a partner, write to <a href="mailto:openadminjs@proton.me">openadminjs@proton.me</a>.
+          </p>
+        </div>
+
+        <div class="partner-logos" aria-label="Community partners">
+          <div class="partner-logos-grid">
+            <a class="partner-logo" href="https://github.com/" rel="noreferrer" aria-label="Nebula Systems (example)">
+              <img src="./assets/partners/nebula.svg" width="160" height="56" alt="" loading="lazy" decoding="async" />
+            </a>
+            <a class="partner-logo" href="https://github.com/" rel="noreferrer" aria-label="Arcbyte (example)">
+              <img src="./assets/partners/arcbyte.svg" width="160" height="56" alt="" loading="lazy" decoding="async" />
+            </a>
+            <a class="partner-logo" href="https://github.com/" rel="noreferrer" aria-label="Vertex Labs (example)">
+              <img src="./assets/partners/vertex.svg" width="160" height="56" alt="" loading="lazy" decoding="async" />
+            </a>
+            <a class="partner-logo" href="https://github.com/" rel="noreferrer" aria-label="Gridstack (example)">
+              <img src="./assets/partners/gridstack.svg" width="160" height="56" alt="" loading="lazy" decoding="async" />
+            </a>
+            <a class="partner-logo" href="https://github.com/" rel="noreferrer" aria-label="Orbitlab (example)">
+              <img src="./assets/partners/orbitlab.svg" width="160" height="56" alt="" loading="lazy" decoding="async" />
+            </a>
+            <a class="partner-logo" href="https://github.com/" rel="noreferrer" aria-label="Pulseforge (example)">
+              <img src="./assets/partners/pulseforge.svg" width="160" height="56" alt="" loading="lazy" decoding="async" />
+            </a>
+          </div>
+        </div>
+
+        <div class="crypto-panel">
+          <div class="wallet-grid">
+            <div class="wallet-card" data-wallet>
+              <span class="wallet-label">Bitcoin (SegWit)</span>
+              <code class="wallet-address" tabindex="0">bc1qpcc4hd7w82jjvsdhvx6hgu2kfuz8jgfuvxurd7</code>
+              <button type="button" class="wallet-copy" data-copy>Copy</button>
+            </div>
+            <div class="wallet-card" data-wallet>
+              <span class="wallet-label">Ethereum (ETH)</span>
+              <code class="wallet-address" tabindex="0">0xe5ac19c6f1f5070a7c713973fd25ee02eaf9eb48</code>
+              <button type="button" class="wallet-copy" data-copy>Copy</button>
+            </div>
+            <div class="wallet-card" data-wallet>
+              <span class="wallet-label">USDC (ERC-20)</span>
+              <code class="wallet-address" tabindex="0">0xe5ac19c6f1f5070a7c713973fd25ee02eaf9eb48</code>
+              <button type="button" class="wallet-copy" data-copy>Copy</button>
+            </div>
+            <div class="wallet-card" data-wallet>
+              <span class="wallet-label">USDT (TRC-20)</span>
+              <code class="wallet-address" tabindex="0">TWyzMehesWqJS7qs5LYL4QGmgTpohNy3gf</code>
+              <button type="button" class="wallet-copy" data-copy>Copy</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section testimonials-section reveal-on-scroll">
+        <div class="section-heading centered">
+          <p class="eyebrow">Results</p>
+          <h2>Teams report faster delivery and higher operational confidence.</h2>
+        </div>
+        <div class="testimonial-grid">
+          <article class="lift-card">
+            <p>“We replaced disconnected admin scripts with one clean platform and launched in 10 days.”</p>
+            <strong>Head of Product, B2B SaaS</strong>
+          </article>
+          <article class="lift-card">
+            <p>“The UI now looks enterprise-level. Sales and ops finally trust the tooling they use daily.”</p>
+            <strong>CTO, Marketplace startup</strong>
+          </article>
+          <article class="lift-card">
+            <p>“OpenAdminJS let us focus on business logic while still shipping a premium interface.”</p>
+            <strong>Engineering Lead, Digital agency</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="section faq-section reveal-on-scroll" id="faq">
+        <div class="section-heading centered">
+          <p class="eyebrow">FAQ</p>
+          <h2>Answers before you commit.</h2>
+        </div>
+        <div class="faq-list">
+          <details open>
+            <summary>Can we adapt the interface to our own brand?</summary>
+            <p>Yes. The generated surfaces are extensible and can be aligned with your visual tokens, components and workflows.</p>
+          </details>
+          <details>
+            <summary>Is OpenAdminJS only for internal tools?</summary>
+            <p>No. You can build both operational admin interfaces and public-facing web pages from shared resource metadata.</p>
+          </details>
+          <details>
+            <summary>How quickly can we launch an MVP?</summary>
+            <p>Most teams can stand up a production-grade foundation in days, then iterate on product-specific behavior.</p>
+          </details>
+          <details>
+            <summary>Do we keep full code ownership?</summary>
+            <p>Absolutely. OpenAdminJS is open core and designed to avoid lock-in while still providing fast implementation paths.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="section final-cta-section reveal-on-scroll">
+        <div class="final-cta-card final-cta-glow">
+          <p class="eyebrow">Ready to move</p>
+          <h2>Build a unique, modern and conversion-ready admin product.</h2>
+          <p>Use OpenAdminJS to ship faster without sacrificing quality, scalability or brand identity.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="./docs.html">Read docs</a>
+            <a class="button secondary" href="https://github.com/" rel="noreferrer">View repository</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>© OpenAdminJS</span>
+      <a href="./docs.html">Documentation</a>
+    </footer>
+
+    <script src="./assets/js/main.js"></script>
+  </body>
+</html>

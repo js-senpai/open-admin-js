@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenAdminJS — Documentation</title>
+    <meta name="description" content="OpenAdminJS documentation: CLI, Prisma, defineResource, i18n, RBAC blueprints, REST API, admin, web, SEO, security, deployment, and product roadmap—with copyable examples." />
+    <link rel="icon" href="./assets/brand/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./assets/brand/openadminjs-icon-new.png" type="image/png" sizes="32x32" />
+    <link rel="stylesheet" href="./assets/css/styles.css" />
+  </head>
+  <body class="site-body site-body--docs">
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="./index.html" aria-label="OpenAdminJS home">
+          <img src="./assets/brand/openadminjs-logo-new.png" alt="OpenAdminJS" />
+        </a>
+        <nav class="nav" aria-label="Main navigation">
+          <a href="./index.html#features">Features</a>
+          <a href="./index.html#demos">Demos</a>
+          <a href="./index.html#examples">Examples</a>
+          <a href="./index.html#apps">Modules</a>
+          <a href="./index.html#partners">Partners</a>
+          <a href="./index.html#faq">FAQ</a>
+          <a href="./docs.html" aria-current="page">Docs</a>
+          <a class="nav-cta" href="./index.html">Back to site</a>
+        </nav>
+        <button class="menu-button" type="button" aria-label="Open menu" data-menu-button>Menu</button>
+      </div>
+    </header>
+
+    <main class="docs-page docs-page--nest">
+      <section class="docs-hero docs-hero--wide">
+        <div>
+          <p class="eyebrow">Documentation</p>
+          <h1>OpenAdminJS developer guide</h1>
+          <p class="hero-lead">
+            Same mental model as the Nest.js docs: start with installation, learn the fundamentals (resources, permissions, API),
+            then ship admin, web and production deployments. Every command block includes a one-click copy control.
+          </p>
+        </div>
+        <div class="docs-hero-card">
+          <span>Quick install</span>
+          <div class="docs-code-block docs-code-block--inline" data-language="bash">
+            <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+            <pre><code>npm install -g openadminjs
+openadminjs create my-app</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <div class="docs-layout">
+        <aside class="docs-sidebar docs-sidebar--nest" aria-label="Documentation sections">
+          <div class="docs-search-wrap">
+            <label class="docs-search-label" for="docs-search-input">Search docs</label>
+            <input
+              id="docs-search-input"
+              class="docs-search-input"
+              type="search"
+              placeholder="Search sections, commands, APIs..."
+              data-docs-search
+              autocomplete="off"
+            />
+            <p class="docs-search-meta" data-docs-search-meta>Type to filter documentation sections.</p>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">First steps</span>
+            <a href="#overview">Overview</a>
+            <a href="#installation">Installation</a>
+            <a href="#structure">Project structure</a>
+            <a href="#configuration">Configuration</a>
+            <a href="#dev-scripts">Workspace scripts</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">CLI</span>
+            <a href="#cli">CLI reference</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Data</span>
+            <a href="#prisma-workflow">Prisma &amp; migrations</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Core</span>
+            <a href="#resources">Resources</a>
+            <a href="#registry">Registry</a>
+            <a href="#resource-actions">Resource actions</a>
+            <a href="#fields">Fields</a>
+            <a href="#permissions">Permissions</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">HTTP API</span>
+            <a href="#api-auth">Authentication</a>
+            <a href="#api-overview">Admin REST surface</a>
+            <a href="#api-crud">CRUD &amp; bodies</a>
+            <a href="#api-queries">Queries &amp; filters</a>
+            <a href="#api-actions">Custom actions</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Applications</span>
+            <a href="#admin">Admin UI</a>
+            <a href="#admin-navigation">Admin navigation model</a>
+            <a href="#admin-forms">Admin forms &amp; field rendering</a>
+            <a href="#admin-operations">Admin operations &amp; diagnostics</a>
+            <a href="#ai-assistant">AI assistant</a>
+            <a href="#ai-streaming">AI streaming events</a>
+            <a href="#ai-workflows">AI workflows &amp; rollback</a>
+            <a href="#web">Web layer</a>
+            <a href="#seo">SEO helpers</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">i18n</span>
+            <a href="#i18n">Internationalization</a>
+            <a href="#i18n-resource">Resource translations</a>
+            <a href="#i18n-adding">Adding a new locale</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Plugins &amp; hooks</span>
+            <a href="#plugins">Plugin system</a>
+            <a href="#hooks">Resource hooks</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Testing</span>
+            <a href="#testing">Testing guide</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Theming</span>
+            <a href="#theming">Theming &amp; dark mode</a>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-heading">Production</span>
+            <a href="#security">Security</a>
+            <a href="#troubleshooting">Troubleshooting</a>
+            <a href="#deployment">Deployment</a>
+            <a href="#feature-reference">Complete functionality reference</a>
+            <a href="#community">Partners &amp; support</a>
+            <a href="#roadmap">Roadmap &amp; next steps</a>
+          </div>
+        </aside>
+
+        <article class="docs-content docs-content--nest">
+          <section id="overview">
+            <h2>Overview</h2>
+            <p>
+              OpenAdminJS is a resource-first stack for internal tools, CRMs, CMS dashboards and SaaS back offices. You describe your domain
+              with <strong>Prisma</strong> and <strong>resource metadata</strong>; the platform wires CRUD, permissions, audit trails and UI chrome around those
+              definitions—similar to how Nest.js modules declare providers and routes once, then compose across the runtime.
+            </p>
+            <div class="docs-callout">
+              <strong>Core idea:</strong> one <code>defineResource</code> contract powers the API layer, the generated admin experience and optional public web routes.
+            </div>
+            <h3>When to choose OpenAdminJS</h3>
+            <ul class="docs-list">
+              <li>You want Laravel / Django-style admin ergonomics on a Node.js + TypeScript stack.</li>
+              <li>You need RBAC, audit logs and file handling without rebuilding them for every resource.</li>
+              <li>You plan to expose some resources publicly (SEO, marketing pages) from the same models.</li>
+            </ul>
+          </section>
+
+          <section id="installation">
+            <h2>Installation</h2>
+            <p>
+              Prerequisites: <strong>Node.js 20+</strong>, <strong>pnpm</strong> (recommended) or npm/yarn, and the OpenAdminJS CLI.
+              The flow mirrors a typical Nest.js workspace bootstrap: scaffold, migrate, seed, run. Dependency installation happens automatically when the project is created.
+            </p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>npm install -g openadminjs
+openadminjs create my-app
+cd my-app
+pnpm db:migrate
+pnpm db:seed
+pnpm dev</code></pre>
+            </div>
+            <p>Default local URLs after <code>pnpm dev</code>:</p>
+            <div class="docs-grid docs-grid--urls">
+              <div><strong>Admin</strong><span>http://localhost:3000</span></div>
+              <div><strong>Web</strong><span>http://localhost:3001</span></div>
+              <div><strong>API</strong><span>http://localhost:4000</span></div>
+              <div><strong>OpenAPI</strong><span>http://localhost:4000/api/docs</span></div>
+            </div>
+          </section>
+
+          <section id="structure">
+            <h2>Project structure</h2>
+            <p>
+              Generated monorepos follow a predictable layout so you can jump between API, admin and web the same way you navigate modules in Nest.js.
+            </p>
+            <div class="docs-code-block" data-language="text">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">text</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>apps/
+  api/          Nest.js API — auth, CRUD, files, audit, queues
+  admin/        Next.js admin UI generated from resources
+  web/          Next.js public site, SEO routes, marketing pages
+
+packages/
+  core/         defineResource, shared types
+  resource/     validation &amp; field helpers
+  permissions/  can(), requirePermission()
+  auth/         session contracts
+  storage/      file driver interfaces
+  notifications/, mail/, queue/
+
+prisma/
+  schema.prisma
+  seed.ts</code></pre>
+            </div>
+          </section>
+
+          <section id="configuration">
+            <h2>Configuration</h2>
+            <p>
+              Copy <code>.env.example</code> to <code>.env</code> at the repo root. Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
+              <code>NEXT_PUBLIC_*</code> variables—treat secrets like you would in a Nest <code>ConfigModule</code> setup.
+            </p>
+            <div class="docs-code-block" data-language="env">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">.env</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>DATABASE_URL="postgresql://user:pass@localhost:5432/openadminjs"
+JWT_SECRET="change-me-use-long-random-string"
+NEXT_PUBLIC_API_URL="http://localhost:4000"
+NEXT_PUBLIC_SITE_URL="http://localhost:3001"</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>JWT_SECRET</strong> must be unique per environment; rotate if leaked.</li>
+              <li><strong>NEXT_PUBLIC_*</strong> is embedded in browser bundles—never place private keys there.</li>
+            </ul>
+          </section>
+
+          <section id="dev-scripts">
+            <h2>Workspace scripts</h2>
+            <p>
+              Generated apps use <code>pnpm</code> filters so you run database work against the API package and dev servers in parallel—same idea as <code>nx run-many</code> or Nest
+              workspaces.
+            </p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>pnpm dev                 # API + admin + web (see root package.json)
+pnpm db:migrate          # prisma migrate dev (API context)
+pnpm db:seed             # seed demo roles / users / data
+pnpm test                # all workspace tests
+pnpm --filter @openadminjs/api build</code></pre>
+            </div>
+            <p>
+              The global CLI also prints equivalent commands for <code>openadminjs db migrate</code>, <code>db seed</code>, and <code>db studio</code>; those are thin wrappers that remind you which
+              <code>pnpm</code> filter to use.
+            </p>
+          </section>
+
+          <section id="cli">
+            <h2>CLI reference</h2>
+            <p>Install <code>openadminjs</code> globally, then use <code>openadminjs</code> (short alias may be <code>oajs</code> depending on your install).</p>
+
+            <h3 id="cli-create">openadminjs create</h3>
+            <p>Scaffolds a monorepo with <code>apps/api</code>, <code>apps/admin</code>, <code>apps/web</code>, shared packages, Prisma schema, and automatically installs dependencies with the selected package manager.</p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>npm install -g openadminjs
+openadminjs create              # interactive prompts
+openadminjs create my-app       # non-interactive project name</code></pre>
+            </div>
+
+            <h3 id="cli-generate-resource">generate resource / make resource</h3>
+            <p>Emits a starter <code>*.resource.ts</code> next to your other resources. Model name is PascalCase (Prisma model); the file uses <code>defineResource</code> with kebab-case <code>name</code> and permission keys.</p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>openadminjs generate resource Invoice --force
+openadminjs make resource Invoice   # alias</code></pre>
+            </div>
+            <p>Always register the new file in <code>registry.ts</code>, extend Prisma if needed, then migrate.</p>
+
+            <h3 id="cli-doctor">doctor</h3>
+            <p>Runs quick health checks (env files, Prisma generate, lockfile) so CI or onboarding catches misconfiguration early.</p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>openadminjs doctor</code></pre>
+            </div>
+
+            <h3 id="cli-db">db migrate | seed | studio</h3>
+            <p>These commands print the exact <code>pnpm</code> / Prisma invocations to run from your project root so you do not guess package names.</p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>openadminjs db migrate
+openadminjs db seed
+openadminjs db studio</code></pre>
+            </div>
+          </section>
+
+          <section id="prisma-workflow">
+            <h2>Prisma &amp; migrations</h2>
+            <p>Edit <code>prisma/schema.prisma</code> (or fragment files merged into it), then apply migrations from the workspace root. Regenerate the client after every schema pull or merge.</p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code># after editing models
+pnpm db:migrate
+pnpm prisma generate
+
+# optional: open GUI
+pnpm --filter @openadminjs/api exec prisma studio</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li>Keep Prisma model names aligned with <code>model</code> on each resource (<code>model: "invoice"</code> → Prisma model <code>Invoice</code> maps to delegate <code>invoice</code>).</li>
+              <li>Example repos under <code>examples/</code> show <code>models.fragment.prisma</code> merged into a full schema—use the same pattern for modular schemas.</li>
+            </ul>
+          </section>
+
+          <section id="resources">
+            <h2>Resources</h2>
+            <p>
+              A resource maps a Prisma model to admin/API behavior: labels, fields, permissions, optional actions and visibility flags.
+              Resource names use <strong>kebab-case</strong> (<code>order-items</code>); Prisma model names stay <strong>camelCase</strong> in the <code>model</code> field (<code>orderItem</code>).
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>import { defineResource } from "@openadminjs/core";
+
+export default defineResource({
+  name: "posts",
+  label: "Posts",
+  model: "post",
+  titleField: "title",
+  icon: "FileText",
+  permissions: {
+    read: "posts.read",
+    create: "posts.create",
+    update: "posts.update",
+    delete: "posts.delete"
+  },
+  fields: {
+    id: { type: "id", label: "ID", create: false, edit: false, list: false },
+    title: { type: "text", label: "Title", required: true, searchable: true, sortable: true },
+    slug: { type: "slug", label: "Slug", from: "title", searchable: true },
+    status: {
+      type: "select",
+      label: "Status",
+      options: ["draft", "published", "archived"],
+      filterable: true,
+      sortable: true
+    },
+    content: { type: "richtext", label: "Body", list: false },
+    createdAt: { type: "datetime", label: "Created", create: false, edit: false, sortable: true }
+  }
+});</code></pre>
+            </div>
+          </section>
+
+          <section id="registry">
+            <h2>Registry &amp; Prisma</h2>
+            <p>
+              Register every resource in <code>apps/api/src/resources/registry.ts</code> (the same pattern as collecting Nest providers in a module).
+              After changing resources or Prisma models, run migrations so delegates stay in sync.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>import type { ResourceConfig } from "@openadminjs/core";
+import posts from "./posts.resource";
+
+export const resources = [posts] satisfies ResourceConfig[];
+
+export function getResource(name: string): ResourceConfig | undefined {
+  return resources.find((r) => r.name === name);
+}</code></pre>
+            </div>
+          </section>
+
+          <section id="resource-actions">
+            <h2>Resource actions</h2>
+            <p>
+              Beyond CRUD, attach named actions with labels, optional confirmation, variant styling, and a permission string. Handlers receive Prisma, the current user, and optional input—use them for transitions that should not be a raw PATCH (publish, archive, refund, rotate key).
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>export default defineResource({
+  name: "posts",
+  label: "Posts",
+  model: "post",
+  titleField: "title",
+  permissions: {
+    read: "posts.read",
+    create: "posts.create",
+    update: "posts.update",
+    delete: "posts.delete",
+    publish: "posts.publish"
+  },
+  fields: { /* ... */ },
+  actions: {
+    publish: {
+      label: "Publish",
+      variant: "primary",
+      confirm: true,
+      permission: "posts.publish",
+      async handler({ id, prisma, user }) {
+        // await prisma.post.update({ where: { id }, data: { status: "published" } });
+        return { ok: true, by: user.email };
+      }
+    }
+  }
+});</code></pre>
+            </div>
+            <p>Expose actions through the admin API (see <a href="#api-actions">Custom actions</a>) and render them in the admin UI when the user has the required permission.</p>
+          </section>
+
+          <section id="fields">
+            <h2>Fields</h2>
+            <p>
+              Each entry in <code>fields</code> is a <code>ResourceField</code>: a <code>type</code> plus optional flags (<code>list</code>, <code>create</code>, <code>edit</code>, <code>detail</code>, <code>searchable</code>, <code>sortable</code>, <code>filterable</code>).
+              Types are validated at build time through <code>defineResource</code>.
+            </p>
+            <div class="docs-callout">
+              <strong>Sensitive columns:</strong> <code>defineResource</code> applies <code>withSafeFields</code>—fields whose names match token/password patterns or use <code>password</code>/<code>hidden</code> types are stripped from list/detail unless you explicitly override with care.
+            </div>
+
+            <h3 id="field-identity-scalars">id, text, textarea, number, boolean</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>id: { type: "id", label: "ID", create: false, edit: false, list: true },
+title: { type: "text", label: "Title", required: true, searchable: true, sortable: true },
+notes: { type: "textarea", label: "Notes", list: false },
+priceCents: { type: "number", label: "Price (¢)", sortable: true },
+featured: { type: "boolean", label: "Featured", filterable: true }</code></pre>
+            </div>
+
+            <h3 id="field-email-url-slug">email, url, slug</h3>
+            <p><code>slug</code> can derive from another field via <code>from</code> for auto-slugging in forms.</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>contactEmail: { type: "email", label: "Contact", searchable: true },
+website: { type: "url", label: "Website" },
+slug: { type: "slug", label: "Slug", from: "title", searchable: true }</code></pre>
+            </div>
+
+            <h3 id="field-password-money-color">password, money, color, badge</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>password: { type: "password", label: "Password", create: true, edit: true, list: false },
+amount: { type: "money", label: "Amount", sortable: true },
+theme: { type: "color", label: "Accent" },
+status: { type: "badge", label: "Status", options: ["open", "closed"] }</code></pre>
+            </div>
+
+            <h3 id="field-select-multi">select &amp; multiselect</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>status: {
+  type: "select",
+  label: "Status",
+  options: ["draft", "published", "archived"],
+  filterable: true,
+  sortable: true
+},
+tags: {
+  type: "multiselect",
+  label: "Tags",
+  options: ["news", "product", "changelog"],
+  filterable: true
+}</code></pre>
+            </div>
+
+            <h3 id="field-date-time">date &amp; datetime</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>publishDay: { type: "date", label: "Publish date", sortable: true },
+createdAt: { type: "datetime", label: "Created", create: false, edit: false, sortable: true }</code></pre>
+            </div>
+
+            <h3 id="field-relation-files">relation, image, file</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>categoryId: {
+  type: "relation",
+  label: "Category",
+  resource: "categories",
+  displayField: "name",
+  filterable: true
+},
+coverUrl: { type: "image", label: "Cover", list: true },
+attachment: { type: "file", label: "PDF", list: false }</code></pre>
+            </div>
+
+            <h3 id="field-richtext-json">richtext &amp; json</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>body: { type: "richtext", label: "Body", list: false },
+metadata: { type: "json", label: "Metadata", list: false }</code></pre>
+            </div>
+
+            <h3 id="field-markdown-code">markdown &amp; code</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>readme: { type: "markdown", label: "README", list: false },
+snippet: { type: "code", label: "Snippet", list: false }</code></pre>
+            </div>
+
+            <h3 id="field-hidden-computed">hidden &amp; computed</h3>
+            <p>Use <code>hidden</code> for internal keys; <code>computed</code> for derived display columns that may be filled server-side.</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>legacyId: { type: "hidden", label: "Legacy", list: false, create: false },
+fullName: { type: "computed", label: "Full name", list: true, create: false, edit: false }</code></pre>
+            </div>
+
+            <h3 id="field-permissions-defaults">Field-level permissions &amp; defaults</h3>
+            <p>Optional <code>permissions.read | create | update</code> on a field gate that column independently of the resource-level permission map. <code>defaultValue</code> seeds create forms.</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>internalScore: {
+  type: "number",
+  label: "Score",
+  permissions: { read: "posts.score.read", update: "posts.score.write" }
+},
+locale: { type: "select", label: "Locale", options: ["en", "de"], defaultValue: "en" }</code></pre>
+            </div>
+          </section>
+
+          <section id="permissions">
+            <h2>Permissions</h2>
+            <p>
+              Permissions are plain strings, conventionally <code>resource.action</code> for CRUD (<code>posts.read</code>) plus any custom verbs you add on actions (<code>posts.publish</code>).
+              Store them in your database, attach to roles, and issue JWTs (or session payloads) that include the flattened list of strings for the signed-in user.
+            </p>
+
+            <h3 id="permissions-resource-map">Resource permission map</h3>
+            <p>Every resource must define at least <code>read</code>; <code>create</code>, <code>update</code>, and <code>delete</code> gate the matching HTTP verbs. Extra keys align with <code>actions</code> entries.</p>
+
+            <h3 id="permissions-runtime">Runtime helpers</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>import { can, requirePermission } from "@openadminjs/permissions";
+
+const userPerms = ["posts.read", "posts.update"];
+
+can(userPerms, "posts.read"); // true
+requirePermission(userPerms, "posts.delete"); // throws ForbiddenError</code></pre>
+            </div>
+
+            <h3 id="permissions-visible-fields">visibleFields()</h3>
+            <p>
+              Use <code>visibleFields(resource, mode, userPerms)</code> from <code>@openadminjs/core</code> (re-exported from <code>@openadminjs/resource</code>) when shaping payloads: it removes sensitive columns and honors per-field <code>permissions</code> for list/create/edit/detail modes.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>import { visibleFields } from "@openadminjs/core";
+
+const fields = visibleFields(postsResource, "list", user.permissions);</code></pre>
+            </div>
+
+            <h3 id="permissions-seed">Seeding example</h3>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>// prisma/seed.ts (illustrative)
+await prisma.role.create({
+  data: {
+    name: "Editor",
+    permissions: {
+      connect: [
+        { key: "posts.read" },
+        { key: "posts.update" },
+        { key: "posts.publish" }
+      ]
+    }
+  }
+});</code></pre>
+            </div>
+          </section>
+
+          <section id="api-auth">
+            <h2>Authentication</h2>
+            <p>
+              The admin API expects a bearer token minted after email/password (or your SSO bridge). Tokens should carry <code>sub</code>, <code>email</code>, and the permission string array your guards read—same discipline as Nest JWT strategies.
+            </p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>POST /auth/login
+Content-Type: application/json
+
+{ "email": "openadminjs@proton.me", "password": "password" }</code></pre>
+            </div>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>GET /admin/resources/posts
+Authorization: Bearer &lt;access_token&gt;
+Accept: application/json</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li>Rotate <code>JWT_SECRET</code> with a maintenance window; invalidate old tokens server-side if you maintain a deny list.</li>
+              <li>Never log access tokens; scrub them from client error reporters.</li>
+            </ul>
+          </section>
+
+          <section id="api-overview">
+            <h2>Admin REST surface</h2>
+            <p>
+              Authenticated admin routes follow a predictable resource pattern. Collection routes return paginated rows plus column metadata derived from <code>defineResource</code>; singleton routes hydrate a single Prisma record through the same permission gates.
+            </p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>GET    /admin/resources              # catalog of resources visible to caller
+GET    /admin/resources/:resource    # list rows
+GET    /admin/resources/:resource/:id
+POST   /admin/resources/:resource
+PATCH  /admin/resources/:resource/:id
+DELETE /admin/resources/:resource/:id</code></pre>
+            </div>
+            <p>Replace <code>:resource</code> with the kebab-case resource name (for example <code>order-items</code>). IDs use your Prisma primary key format (commonly cuid/uuid).</p>
+          </section>
+
+          <section id="api-crud">
+            <h2>CRUD &amp; request bodies</h2>
+
+            <h3 id="api-create-body">Create (POST)</h3>
+            <p>Send JSON keys matching writable fields from the resource definition. Server validation rejects unknown keys and required field violations before Prisma <code>create</code>.</p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>POST /admin/resources/posts
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{
+  "title": "Launch checklist",
+  "status": "draft",
+  "slug": "launch-checklist"
+}</code></pre>
+            </div>
+
+            <h3 id="api-patch-body">Update (PATCH)</h3>
+            <p>Partial updates merge into the existing row; fields with <code>edit: false</code> are stripped even if a client sends them.</p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>PATCH /admin/resources/posts/clxyz123
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{ "status": "published" }</code></pre>
+            </div>
+
+            <h3 id="api-delete">Delete</h3>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>DELETE /admin/resources/posts/clxyz123
+Authorization: Bearer &lt;token&gt;</code></pre>
+            </div>
+
+            <h3 id="api-errors">Errors</h3>
+            <p>Expect <code>401</code> for missing/invalid auth, <code>403</code> when permissions fail, <code>404</code> when the resource name or row id is unknown, and <code>422</code> for validation errors with a structured body your forms can map to fields.</p>
+          </section>
+
+          <section id="api-queries">
+            <h2>Queries &amp; filters</h2>
+            <p>List endpoints accept pagination, free-text search (against fields marked <code>searchable: true</code>), sorting for <code>sortable</code> columns, and equality filters for <code>filterable</code> fields.</p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>GET /admin/resources/posts?page=1&amp;limit=20&amp;sort=createdAt:desc&amp;search=launch&amp;filter[status]=published</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>page / limit</strong> — cursor-friendly pagination; keep limits ≤ 100 in production unless your gateway allows higher.</li>
+              <li><strong>sort</strong> — format <code>field:asc|desc</code>; reject sorts on non-sortable fields.</li>
+              <li><strong>search</strong> — OR-across searchable string fields at the Prisma delegate level.</li>
+              <li><strong>filter[field]</strong> — repeated keys become <code>IN</code> lists when you adopt array syntax in your API variant.</li>
+            </ul>
+          </section>
+
+          <section id="api-actions">
+            <h2>Custom actions</h2>
+            <p>POST to <code>/admin/resources/:resource/:id/actions/:actionName</code> where <code>actionName</code> matches a key under <code>resource.actions</code>. The handler runs inside the same Nest transaction boundaries as CRUD so audit hooks stay consistent.</p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>POST /admin/resources/posts/clxyz123/actions/publish
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{ "note": "Approved by editor" }</code></pre>
+            </div>
+            <p>Optional JSON bodies surface as <code>input</code> on <code>ResourceActionContext</code>—validate them with Zod/class-validator before touching Prisma.</p>
+          </section>
+
+          <section id="admin">
+            <h2>Admin UI</h2>
+            <p>
+              The Next.js admin app consumes the same resource metadata as the API: table columns mirror <code>list: true</code> fields, filters bind to <code>filterable</code> flags, and create/edit dialogs call the same REST routes your integration tests hit.
+              Customize branding under <code>apps/admin</code> (layouts, design tokens, logo) without forking the resource contract.
+            </p>
+            <ul class="docs-list">
+              <li><strong>Dashboards</strong> aggregate metrics per resource; add cards by extending the admin shell layout.</li>
+              <li><strong>Forms</strong> respect <code>create</code>/<code>edit</code> field flags, <code>required</code>, <code>defaultValue</code>, and sensitive field stripping from <code>withSafeFields</code>.</li>
+              <li><strong>Relations</strong> render searchable pickers using <code>resource</code> + <code>displayField</code> metadata.</li>
+              <li><strong>Actions</strong> render as primary/destructive buttons when <code>actions</code> are defined and the JWT includes the action permission.</li>
+            </ul>
+            <p>Point the admin at your API with <code>NEXT_PUBLIC_API_URL</code>; session cookies or bearer tokens are injected by the generated auth provider.</p>
+
+            <h3 id="admin-navigation">Admin navigation model</h3>
+            <p>
+              The shell layout is the operational backbone of the admin app. Keep global concerns (theme switcher, locale switcher, profile, AI widget, quick actions)
+              in <code>apps/admin/components/app-shell.tsx</code>, and keep page-level logic in route files. This separation avoids coupling resource pages to global UI concerns.
+            </p>
+            <ul class="docs-list">
+              <li><strong>Sidebar entries</strong> should mirror real resource groups (content, users, billing, settings) instead of raw table names.</li>
+              <li><strong>Top-level actions</strong> should be idempotent where possible (refresh, sync, regenerate cache).</li>
+              <li><strong>Route params</strong> should stay resource-centric (<code>/resources/:resource/:id</code>) so links can be generated by metadata.</li>
+            </ul>
+
+            <h3 id="admin-forms">Admin forms &amp; field rendering</h3>
+            <p>
+              Form rendering is metadata-driven. Prefer enriching resource field metadata over custom per-page form logic: this keeps create/edit/detail screens consistent across resources.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>fields: {
+  title: { type: "text", required: true, list: true, create: true, edit: true },
+  status: { type: "select", options: ["draft", "published"], list: true, filterable: true, sortable: true },
+  authorId: { type: "relation", resource: "users", displayField: "email", create: true, edit: true }
+}</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>Validation source of truth</strong> stays server-side (Prisma + API validation); UI should map returned field errors to inputs.</li>
+              <li><strong>Sensitive fields</strong> (<code>sensitive: true</code>) must never be shown in list/detail responses.</li>
+              <li><strong>Relation fields</strong> should provide searchable pickers with predictable labels and fallback values.</li>
+            </ul>
+
+            <h3 id="admin-operations">Admin operations &amp; diagnostics</h3>
+            <p>
+              For operational reliability, every mutation path should surface explicit feedback in UI: success toast, actionable error, and structured diagnostics for failed workflows.
+            </p>
+            <ul class="docs-list">
+              <li><strong>Delete flows</strong> should use confirmation modals or guarded chat confirmations for destructive actions.</li>
+              <li><strong>Long-running operations</strong> should stream step status (queued, running, completed, failed).</li>
+              <li><strong>Workflow failures</strong> should display <code>failedStep</code>, <code>partialResults</code>, <code>rolledBack</code>, and <code>rollbackFailures</code>.</li>
+              <li><strong>Retry UX</strong> should provide one-click rerun for last failed workflow payload where safe.</li>
+            </ul>
+          </section>
+
+          <section id="ai-assistant">
+            <h2>AI assistant</h2>
+            <p>
+              OpenAdminJS includes a built-in admin AI assistant with provider configuration, streaming replies, action execution, and auditable multi-step workflows.
+              The assistant is designed to be resource-aware and permission-aware, so generated actions stay inside your existing RBAC model.
+            </p>
+            <h3 id="ai-config">Provider configuration</h3>
+            <p>
+              Configure providers in admin settings. The provider list is extensible and supports OpenAI-compatible APIs plus provider-specific adapters.
+              Secrets are stored in settings and resolved at runtime by the API service.
+            </p>
+            <ul class="docs-list">
+              <li><strong>Built-in provider patterns</strong>: OpenAI/compatible, Anthropic, Gemini.</li>
+              <li><strong>Active provider switch</strong> allows runtime fallback without code changes.</li>
+              <li><strong>System prompt</strong> should stay in English and enforce JSON action schema output.</li>
+            </ul>
+
+            <h3 id="ai-streaming">AI streaming events</h3>
+            <p>
+              Chat streaming uses SSE with normalized event envelopes shared by API and admin app.
+              Each stream emits token deltas and a final completion payload with optional action metadata.
+            </p>
+            <div class="docs-code-block" data-language="json">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>{ "type": "delta", "delta": "Partial token..." }
+{ "type": "done", "reply": "Final text", "actionResult": { "ok": true } }
+{ "type": "error", "message": "Provider timeout", "code": "AI_STREAM_ERROR" }</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>delta</strong> appends text progressively for typing effect.</li>
+              <li><strong>done</strong> finalizes message and can include pending/confirmed action payloads.</li>
+              <li><strong>error</strong> must surface visibly in UI and stop loading state immediately.</li>
+            </ul>
+
+            <h3 id="ai-workflows">AI workflows &amp; rollback</h3>
+            <p>
+              Workflow actions chain multiple steps (for example: generate image → create artifact → update resource).
+              Use <code>transactionMode</code> to control failure behavior:
+            </p>
+            <ul class="docs-list">
+              <li><strong>best_effort</strong> — keep completed steps even if a later step fails.</li>
+              <li><strong>rollback_on_error</strong> — attempt compensation for completed reversible steps.</li>
+            </ul>
+            <p>
+              On failure, return rich diagnostics so operators can understand exactly what happened and safely retry:
+              <code>failedStep</code>, <code>completedSteps</code>, <code>partialResults</code>, <code>rolledBack</code>, <code>rollbackFailures</code>.
+            </p>
+            <div class="docs-callout">
+              <strong>Guardrails:</strong> Require explicit user confirmation before destructive operations (delete, revoke, irreversible side effects),
+              and always enforce server-side permission checks even if the assistant proposes the action.
+            </div>
+          </section>
+
+          <section id="web">
+            <h2>Web layer</h2>
+            <p>
+              <code>apps/web</code> hosts public routes: landing pages, resource-driven listings and detail pages backed by read-only API endpoints or ISR caches. Share types with the API through workspace packages so public DTOs never drift.
+            </p>
+            <div class="docs-code-block" data-language="text">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">text</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>apps/web/app/
+  page.tsx
+  posts/page.tsx
+  posts/[slug]/page.tsx
+  sitemap.xml/route.ts
+  robots.txt/route.ts</code></pre>
+            </div>
+            <p>Use the generated <code>openadmin-client</code> helpers to fetch published rows by slug while keeping payloads shaped by the same field metadata used in admin.</p>
+          </section>
+
+          <section id="seo">
+            <h2>SEO helpers</h2>
+            <p>Use helper utilities to keep canonical URLs, OpenGraph tags and sitemap entries aligned with resource definitions so marketing pages inherit titles and descriptions from your CMS models.</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>import { metadataForRecord, sitemapXml } from "../lib/seo";
+
+export function generateMetadata({ params }) {
+  const record = await loadPost(params.slug);
+  return metadataForRecord(postResource, record);
+}</code></pre>
+            </div>
+            <p>Emit <code>sitemap.xml</code> by iterating public resources and mapping <code>slug</code> or <code>path</code> fields; block indexing on staging via <code>robots.txt</code> using <code>NEXT_PUBLIC_SITE_URL</code>.</p>
+          </section>
+
+          <!-- ======================================================= -->
+          <!-- i18n -->
+          <!-- ======================================================= -->
+          <section id="i18n">
+            <h2>Internationalization (i18n)</h2>
+            <p>
+              OpenAdminJS supports multilingual labels across all three surfaces — admin UI, REST API responses, and the public web layer —
+              through a shared locale identifier that flows from the browser through request headers and resource metadata.
+              The default locale is <strong>English (<code>en</code>)</strong>.
+            </p>
+            <div class="docs-callout">
+              <strong>Architecture:</strong> Locales are <em>additive</em>. The stack ships with <code>en</code> as a baseline.
+              Add <code>ru</code>, <code>de</code>, <code>fr</code>, or any BCP-47 code by following the three steps below — no core changes required.
+            </div>
+
+            <h3 id="i18n-resource">Resource-level translations</h3>
+            <p>
+              Add an <code>i18n</code> block to any <code>defineResource</code> call. The <code>locales</code> tuple declares which codes are valid;
+              <code>translations</code> maps each code to a partial override of the resource's top-level metadata.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>export default defineResource({
+  name: "posts",
+  label: "Posts",
+  model: "post",
+  titleField: "title",
+  fields: {
+    title: { type: "text", label: "Title" },
+    status: { type: "select", label: "Status", options: ["draft", "published"] }
+  },
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "ru"] as const,
+    translations: {
+      ru: {
+        label: "Публикации",
+        fields: {
+          title: { label: "Заголовок" },
+          status: { label: "Статус" }
+        }
+      }
+    }
+  }
+});</code></pre>
+            </div>
+            <p>
+              The admin UI sends the active locale as a <code>?locale=</code> query param on every resource request.
+              The API resolves the translation block and merges it over the base resource config before returning metadata and labels to the client.
+            </p>
+
+            <h3 id="i18n-adding">Adding a new locale in three steps</h3>
+            <ol class="docs-list">
+              <li>
+                <strong>Register in <code>apps/admin/lib/locale.ts</code></strong> — add the locale code to the <code>SUPPORTED_UI_LOCALES</code> tuple and its display name to <code>LOCALE_LABELS</code>:
+                <div class="docs-code-block" data-language="typescript">
+                  <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+                  <pre><code>export const SUPPORTED_UI_LOCALES = ["en", "ru", "de"] as const;
+
+export const LOCALE_LABELS: Record&lt;string, string&gt; = {
+  en: "English",
+  ru: "Русский",
+  de: "Deutsch"          // ← new
+};</code></pre>
+                </div>
+              </li>
+              <li>
+                <strong>Add translations to each resource</strong> that should be localized — extend <code>i18n.locales</code> and <code>i18n.translations</code>:
+                <div class="docs-code-block" data-language="typescript">
+                  <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+                  <pre><code>i18n: {
+  locales: ["en", "ru", "de"],
+  translations: {
+    ru: { label: "Публикации", fields: { title: { label: "Заголовок" } } },
+    de: { label: "Beiträge",   fields: { title: { label: "Titel" } } }
+  }
+}</code></pre>
+                </div>
+              </li>
+              <li>
+                <strong>Surface a locale picker in the admin</strong> — the <code>setUiLocale(locale)</code> function from <code>lib/locale.ts</code> persists the choice to localStorage.
+                Build a Settings page that calls it; after reload the admin UI re-fetches resources with the new <code>?locale=</code> param.
+                <div class="docs-code-block" data-language="typescript">
+                  <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+                  <pre><code>import { setUiLocale } from "@/lib/locale";
+
+// inside a Settings component
+&lt;button onClick={() =&gt; { setUiLocale("de"); window.location.reload(); }}&gt;
+  Switch to Deutsch
+&lt;/button&gt;</code></pre>
+                </div>
+              </li>
+            </ol>
+          </section>
+
+          <!-- ======================================================= -->
+          <!-- Plugins & hooks -->
+          <!-- ======================================================= -->
+          <section id="plugins">
+            <h2>Plugin system</h2>
+            <p>
+              OpenAdminJS exposes a lightweight plugin registry so you can extend resource behavior — add computed fields, inject audit log entries,
+              attach webhooks, or wrap any action — without forking the core library.
+              Plugins live in <code>apps/api/src/plugins/</code> and are bootstrapped before the Nest app starts.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>// apps/api/src/plugins/webhook.plugin.ts
+import { definePlugin } from "@openadminjs/core";
+
+export default definePlugin({
+  name: "webhook-notifier",
+  version: "1.0.0",
+  description: "Send a POST after every resource create/update/delete.",
+  hooks: {
+    afterCreate: async ({ resource, record, user }) => {
+      await fetch(process.env.WEBHOOK_URL!, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ event: "create", resource: resource.name, record, user: user.email })
+      });
+    }
+  }
+});</code></pre>
+            </div>
+            <p>Register plugins in <code>apps/api/src/plugins/bootstrap.ts</code>:</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>import { pluginRegistry } from "@openadminjs/core";
+import webhookPlugin from "./webhook.plugin";
+
+pluginRegistry.register(webhookPlugin);</code></pre>
+            </div>
+          </section>
+
+          <section id="hooks">
+            <h2>Resource hooks</h2>
+            <p>
+              Resource-level hooks let you intercept the CRUD lifecycle per resource, e.g. to hash passwords before a create or invalidate a cache after an update.
+              Hooks declared in <code>resource-hooks.install.ts</code> are attached to the resource registry at startup.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>// apps/api/src/resources/resource-hooks.install.ts
+import bcrypt from "bcryptjs";
+import { resourceHooks } from "@openadminjs/core";
+
+resourceHooks.on("users", "beforeCreate", async (data) => {
+  if (data.password) {
+    data.password = await bcrypt.hash(data.password, 12);
+  }
+  return data;
+});
+
+resourceHooks.on("posts", "afterUpdate", async (_data, context) => {
+  await context.cache?.invalidate(`post:${context.id}`);
+});</code></pre>
+            </div>
+            <p>Available lifecycle events: <code>beforeCreate</code>, <code>afterCreate</code>, <code>beforeUpdate</code>, <code>afterUpdate</code>, <code>beforeDelete</code>, <code>afterDelete</code>.</p>
+          </section>
+
+          <!-- ======================================================= -->
+          <!-- Testing -->
+          <!-- ======================================================= -->
+          <section id="testing">
+            <h2>Testing guide</h2>
+            <p>
+              Every workspace package ships Vitest as the test runner. Run all suites from the root with <code>pnpm test</code>;
+              run a single package with <code>pnpm --filter @openadminjs/api test</code>.
+              The E2E smoke suite runs separately with <code>pnpm e2e</code>.
+            </p>
+
+            <h3>API unit tests</h3>
+            <p>Mock Prisma and JWT services at the spec level — no database required for unit tests.</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>// apps/api/src/auth/auth.service.test.ts
+import { describe, it, expect, vi } from "vitest";
+import { AuthService } from "./auth.service";
+
+const mockPrisma = { user: { findUnique: vi.fn() } };
+const mockJwt = { signAsync: vi.fn().mockResolvedValue("tok") };
+
+const svc = new AuthService(mockPrisma as any, mockJwt as any);
+
+it("rejects unknown email", async () => {
+  mockPrisma.user.findUnique.mockResolvedValue(null);
+  await expect(svc.login({ email: "x@x.com", password: "p", realm: "admin" }))
+    .rejects.toMatchObject({ status: 401 });
+});</code></pre>
+            </div>
+
+            <h3>Admin component tests</h3>
+            <p>Use <code>@testing-library/react</code> inside a <code>@vitest-environment jsdom</code> block for Next.js client components.</p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>// @vitest-environment jsdom
+import { render, screen } from "@testing-library/react";
+import { AuthGuard } from "../components/auth-guard";
+import { vi } from "vitest";
+
+vi.mock("../lib/api", () => ({ hasUsableAccessToken: () => false }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ replace: vi.fn() }) }));
+
+it("redirects to login when no token", () => {
+  render(&lt;AuthGuard&gt;&lt;div&gt;protected&lt;/div&gt;&lt;/AuthGuard&gt;);
+  expect(screen.queryByText("protected")).toBeNull();
+});</code></pre>
+            </div>
+
+            <h3>E2E smoke tests</h3>
+            <p>
+              Run <code>pnpm e2e</code> to execute the auth-flow E2E tests (Vitest + jsdom mock of fetch + localStorage) followed by the HTTP smoke script.
+              The smoke script hits <code>/health</code> and <code>/auth/login</code> on the running API and reports pass/fail.
+            </p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>pnpm dev &amp;            # start API + admin
+pnpm e2e              # auth flow tests + HTTP smoke checks</code></pre>
+            </div>
+          </section>
+
+          <!-- ======================================================= -->
+          <!-- Theming -->
+          <!-- ======================================================= -->
+          <section id="theming">
+            <h2>Theming &amp; dark mode</h2>
+            <p>
+              The admin UI uses <strong>Tailwind CSS</strong> with <code>darkMode: ["class"]</code> and <strong>next-themes</strong> for SSR-safe theme persistence.
+              A sun/moon toggle in the header switches between light, dark, and system modes; the chosen value is stored in localStorage under <code>theme</code>.
+            </p>
+
+            <h3>Design tokens</h3>
+            <p>
+              Brand colors and surface values are defined as CSS custom properties in <code>apps/admin/app/globals.css</code> and overridden inside the <code>.dark</code> selector.
+              Extend them to align with your product brand without touching Tailwind config.
+            </p>
+            <div class="docs-code-block" data-language="css">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">CSS</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>:root {
+  --brand-blue:      #2454ff;
+  --brand-teal:      #0ea5a4;
+  --admin-surface:   #ffffff;
+  --admin-bg:        #f8fafc;
+}
+
+.dark {
+  --brand-blue-soft: #1e2a4a;
+  --admin-surface:   #0f172a;
+  --admin-bg:        #0a0f1e;
+}</code></pre>
+            </div>
+
+            <h3>Logo in dark mode</h3>
+            <p>
+              The <code>&lt;Logo&gt;</code> component reads <code>resolvedTheme</code> from next-themes and switches between the color master logo and the monochrome
+              (white) variant automatically — no extra CSS needed.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>// apps/admin/components/logo.tsx
+const isDark = resolvedTheme === "dark";
+return &lt;img src={isDark ? BRAND.logoMonochromePng : BRAND.logoNew} alt="OpenAdminJS" /&gt;;</code></pre>
+            </div>
+
+            <h3>Extending the theme</h3>
+            <ol class="docs-list">
+              <li>Change <code>--brand-blue</code> and <code>--brand-teal</code> in <code>globals.css</code> to match your product's primary colors.</li>
+              <li>Update <code>tailwind.config.ts</code> <code>colors.brand</code> to match the new values so Tailwind utility classes stay in sync.</li>
+              <li>Replace logo files in <code>apps/admin/public/brand/</code>; keep both a color master and a monochrome/dark variant.</li>
+              <li>Adjust gradient stops in <code>app-shell.tsx</code> (promo banner, avatar gradient) from <code>from-[#2454ff] to-[#0ea5a4]</code> to your brand pair.</li>
+            </ol>
+          </section>
+
+          <section id="security">
+            <h2>Security</h2>
+            <ul class="docs-list">
+              <li>Enforce permission checks on every mutating route (never trust the UI alone).</li>
+              <li>Keep JWT secrets long and rotate them with a maintenance window.</li>
+              <li>Hash passwords and API tokens at rest; never return raw token material except once on creation.</li>
+              <li>Enable rate limiting on auth endpoints in production gateways.</li>
+              <li>Stream audit logs to your SIEM for sensitive environments.</li>
+            </ul>
+          </section>
+
+          <section id="troubleshooting">
+            <h2>Troubleshooting</h2>
+            <div class="docs-callout">
+              <strong>Prisma client out of date:</strong> run <code>pnpm prisma generate</code> from the workspace root after schema edits.
+            </div>
+            <ul class="docs-list">
+              <li><strong>401 on admin API:</strong> verify tokens and clock skew; confirm <code>NEXT_PUBLIC_API_URL</code> matches the API origin.</li>
+              <li><strong>Missing resource in UI:</strong> ensure the resource is exported in <code>registry.ts</code> and the user role includes the <code>*.read</code> permission.</li>
+              <li><strong>Migration failures:</strong> inspect <code>prisma/migrations</code>, restore from backup, and never edit applied migration files.</li>
+            </ul>
+          </section>
+
+          <section id="deployment">
+            <h2>Deployment</h2>
+            <p>
+              Deploy API, admin and web as separate services (Kubernetes, Fly.io, Railway, etc.) or as a single VM with process supervision.
+              Run database migrations as a release phase hook before swapping traffic—same discipline as Nest.js apps using Prisma in production.
+            </p>
+            <div class="docs-code-block" data-language="bash">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>pnpm --filter @openadminjs/api build
+pnpm --filter @openadminjs/admin build
+pnpm --filter @openadminjs/web build
+node apps/api/dist/main.js</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>API</strong> — expose port 4000 (or behind TLS termination); set <code>DATABASE_URL</code>, <code>JWT_SECRET</code>, and CORS allowlists for admin/web origins.</li>
+              <li><strong>Admin / Web</strong> — Next.js standalone output: bake <code>NEXT_PUBLIC_API_URL</code> and <code>NEXT_PUBLIC_SITE_URL</code> at build time per environment.</li>
+              <li><strong>Migrations</strong> — run <code>pnpm prisma migrate deploy</code> (API package) in CI/CD before health checks go green.</li>
+            </ul>
+          </section>
+
+          <section id="feature-reference">
+            <h2>Complete functionality reference</h2>
+            <p>
+              This is a detailed practical reference for every core feature: setup, expected behavior, request examples, and production guardrails.
+              Use this section as an operational handbook when implementing or debugging OpenAdminJS features.
+            </p>
+
+            <h3>Authentication and session lifecycle</h3>
+            <p>
+              Login issues access and refresh tokens for the requested realm. Access tokens authorize requests; refresh tokens rotate sessions.
+            </p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "openadminjs@proton.me",
+  "password": "password",
+  "realm": "admin"
+}</code></pre>
+            </div>
+            <div class="docs-code-block" data-language="json">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>{
+  "accessToken": "&lt;jwt&gt;",
+  "refreshToken": "&lt;jwt&gt;",
+  "user": {
+    "id": "clx123",
+    "email": "openadminjs@proton.me",
+    "permissions": ["*"]
+  }
+}</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>401</strong> for invalid/missing/expired token.</li>
+              <li><strong>403</strong> for realm/permission mismatch.</li>
+              <li>Client should attempt one refresh, then redirect to login if refresh fails.</li>
+            </ul>
+
+            <h3>RBAC and permission enforcement</h3>
+            <p>
+              Permissions are enforced server-side for all CRUD and custom actions. UI visibility should mirror permissions, but security is API-driven.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>permissions: {
+  read: "posts.read",
+  create: "posts.create",
+  update: "posts.update",
+  delete: "posts.delete"
+},
+actions: {
+  publish: { label: "Publish", permission: "posts.publish" }
+}</code></pre>
+            </div>
+
+            <h3>Resource CRUD API contract</h3>
+            <p>
+              Every resource automatically receives list/detail/create/update/delete routes and metadata endpoints.
+            </p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>GET    /admin/resources/posts
+GET    /admin/resources/posts/:id
+POST   /admin/resources/posts
+PATCH  /admin/resources/posts/:id
+DELETE /admin/resources/posts/:id</code></pre>
+            </div>
+            <p>
+              Writes should be auditable and return deterministic error payloads for form-level error mapping.
+            </p>
+
+            <h3>Field metadata and UI behavior</h3>
+            <p>
+              The admin renders forms/tables from field metadata. This keeps behavior consistent without hand-written per-resource components.
+            </p>
+            <div class="docs-code-block" data-language="typescript">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>fields: {
+  title: { type: "text", required: true, list: true, searchable: true },
+  status: { type: "select", options: ["draft", "published"], list: true, filterable: true },
+  authorId: { type: "relation", resource: "users", displayField: "email" },
+  secretKey: { type: "text", sensitive: true, list: false, detail: false }
+}</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>relation</strong> fields use searchable pickers and foreign key values.</li>
+              <li><strong>sensitive</strong> fields are stripped from sanitized outputs.</li>
+              <li><strong>filterable/sortable/searchable</strong> control query features and UI controls.</li>
+            </ul>
+
+            <h3>Queries, search, filters, sorting</h3>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>GET /admin/resources/orders?page=1&amp;limit=20&amp;sort=createdAt:desc&amp;search=enterprise
+GET /admin/resources/orders?filter[status][eq]=paid
+GET /admin/resources/orders?filter[total][gte]=10000
+GET /admin/resources/orders?filter[currency][in]=USD,EUR</code></pre>
+            </div>
+            <p>
+              Unknown operators should return explicit validation errors (for example <code>FILTER_OP_UNKNOWN</code>) to prevent ambiguous behavior.
+            </p>
+
+            <h3>Custom actions and domain operations</h3>
+            <p>
+              Custom actions implement non-CRUD business transitions (publish, approve, cancel, regenerate, retry).
+            </p>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>POST /admin/resources/posts/clx123/actions/publish
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{ "note": "Editorial approval #42" }</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li>Validate input payloads server-side.</li>
+              <li>Log action execution in audit trail.</li>
+              <li>Return structured error details for operator diagnostics.</li>
+            </ul>
+
+            <h3>Admin UX patterns (operations-ready)</h3>
+            <ul class="docs-list">
+              <li><strong>Inline editing</strong> for fast field updates on detail pages.</li>
+              <li><strong>Delete confirmations</strong> for destructive operations.</li>
+              <li><strong>Action status feedback</strong> with clear success/error state.</li>
+              <li><strong>Mobile mode</strong> should preserve core actions and avoid hidden destructive controls.</li>
+            </ul>
+
+            <h3>AI assistant configuration</h3>
+            <p>
+              AI provider setup is managed in admin settings and resolved by API service on each chat request.
+              Access is gated by <code>ai.chat</code> permission.
+            </p>
+            <div class="docs-code-block" data-language="json">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>{
+  "activeProviderId": "openai",
+  "providers": [
+    { "id": "openai", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4.1-mini" },
+    { "id": "anthropic", "model": "claude-3-5-sonnet-latest" },
+    { "id": "gemini", "model": "gemini-1.5-pro" }
+  ],
+  "systemPrompt": "Respond with plain text reply and optional structured action JSON."
+}</code></pre>
+            </div>
+
+            <h3>AI streaming protocol (SSE)</h3>
+            <div class="docs-code-block" data-language="json">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>{ "type": "delta", "delta": "Analyzing..." }
+{ "type": "done", "reply": "Found 12 records.", "actionResult": { "count": 12 } }
+{ "type": "error", "message": "Provider timeout", "code": "AI_STREAM_ERROR" }</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>delta</strong>: append progressive response text.</li>
+              <li><strong>done</strong>: finalize reply and attach action results if present.</li>
+              <li><strong>error</strong>: immediately stop loading and show diagnostics in UI.</li>
+            </ul>
+
+            <h3>AI actions, artifacts, and autofill</h3>
+            <p>
+              Assistant can generate files/images and save them as artifacts. Artifacts can be downloaded or injected into subsequent workflow steps.
+            </p>
+            <div class="docs-code-block" data-language="json">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>{
+  "action": {
+    "type": "image",
+    "prompt": "Generate minimal product hero image",
+    "filename": "hero.png"
+  }
+}</code></pre>
+            </div>
+            <p>
+              Common refs: <code>{{latest_image}}</code>, <code>{{latest_artifact}}</code>, <code>ai-artifact:&lt;id&gt;</code>.
+            </p>
+
+            <h3>AI workflows and rollback diagnostics</h3>
+            <div class="docs-code-block" data-language="json">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>{
+  "action": {
+    "type": "workflow",
+    "transactionMode": "rollback_on_error",
+    "steps": [
+      { "type": "image", "prompt": "Create post cover" },
+      { "type": "update", "resource": "posts", "id": "clx123", "data": { "coverImageId": "{{latest_image}}" } }
+    ]
+  }
+}</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li><strong>best_effort</strong>: keep completed steps if later step fails.</li>
+              <li><strong>rollback_on_error</strong>: attempt compensating actions.</li>
+              <li>Expose <code>failedStep</code>, <code>partialResults</code>, <code>rolledBack</code>, <code>rollbackFailures</code>.</li>
+            </ul>
+
+            <h3>Commerce and payment flow</h3>
+            <div class="docs-code-block" data-language="http">
+              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
+              <pre><code>GET  /store/products
+POST /store/checkout
+POST /store/webhook/:provider
+GET  /store/orders/:id/status</code></pre>
+            </div>
+            <ul class="docs-list">
+              <li>Validate webhook signature before applying state changes.</li>
+              <li>Use idempotency for provider events.</li>
+              <li>Track payment transitions in transactions and audit logs.</li>
+            </ul>
+
+            <h3>Files, notifications, queue jobs</h3>
+            <ul class="docs-list">
+              <li><strong>File assets</strong>: metadata + storage driver abstraction.</li>
+              <li><strong>Notifications</strong>: user-targeted records with read status.</li>
+              <li><strong>Job logs</strong>: async worker execution history and error trace.</li>
+            </ul>
+
+            <h3>Production security checklist</h3>
+            <ul class="docs-list">
+              <li>Strong and rotated JWT secrets per environment.</li>
+              <li>Strict CORS allowlist for admin/web origins.</li>
+              <li>Least privilege role design and action permissions.</li>
+              <li>No provider tokens in client bundles.</li>
+              <li>Destructive AI actions require explicit confirmation.</li>
+              <li>Migrations run before traffic switch in deploy pipeline.</li>
+            </ul>
+          </section>
+
+          <section id="community">
+            <h2>Partners &amp; support</h2>
+            <p>
+              OpenAdminJS stays free thanks to contributors and partners. If your company wants to become a partner and be listed on the website, email
+              <a href="mailto:openadminjs@proton.me">openadminjs@proton.me</a>.
+            </p>
+            <ul class="docs-list">
+              <li><strong>Partner applications</strong> — branding, sponsorship and collaboration requests.</li>
+              <li><strong>Financial support</strong> — for direct support options, contact <a href="mailto:openadminjs@proton.me">openadminjs@proton.me</a>.</li>
+              <li><strong>Bug reports &amp; feature requests</strong> — open an issue on GitHub; include a reproduction case and the output of <code>openadminjs doctor</code>.</li>
+              <li><strong>Pull requests</strong> — all contributions welcome; check the <code>CONTRIBUTING.md</code> at the repo root before opening a PR.</li>
+            </ul>
+          </section>
+
+          <section id="roadmap">
+            <h2>Roadmap &amp; next steps</h2>
+            <p>
+              The following capabilities are planned for upcoming releases. This list is intentionally public so contributors can pick up items early.
+              Priorities shift based on community feedback — weigh in on GitHub Discussions.
+            </p>
+            <div class="docs-callout">
+              <strong>Status key:</strong>
+              🟢 stable &nbsp;|&nbsp; 🟡 in progress &nbsp;|&nbsp; ⚪ planned &nbsp;|&nbsp; 💡 community request
+            </div>
+
+            <h3>Core platform</h3>
+            <ul class="docs-list">
+              <li>🟢 Resource CRUD — list, create, edit, delete with field-level permissions</li>
+              <li>🟢 RBAC — roles, permissions, realm-scoped tokens</li>
+              <li>🟢 Audit logs — immutable per-resource action records</li>
+              <li>🟢 JWT auth — access + refresh token flow with rotation</li>
+              <li>🟡 Resource relations — picker UI for <code>relation</code> fields against other resources</li>
+              <li>🟡 File uploads — S3/GCS/local driver abstraction via <code>@openadminjs/storage</code></li>
+              <li>⚪ Bulk actions — select multiple rows and apply a named action in one request</li>
+              <li>⚪ Inline editing — double-click a cell in the list view to edit without opening the detail form</li>
+            </ul>
+
+            <h3>Admin UI</h3>
+            <ul class="docs-list">
+              <li>🟢 Dark / light theme with system preference detection</li>
+              <li>🟢 Responsive sidebar with mobile drawer</li>
+              <li>🟡 Dashboard widgets — pluggable metric cards with real-time data</li>
+              <li>🟡 Resource search — global ⌘K palette across all registered resources</li>
+              <li>⚪ Column ordering &amp; density preferences — saved per user in localStorage</li>
+              <li>⚪ Drag-and-drop for sortable resources (e.g. <code>order</code> integer field)</li>
+              <li>💡 Custom dashboard builder with drag-drop layout (community request)</li>
+            </ul>
+
+            <h3>i18n &amp; localization</h3>
+            <ul class="docs-list">
+              <li>🟢 Resource-level label translations via <code>i18n.translations</code></li>
+              <li>🟢 Admin locale stored in localStorage, appended as <code>?locale=</code></li>
+              <li>⚪ Locale picker in user settings (hidden from top bar by default; show via settings page)</li>
+              <li>⚪ Pluralization helpers in translation blocks</li>
+              <li>💡 ICU message format support for complex translation strings</li>
+            </ul>
+
+            <h3>API &amp; integrations</h3>
+            <ul class="docs-list">
+              <li>🟢 OpenAPI / Swagger docs at <code>/api/docs</code></li>
+              <li>🟡 Webhook plugin — fire events after create/update/delete</li>
+              <li>⚪ SSO bridge — OIDC / OAuth2 provider support via Passport strategy</li>
+              <li>⚪ Rate limiting per-user token bucket (beyond global throttler)</li>
+              <li>⚪ GraphQL layer — auto-generated schema from resource definitions</li>
+            </ul>
+
+            <h3>Developer experience</h3>
+            <ul class="docs-list">
+              <li>🟢 CLI scaffold with <code>openadminjs create</code></li>
+              <li>🟡 VS Code extension — resource file type support, schema validation</li>
+              <li>⚪ <code>openadminjs generate field</code> — append a field to an existing resource and emit a Prisma migration fragment</li>
+              <li>⚪ Storybook integration — isolated UI component development</li>
+            </ul>
+
+            <p>
+              To propose a roadmap item, open a <strong>GitHub Discussion</strong> tagged <code>roadmap</code>.
+              To pick up an <em>in-progress</em> or <em>planned</em> item, comment on the linked issue and a maintainer will assign it.
+            </p>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span>© OpenAdminJS</span>
+      <a href="./index.html">Home</a>
+    </footer>
+
+    <script src="./assets/js/main.js"></script>
+  </body>
+</html>
