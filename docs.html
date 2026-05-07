@@ -43,8 +43,7 @@
           <span>Quick install</span>
           <div class="docs-code-block docs-code-block--inline" data-language="bash">
             <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-            <pre><code>npm install -g openadminjs
-openadminjs create my-app</code></pre>
+            <pre><code>npm create openadminjs@latest my-app</code></pre>
           </div>
         </div>
       </section>
@@ -150,7 +149,7 @@ openadminjs create my-app</code></pre>
             </div>
             <h3>When to choose OpenAdminJS</h3>
             <ul class="docs-list">
-              <li>You want Laravel / Django-style admin ergonomics on a Node.js + TypeScript stack.</li>
+              <li>You want a resource-driven admin workflow on a Node.js + TypeScript stack.</li>
               <li>You need RBAC, audit logs and file handling without rebuilding them for every resource.</li>
               <li>You plan to expose some resources publicly (SEO, marketing pages) from the same models.</li>
             </ul>
@@ -164,8 +163,7 @@ openadminjs create my-app</code></pre>
             </p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>npm install -g openadminjs
-openadminjs create my-app
+              <pre><code>npm create openadminjs@latest my-app
 cd my-app
 pnpm db:migrate
 pnpm db:seed
@@ -240,30 +238,29 @@ pnpm test                # all workspace tests
 pnpm --filter @openadminjs/api build</code></pre>
             </div>
             <p>
-              The global CLI also prints equivalent commands for <code>openadminjs db migrate</code>, <code>db seed</code>, and <code>db studio</code>; those are thin wrappers that remind you which
-              <code>pnpm</code> filter to use.
+              OpenAdminJS commands are run from your project workspace (for example via <code>pnpm exec openadminjs ...</code>).
+              Database shortcuts still map to the same underlying <code>pnpm</code> and Prisma commands.
             </p>
           </section>
 
           <section id="cli">
             <h2>CLI reference</h2>
-            <p>Install <code>openadminjs</code> globally, then use <code>openadminjs</code> (short alias may be <code>oajs</code> depending on your install).</p>
+            <p>Use the packaged CLI from your project workspace via <code>pnpm exec openadminjs ...</code> (or through npm scripts).</p>
 
-            <h3 id="cli-create">openadminjs create</h3>
+            <h3 id="cli-create">Project creation</h3>
             <p>Scaffolds a monorepo with <code>apps/api</code>, <code>apps/admin</code>, <code>apps/web</code>, shared packages, Prisma schema, and automatically installs dependencies with the selected package manager.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>npm install -g openadminjs
-openadminjs create              # interactive prompts
-openadminjs create my-app       # non-interactive project name</code></pre>
+              <pre><code>npm create openadminjs@latest my-app
+cd my-app</code></pre>
             </div>
 
             <h3 id="cli-generate-resource">generate resource / make resource</h3>
             <p>Emits a starter <code>*.resource.ts</code> next to your other resources. Model name is PascalCase (Prisma model); the file uses <code>defineResource</code> with kebab-case <code>name</code> and permission keys.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>openadminjs generate resource Invoice --force
-openadminjs make resource Invoice   # alias</code></pre>
+              <pre><code>pnpm exec openadminjs generate resource Invoice --force
+pnpm exec openadminjs make resource Invoice   # alias</code></pre>
             </div>
             <p>Always register the new file in <code>registry.ts</code>, extend Prisma if needed, then migrate.</p>
 
@@ -271,16 +268,16 @@ openadminjs make resource Invoice   # alias</code></pre>
             <p>Runs quick health checks (env files, Prisma generate, lockfile) so CI or onboarding catches misconfiguration early.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>openadminjs doctor</code></pre>
+              <pre><code>pnpm exec openadminjs doctor</code></pre>
             </div>
 
             <h3 id="cli-db">db migrate | seed | studio</h3>
             <p>These commands print the exact <code>pnpm</code> / Prisma invocations to run from your project root so you do not guess package names.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>openadminjs db migrate
-openadminjs db seed
-openadminjs db studio</code></pre>
+              <pre><code>pnpm exec openadminjs db migrate
+pnpm exec openadminjs db seed
+pnpm exec openadminjs db studio</code></pre>
             </div>
           </section>
 
@@ -1368,7 +1365,7 @@ GET  /store/orders/:id/status</code></pre>
             <ul class="docs-list">
               <li><strong>Partner applications</strong> — branding, sponsorship and collaboration requests.</li>
               <li><strong>Financial support</strong> — for direct support options, contact <a href="mailto:openadminjs@proton.me">openadminjs@proton.me</a>.</li>
-              <li><strong>Bug reports &amp; feature requests</strong> — open an issue on GitHub; include a reproduction case and the output of <code>openadminjs doctor</code>.</li>
+              <li><strong>Bug reports &amp; feature requests</strong> — open an issue on GitHub; include a reproduction case and the output of <code>pnpm exec openadminjs doctor</code>.</li>
               <li><strong>Pull requests</strong> — all contributions welcome; check the <code>CONTRIBUTING.md</code> at the repo root before opening a PR.</li>
             </ul>
           </section>
@@ -1427,7 +1424,7 @@ GET  /store/orders/:id/status</code></pre>
 
             <h3>Developer experience</h3>
             <ul class="docs-list">
-              <li>🟢 CLI scaffold with <code>openadminjs create</code></li>
+              <li>🟢 CLI scaffold with <code>npm create openadminjs@latest</code></li>
               <li>🟡 VS Code extension — resource file type support, schema validation</li>
               <li>⚪ <code>openadminjs generate field</code> — append a field to an existing resource and emit a Prisma migration fragment</li>
               <li>⚪ Storybook integration — isolated UI component development</li>
