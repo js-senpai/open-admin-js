@@ -910,61 +910,70 @@ export const LOCALE_LABELS: Record&lt;string, string&gt; = {
           <section id="plugins">
             <h2>Plugin system</h2>
             <p>
-              OpenAdminJS exposes a lightweight plugin registry so you can extend resource behavior — add computed fields, inject audit log entries,
-              attach webhooks, or wrap any action — without forking the core library.
-              Plugins live in <code>apps/api/src/plugins/</code> and are bootstrapped before the Nest app starts.
+              OpenAdminJS Plugin Platform is a broad extension system (WordPress-style) with explicit capability gating.
+              Plugins can register resource hooks, API hooks/routes, media pipeline transforms, SEO contributors, job handlers, and admin UI extensions.
+              Plugins are loaded from <code>plugins.manifest.json</code> and enforced by trust mode + capabilities.
             </p>
             <div class="docs-code-block" data-language="typescript">
               <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>// apps/api/src/plugins/webhook.plugin.ts
-import { definePlugin } from "@openadminjs/core";
+              <pre><code>import type { OpenAdminPlugin } from "@openadminjs/plugin-sdk";
 
-export default definePlugin({
-  name: "webhook-notifier",
+export const seoAndMediaPlugin: OpenAdminPlugin = {
+  id: "com.example.seo-media",
   version: "1.0.0",
-  description: "Send a POST after every resource create/update/delete.",
-  hooks: {
-    afterCreate: async ({ resource, record, user }) => {
-      await fetch(process.env.WEBHOOK_URL!, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ event: "create", resource: resource.name, record, user: user.email })
-      });
-    }
+  async register({ registerSurface }) {
+    registerSurface({
+      seo: {
+        metadata({ resourceName, record }) {
+          if (resourceName !== "posts") return {};
+          return { title: record.title ?? "Untitled" };
+        }
+      },
+      media: {
+        transform({ filename, mimeType, contentBase64 }) {
+          if (!mimeType.startsWith("image/")) return { filename, mimeType, contentBase64 };
+          return { filename: filename.replace(/\\.(png|jpe?g)$/i, ".webp"), mimeType: "image/webp", contentBase64 };
+        }
+      }
+    });
   }
-});</code></pre>
+};</code></pre>
             </div>
-            <p>Register plugins in <code>apps/api/src/plugins/bootstrap.ts</code>:</p>
+            <p>Register plugin entries in <code>apps/api/plugins.manifest.json</code> with explicit capabilities:</p>
             <div class="docs-code-block" data-language="typescript">
               <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>import { pluginRegistry } from "@openadminjs/core";
-import webhookPlugin from "./webhook.plugin";
-
-pluginRegistry.register(webhookPlugin);</code></pre>
+              <pre><code>{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "com.example.seo-media",
+      "enabled": true,
+      "package": "@example/openadmin-seo-media",
+      "trustMode": "sandboxed",
+      "capabilities": ["seo.extend", "media.pipeline"]
+    }
+  ]
+}</code></pre>
             </div>
+            <p class="mt-3">
+              Capability matrix: <code>resource.hooks</code>, <code>api.hooks</code>, <code>api.routes</code>,
+              <code>media.pipeline</code>, <code>seo.extend</code>, <code>jobs.run</code>, <code>admin.ui.extend</code>.
+              Use <code>sandboxed</code> trust mode and request only minimal capabilities by default.
+            </p>
           </section>
 
           <section id="hooks">
             <h2>Resource hooks</h2>
             <p>
-              Resource-level hooks let you intercept the CRUD lifecycle per resource, e.g. to hash passwords before a create or invalidate a cache after an update.
-              Hooks declared in <code>resource-hooks.install.ts</code> are attached to the resource registry at startup.
+              Resource lifecycle hooks are now one surface within Plugin Platform. Use capability
+              <code>resource.hooks</code> and register through plugin SDK context.
             </p>
             <div class="docs-code-block" data-language="typescript">
               <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>// apps/api/src/resources/resource-hooks.install.ts
-import bcrypt from "bcryptjs";
-import { resourceHooks } from "@openadminjs/core";
-
-resourceHooks.on("users", "beforeCreate", async (data) => {
-  if (data.password) {
-    data.password = await bcrypt.hash(data.password, 12);
+              <pre><code>registerResourceHooks("users", {
+  async beforeCreate({ data }) {
+    if (typeof data.email === "string") data.email = data.email.trim().toLowerCase();
   }
-  return data;
-});
-
-resourceHooks.on("posts", "afterUpdate", async (_data, context) => {
-  await context.cache?.invalidate(`post:${context.id}`);
 });</code></pre>
             </div>
             <p>Available lifecycle events: <code>beforeCreate</code>, <code>afterCreate</code>, <code>beforeUpdate</code>, <code>afterUpdate</code>, <code>beforeDelete</code>, <code>afterDelete</code>.</p>
