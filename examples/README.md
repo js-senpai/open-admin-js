@@ -75,6 +75,6 @@ Use an automation token (`NPM_TOKEN`) in GitHub Actions with `npm publish` in a 
 
 ---
 
-If you only want to **install** OpenAdminJS tooling from npm (not publish), use:
+If you only want to **start a new project** from npm (not publish), use:
 
-`npm install -g openadminjs` then `openadminjs create`.
+`npm create openadminjs@latest my-app`.
