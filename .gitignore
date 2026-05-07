@@ -45,3 +45,8 @@ logs/
 .idea/
 .vscode/
 .history/
+
+## AI
+AGENTS.md
+.cursor
+.cursorignore

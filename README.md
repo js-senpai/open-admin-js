@@ -2,7 +2,7 @@
 
 OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with Nest.js, Prisma, PostgreSQL, Next.js, TailwindCSS and shadcn/ui.
 
-![OpenAdminJS logo](./site/assets/brand/openadminjs-logo-new.png)
+![OpenAdminJS logo](https://js-senpai.github.io/open-admin-js/assets/brand/openadminjs-logo-new.png)
 
 ## Quick start (this repository)
 
