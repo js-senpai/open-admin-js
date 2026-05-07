@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { cancel, confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
@@ -101,6 +101,9 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     errorOnExist: true,
     filter: (source) => !source.includes("node_modules") && !source.includes(".next") && !source.includes("dist")
   });
+  if (!existsSync(join(targetDir, "package.json"))) {
+    throw new Error(`Template copy failed: package.json not found in ${targetDir}`);
+  }
   renderTemplateFiles(targetDir, {
     __APP_NAME__: appName,
     __PACKAGE_NAME__: packageName,
@@ -114,12 +117,20 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
   });
 
   if (options.git) {
-    spawnSync("git", ["init"], { cwd: targetDir, stdio: "ignore" });
+    const gitResult = spawnSync("git", ["init"], { cwd: targetDir, stdio: "ignore" });
+    if (gitResult.status !== 0 || gitResult.error) {
+      throw new Error("Failed to initialize git repository.");
+    }
   }
 
   if (options.install) {
     const installArgs = options.packageManager === "yarn" ? [] : ["install"];
-    spawnSync(options.packageManager, installArgs, { cwd: targetDir, stdio: "inherit" });
+    const installResult = spawnSync(options.packageManager, installArgs, { cwd: targetDir, stdio: "inherit" });
+    if (installResult.status !== 0 || installResult.error) {
+      throw new Error(
+        `Dependency installation failed. Run "${options.packageManager} ${installArgs.join(" ")}" inside ${targetDir}.`
+      );
+    }
   }
 
   return {

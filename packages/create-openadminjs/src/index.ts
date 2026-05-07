@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { cancel, confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
@@ -89,6 +89,9 @@ async function main(): Promise<void> {
 
   ensureDirSync(target);
   copySync(resolve(__dirname, "../template"), target, { overwrite: false, errorOnExist: true });
+  if (!existsSync(join(target, "package.json"))) {
+    throw new Error(`Template copy failed: package.json not found in ${target}`);
+  }
   renderFiles(target, {
     __APP_NAME__: appName,
     __PACKAGE_NAME__: pkgName,
@@ -101,8 +104,15 @@ async function main(): Promise<void> {
     __API_PORT__: String(apiPort)
   });
 
-  if (git) spawnSync("git", ["init"], { cwd: target, stdio: "ignore" });
-  spawnSync(manager, manager === "yarn" ? [] : ["install"], { cwd: target, stdio: "inherit" });
+  if (git) {
+    const gitResult = spawnSync("git", ["init"], { cwd: target, stdio: "ignore" });
+    if (gitResult.status !== 0 || gitResult.error) throw new Error("Failed to initialize git repository.");
+  }
+  const installArgs = manager === "yarn" ? [] : ["install"];
+  const installResult = spawnSync(manager, installArgs, { cwd: target, stdio: "inherit" });
+  if (installResult.status !== 0 || installResult.error) {
+    throw new Error(`Dependency installation failed. Run "${manager} ${installArgs.join(" ")}" inside ${target}.`);
+  }
 
 outro(`${pc.green("Project created.")}\n\nDependencies installed automatically.\n\nNext steps:\n  cd ${appName}\n  ${manager} db:migrate\n  ${manager} db:seed\n  ${manager} dev\n\nAdmin: http://localhost:3000\nAPI: http://localhost:4000\nDocs: http://localhost:4000/api/docs\n\nSuperadmin credentials are requested during seed.`);
 }
