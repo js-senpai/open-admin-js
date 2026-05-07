@@ -43,7 +43,7 @@
           <span>Quick install</span>
           <div class="docs-code-block docs-code-block--inline" data-language="bash">
             <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-            <pre><code>npm create openadminjs@latest my-app</code></pre>
+            <pre><code>npx openadminjs create my-app</code></pre>
           </div>
         </div>
       </section>
@@ -163,7 +163,7 @@
             </p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>npm create openadminjs@latest my-app
+              <pre><code>npx openadminjs create my-app
 cd my-app
 pnpm db:migrate
 pnpm db:seed
@@ -251,7 +251,7 @@ pnpm --filter @openadminjs/api build</code></pre>
             <p>Scaffolds a monorepo with <code>apps/api</code>, <code>apps/admin</code>, <code>apps/web</code>, shared packages, Prisma schema, and automatically installs dependencies with the selected package manager.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>npm create openadminjs@latest my-app
+              <pre><code>npx openadminjs create my-app
 cd my-app</code></pre>
             </div>
 
@@ -1424,7 +1424,7 @@ GET  /store/orders/:id/status</code></pre>
 
             <h3>Developer experience</h3>
             <ul class="docs-list">
-              <li>🟢 CLI scaffold with <code>npm create openadminjs@latest</code></li>
+              <li>🟢 CLI scaffold with <code>npx openadminjs create</code></li>
               <li>🟡 VS Code extension — resource file type support, schema validation</li>
               <li>⚪ <code>openadminjs generate field</code> — append a field to an existing resource and emit a Prisma migration fragment</li>
               <li>⚪ Storybook integration — isolated UI component development</li>
