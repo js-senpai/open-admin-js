@@ -26,9 +26,16 @@ async function askForSuperadminCredentials(): Promise<SeedCredentials> {
     return { email: cliEmail.trim(), password: cliPassword };
   }
 
+  // Fall back to env vars written by `openadminjs create` at scaffold time.
+  const envEmail = process.env["SUPERADMIN_EMAIL"];
+  const envPassword = process.env["SUPERADMIN_PASSWORD"];
+  if (envEmail && envPassword) {
+    return { email: envEmail.trim(), password: envPassword };
+  }
+
   if (!process.stdin.isTTY) {
     throw new Error(
-      "Superadmin credentials are required. Run seed with --superadmin-email=<email> --superadmin-password=<password> in non-interactive mode."
+      "Superadmin credentials are required. Set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD env vars, or run seed with --superadmin-email=<email> --superadmin-password=<password> in non-interactive mode."
     );
   }
 

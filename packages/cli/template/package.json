@@ -2,18 +2,25 @@
   "name": "__PACKAGE_NAME__",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "openadminjs dev",
-    "build": "openadminjs build",
-    "start": "openadminjs start",
-    "db:migrate": "openadminjs db migrate",
-    "db:seed": "openadminjs db seed",
-    "db:studio": "openadminjs db studio",
-    "generate": "openadminjs generate",
-    "doctor": "openadminjs doctor",
-    "security:check": "openadminjs security check"
+    "dev": "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin dev",
+    "build": "pnpm -r build",
+    "start": "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin start",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:migrate": "pnpm --filter @openadminjs/api db:migrate",
+    "db:seed": "pnpm --filter @openadminjs/api db:seed",
+    "db:studio": "pnpm --filter @openadminjs/api db:studio",
+    "generate": "pnpm --filter @openadminjs/api generate"
   },
-  "dependencies": {
-    "openadminjs": "^0.1.0"
+  "devDependencies": {
+    "@prisma/client": "^6.1.0",
+    "@types/node": "^22.10.2",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { cac } from "cac";
 import pc from "picocolors";
 import { createProjectInteractive } from "./create-project.js";
@@ -9,12 +10,22 @@ import { modelNameToResourceSlug } from "./resource-slug.js";
 const cli = cac("openadminjs");
 
 function runScript(name: string): void {
-  const scripts: Record<string, string> = {
-    dev: "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin dev",
-    build: "pnpm -r build",
-    start: "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin start"
+  const commands: Record<string, [string, string[]]> = {
+    dev: ["pnpm", ["--parallel", "--filter", "@openadminjs/api", "--filter", "@openadminjs/admin", "dev"]],
+    build: ["pnpm", ["-r", "build"]],
+    start: ["pnpm", ["--parallel", "--filter", "@openadminjs/api", "--filter", "@openadminjs/admin", "start"]]
   };
-  console.log(pc.cyan(`Run: ${scripts[name]}`));
+  const entry = commands[name];
+  if (!entry) {
+    console.error(pc.red(`Unknown script: ${name}`));
+    process.exitCode = 1;
+    return;
+  }
+  const [cmd, args] = entry;
+  const result = spawnSync(cmd, args, { stdio: "inherit", cwd: process.cwd() });
+  if (result.status !== 0 || result.error) {
+    process.exitCode = result.status ?? 1;
+  }
 }
 
 function doctor(): void {

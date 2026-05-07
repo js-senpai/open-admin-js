@@ -1,5 +1,5 @@
-import { existsSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { cancel, confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
@@ -8,6 +8,8 @@ import pc from "picocolors";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const { copySync, ensureDirSync, readFileSync, writeFileSync } = fsExtra;
+
+const BINARY_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot"]);
 
 export type PackageManager = "pnpm" | "npm" | "yarn";
 export type DatabaseDriver = "postgresql" | "mysql" | "sqlite";
@@ -67,6 +69,7 @@ function databaseUrl(packageName: string, database: DatabaseDriver): string {
 }
 
 function renderFile(file: string, replacements: Record<string, string>): void {
+  if (BINARY_EXTENSIONS.has(extname(file).toLowerCase())) return;
   const content = readFileSync(file, "utf8");
   writeFileSync(file, content.replace(placeholderPattern, (key) => replacements[key] ?? key));
 }
@@ -99,7 +102,10 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
   copySync(options.templateDir, targetDir, {
     overwrite: false,
     errorOnExist: true,
-    filter: (source) => !source.includes("node_modules") && !source.includes(".next") && !source.includes("dist")
+    filter: (source) => {
+      const segments = relative(options.templateDir, source).split(sep);
+      return !segments.some((segment) => segment === "node_modules" || segment === ".next" || segment === "dist");
+    }
   });
   if (!existsSync(join(targetDir, "package.json"))) {
     throw new Error(`Template copy failed: package.json not found in ${targetDir}`);
@@ -115,6 +121,27 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     __ADMIN_ORIGIN__: options.adminOrigin,
     __API_PORT__: options.apiPort
   });
+
+  // Write the real .env for apps/api so the app starts and seed runs without
+  // manual intervention. Superadmin credentials are picked up by prisma/seed.ts
+  // via the SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD env vars.
+  const apiEnvDir = join(targetDir, "apps", "api");
+  if (existsSync(apiEnvDir)) {
+    mkdirSync(apiEnvDir, { recursive: true });
+    writeFileSync(
+      join(apiEnvDir, ".env"),
+      [
+        `DATABASE_URL=${options.databaseUrl}`,
+        `REDIS_URL=${options.redisUrl}`,
+        `JWT_SECRET=${options.jwtSecret}`,
+        `JWT_REFRESH_SECRET=${options.jwtRefreshSecret}`,
+        `ADMIN_ORIGIN=${options.adminOrigin}`,
+        `API_PORT=${options.apiPort}`,
+        `SUPERADMIN_EMAIL=${options.superadminEmail}`,
+        `SUPERADMIN_PASSWORD=${options.superadminPassword}`
+      ].join("\n") + "\n"
+    );
+  }
 
   if (options.git) {
     const gitResult = spawnSync("git", ["init"], { cwd: targetDir, stdio: "ignore" });
@@ -149,7 +176,7 @@ export function printNextSteps(result: CreateProjectResult): void {
   const pm = result.packageManager;
   const installStep = result.install ? "" : `\n  ${pm} install`;
   outro(
-    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  docker compose up -d\n  ${pm} db:migrate\n  ${pm} db:seed\n  ${pm} dev\n\nAdmin: http://localhost:3000\nAPI: http://localhost:4000\nDocs: http://localhost:4000/api/docs\n\nSuperadmin: ${result.superadminEmail} / <your password>`
+    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  ${pm} db:migrate\n  ${pm} db:seed\n  ${pm} dev\n\nAdmin:  http://localhost:3000\nAPI:    http://localhost:4000\nSwagger: http://localhost:4000/api/docs\nWeb:    http://localhost:3001\n\nSuperadmin: ${result.superadminEmail} / <your password>`
   );
 }
 
