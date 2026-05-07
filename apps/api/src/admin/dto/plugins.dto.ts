@@ -1,4 +1,4 @@
-import { IsBoolean, IsObject, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsObject, IsOptional, IsString } from "class-validator";
 
 export class AddPluginDto {
   @IsString()
@@ -20,6 +20,15 @@ export class AddPluginDto {
   @IsObject()
   config?: Record<string, unknown>;
 
+  @IsOptional()
+  @IsIn(["trusted", "sandboxed"])
+  trustMode?: "trusted" | "sandboxed";
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  capabilities?: string[];
+
   /** When true and `package` is set, runs `pnpm add <package> --filter @openadminjs/api` (dev / non-production only). */
   @IsOptional()
   @IsBoolean()
@@ -34,4 +43,13 @@ export class PatchPluginDto {
   @IsOptional()
   @IsObject()
   config?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsIn(["trusted", "sandboxed"])
+  trustMode?: "trusted" | "sandboxed";
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  capabilities?: string[];
 }

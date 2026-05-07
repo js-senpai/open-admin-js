@@ -19,12 +19,21 @@ type PluginRow = {
   bundled?: string;
   package?: string;
   config?: Record<string, unknown>;
+  trustMode?: "trusted" | "sandboxed";
+  capabilities?: string[];
 };
 
 type PluginsState = {
   manifestPath: string;
   bundledAvailable: string[];
   plugins: PluginRow[];
+  runtime?: {
+    adminUiExtensions: number;
+    jobs: number;
+    apiHooks: number;
+    mediaHooks: number;
+    seoHooks: number;
+  };
 };
 
 export default function PluginsPage() {
@@ -38,6 +47,8 @@ export default function PluginsPage() {
   const [bundledKey, setBundledKey] = useState("hello");
   const [packageName, setPackageName] = useState("");
   const [runPnpm, setRunPnpm] = useState(false);
+  const [trustMode, setTrustMode] = useState<"trusted" | "sandboxed">("trusted");
+  const [capsText, setCapsText] = useState("");
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
@@ -76,18 +87,34 @@ export default function PluginsPage() {
         method: "POST",
         body: JSON.stringify(
           addMode === "bundled"
-            ? { id: newId.trim(), bundled: bundledKey, enabled: true, config: {} }
+            ? {
+                id: newId.trim(),
+                bundled: bundledKey,
+                enabled: true,
+                config: {},
+                trustMode,
+                capabilities: capsText
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+              }
             : {
                 id: newId.trim(),
                 package: packageName.trim(),
                 enabled: true,
                 config: {},
+                trustMode,
+                capabilities: capsText
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean),
                 runPnpmInstall: runPnpm
               }
         )
       });
       setNewId("");
       setPackageName("");
+      setCapsText("");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add plugin");
@@ -178,6 +205,12 @@ export default function PluginsPage() {
                   <span className="break-all font-mono text-slate-700">{state.manifestPath}</span>
                 </p>
               )}
+              {state?.runtime && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Runtime surfaces: ui {state.runtime.adminUiExtensions}, jobs {state.runtime.jobs}, api {state.runtime.apiHooks}, media{" "}
+                  {state.runtime.mediaHooks}, seo {state.runtime.seoHooks}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -250,6 +283,24 @@ export default function PluginsPage() {
               </label>
             )}
           </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trust mode</span>
+              <select className="input-base" value={trustMode} onChange={(e) => setTrustMode(e.target.value as "trusted" | "sandboxed")}>
+                <option value="trusted">trusted</option>
+                <option value="sandboxed">sandboxed</option>
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Capabilities (comma separated)</span>
+              <input
+                className="input-base font-mono text-xs"
+                value={capsText}
+                onChange={(e) => setCapsText(e.target.value)}
+                placeholder="resource.hooks,seo.extend,media.pipeline"
+              />
+            </label>
+          </div>
 
           {addMode === "package" && (
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-slate-600">
@@ -311,6 +362,14 @@ export default function PluginsPage() {
                     >
                       {row.enabled === false ? "Disabled" : "Enabled"}
                     </span>
+                    <p className="mt-1 text-xs text-slate-500">
+                      trust: <span className="font-mono text-slate-700">{row.trustMode ?? "trusted"}</span>
+                    </p>
+                    {row.capabilities && row.capabilities.length > 0 && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        caps: <span className="font-mono text-slate-700">{row.capabilities.join(", ")}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <button

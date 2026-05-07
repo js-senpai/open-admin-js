@@ -4,12 +4,24 @@
     {
       "id": "io.openadminjs.hello",
       "enabled": true,
+      "trustMode": "trusted",
+      "capabilities": ["resource.hooks"],
       "bundled": "hello",
       "config": { "tag": "optional-config-passed-to-plugin" }
     },
     {
+      "id": "io.openadminjs.seo",
+      "enabled": false,
+      "trustMode": "sandboxed",
+      "capabilities": ["seo.extend"],
+      "bundled": "seo",
+      "config": {}
+    },
+    {
       "id": "com.vendor.billing",
       "enabled": false,
+      "trustMode": "sandboxed",
+      "capabilities": ["resource.hooks", "api.routes", "jobs.run", "admin.ui.extend"],
       "package": "@vendor/openadmin-billing",
       "marketplace": {
         "listingUrl": "https://example.com/plugins/billing",

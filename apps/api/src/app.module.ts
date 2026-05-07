@@ -3,6 +3,7 @@ import "./plugins/bootstrap";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Module } from "@nestjs/common";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { PrismaService } from "./common/prisma.service";
@@ -12,6 +13,7 @@ import { HealthController } from "./health/health.controller";
 import { QueueModule } from "./queue/queue.module";
 import { StoreModule } from "./store/store.module";
 import { MailModule } from "./mail/mail.module";
+import { PluginApiInterceptor } from "./plugins/plugin-api.interceptor";
 
 const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "api", ".env")].filter((p) =>
   existsSync(p)
@@ -31,7 +33,13 @@ const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "a
     StoreModule
   ],
   controllers: [HealthController],
-  providers: [PrismaService],
+  providers: [
+    PrismaService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PluginApiInterceptor
+    }
+  ],
   exports: [PrismaService]
 })
 export class AppModule {}

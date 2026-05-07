@@ -1,9 +1,23 @@
 import { z } from "zod";
 
+const capabilitySchema = z.enum([
+  "db.read",
+  "db.write",
+  "resource.hooks",
+  "api.hooks",
+  "api.routes",
+  "media.pipeline",
+  "seo.extend",
+  "jobs.run",
+  "admin.ui.extend"
+]);
+
 export const pluginManifestEntrySchema = z
   .object({
     id: z.string().min(1),
     enabled: z.boolean().optional().default(true),
+    trustMode: z.enum(["trusted", "sandboxed"]).optional().default("trusted"),
+    capabilities: z.array(capabilitySchema).optional().default([]),
     bundled: z
       .string()
       .regex(/^[a-z0-9-]+$/, "bundled id must be lowercase slug")
@@ -14,6 +28,12 @@ export const pluginManifestEntrySchema = z
       .regex(/^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i, "invalid npm package name")
       .optional(),
     config: z.record(z.string(), z.unknown()).optional().default({}),
+    policy: z
+      .object({
+        allowedRoutes: z.array(z.string()).optional(),
+        maxJobRuntimeMs: z.number().int().positive().optional()
+      })
+      .optional(),
     marketplace: z
       .object({
         listingUrl: z.string().optional(),

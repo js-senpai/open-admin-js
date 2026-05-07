@@ -13,6 +13,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const { copySync, ensureDirSync } = fsExtra;
 
 type PackageManager = "pnpm" | "npm" | "yarn";
+type DatabaseDriver = "postgresql" | "mysql" | "sqlite";
+
+function databaseUrl(database: DatabaseDriver, packageName: string): string {
+  if (database === "postgresql") return `postgresql://openadminjs:openadminjs@localhost:5432/${packageName}?schema=public`;
+  if (database === "mysql") return `mysql://openadminjs:openadminjs@localhost:3306/${packageName}`;
+  return "file:./prisma/dev.db";
+}
 
 async function main(): Promise<void> {
   intro(pc.green("Create OpenAdminJS"));
@@ -31,12 +38,52 @@ async function main(): Promise<void> {
   });
   if (isCancel(manager)) return cancel("Cancelled");
 
-  const database = await select({
+  const database = await select<DatabaseDriver>({
     message: "Database",
-    options: [{ value: "postgresql", label: "PostgreSQL" }],
+    options: [
+      { value: "postgresql", label: "PostgreSQL" },
+      { value: "mysql", label: "MySQL" },
+      { value: "sqlite", label: "SQLite" }
+    ],
     initialValue: "postgresql"
   });
   if (isCancel(database)) return cancel("Cancelled");
+
+  const selectedDatabaseUrl = await text({
+    message: "Database URL",
+    defaultValue: databaseUrl(database, packageName(String(projectName)))
+  });
+  if (isCancel(selectedDatabaseUrl)) return cancel("Cancelled");
+
+  const redisUrl = await text({
+    message: "Redis URL (optional for queues)",
+    defaultValue: "redis://localhost:6379"
+  });
+  if (isCancel(redisUrl)) return cancel("Cancelled");
+
+  const jwtSecret = await text({
+    message: "JWT secret",
+    defaultValue: "change-me-to-a-long-random-secret"
+  });
+  if (isCancel(jwtSecret)) return cancel("Cancelled");
+
+  const jwtRefreshSecret = await text({
+    message: "JWT refresh secret",
+    defaultValue: "change-me-too"
+  });
+  if (isCancel(jwtRefreshSecret)) return cancel("Cancelled");
+
+  const adminOrigin = await text({
+    message: "Admin origin",
+    defaultValue: "http://localhost:3000"
+  });
+  if (isCancel(adminOrigin)) return cancel("Cancelled");
+
+  const apiPort = await text({
+    message: "API port",
+    defaultValue: "4000"
+  });
+  if (isCancel(apiPort)) return cancel("Cancelled");
 
   const git = await confirm({ message: "Initialize git?", initialValue: true });
   if (isCancel(git)) return cancel("Cancelled");
@@ -54,8 +101,13 @@ async function main(): Promise<void> {
   renderFiles(target, {
     __APP_NAME__: appName,
     __PACKAGE_NAME__: pkgName,
-    __DATABASE_PROVIDER__: "postgresql",
-    __DATABASE_URL__: `postgresql://openadminjs:openadminjs@localhost:5432/${pkgName}?schema=public`
+    __DATABASE_PROVIDER__: database,
+    __DATABASE_URL__: String(selectedDatabaseUrl),
+    __REDIS_URL__: String(redisUrl),
+    __JWT_SECRET__: String(jwtSecret),
+    __JWT_REFRESH_SECRET__: String(jwtRefreshSecret),
+    __ADMIN_ORIGIN__: String(adminOrigin),
+    __API_PORT__: String(apiPort)
   });
 
   if (git) spawnSync("git", ["init"], { cwd: target, stdio: "ignore" });

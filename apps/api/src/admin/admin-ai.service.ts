@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../common/prisma.service";
+import { pluginRuntime } from "../plugins/plugin-runtime";
 import { resources } from "../resources/registry";
 import { AdminResourceService } from "./admin-resource.service";
 
@@ -1071,20 +1072,52 @@ export class AdminAiService {
       meta?: Record<string, unknown>;
     }
   ) {
-    const contentBase64 =
+    const initialContentBase64 =
       input.encoding === "base64" ? content : Buffer.from(content, "utf8").toString("base64");
+    let filename = input.filename.slice(0, 180);
+    let mimeType = input.mimeType.slice(0, 120);
+    let contentBase64 = initialContentBase64;
+    for (const hooks of pluginRuntime.getMediaHooks()) {
+      await hooks.beforeStore?.({
+        filename,
+        mimeType,
+        size: Buffer.from(contentBase64, "base64").byteLength,
+        contentBase64,
+        user: { id: userId, email: "", permissions: [] }
+      });
+      if (hooks.transform) {
+        const transformed = await hooks.transform({
+          filename,
+          mimeType,
+          contentBase64,
+          user: { id: userId, email: "", permissions: [] }
+        });
+        filename = (transformed.filename ?? filename).slice(0, 180);
+        mimeType = (transformed.mimeType ?? mimeType).slice(0, 120);
+        contentBase64 = transformed.contentBase64;
+      }
+    }
     const size = Buffer.from(contentBase64, "base64").byteLength;
     const artifact = await this.prisma.aiArtifact.create({
       data: {
         userId,
         conversationId: input.conversationId ?? null,
-        filename: input.filename.slice(0, 180),
-        mimeType: input.mimeType.slice(0, 120),
+        filename,
+        mimeType,
         size,
         contentBase64,
         meta: (input.meta ?? null) as Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput
       }
     });
+    for (const hooks of pluginRuntime.getMediaHooks()) {
+      await hooks.afterStore?.({
+        fileId: artifact.id,
+        filename: artifact.filename,
+        mimeType: artifact.mimeType,
+        size: artifact.size,
+        user: { id: userId, email: "", permissions: [] }
+      });
+    }
     return {
       id: artifact.id,
       artifactId: artifact.id,

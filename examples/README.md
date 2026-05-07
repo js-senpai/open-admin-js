@@ -77,4 +77,4 @@ Use an automation token (`NPM_TOKEN`) in GitHub Actions with `npm publish` in a 
 
 If you only want to **start a new project** from npm (not publish), use:
 
-`npm create openadminjs@latest my-app`.
+`npx openadminjs create my-app`.

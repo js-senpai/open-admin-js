@@ -14,7 +14,7 @@ Minimal generated OpenAdminJS project with users, roles, posts, files, audit log
 
 ### Merge into your app
 
-1. Run `npm create openadminjs@latest my-app` (or use your existing app).
+1. Run `npx openadminjs create my-app` (or use your existing app).
 2. Append `prisma/models.fragment.prisma` to `prisma/schema.prisma`.
 3. Copy `src/resources/*.ts` into `apps/api/src/resources/`.
 4. Import resources in `registry.ts` and add them to the `resources` array (see `basicExampleResources` in `src/index.ts`).

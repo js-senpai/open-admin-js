@@ -1,11 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import type { OpenAdminPlugin, OpenAdminPluginModule, PluginRegistrationContext } from "@openadminjs/plugin-sdk";
+import type { OpenAdminPlugin, OpenAdminPluginModule, PluginRegistrationContext, PluginSurfaceRegistry } from "@openadminjs/plugin-sdk";
 import { Logger } from "@nestjs/common";
 import { registerResourceHooks, unregisterResourceHooksBySource } from "../resources/resource-hooks.registry";
 import { bundledOpenAdminPlugins } from "./bundled/registry";
 import { getManifestCandidateStrings, toAbsoluteManifestPath } from "./manifest-path";
 import { pluginManifestSchema, type PluginManifestEntry } from "./manifest.schema";
+import { pluginRuntime } from "./plugin-runtime";
 
 const log = new Logger("OpenAdminPlugins");
 
@@ -59,33 +60,57 @@ function resolveBundledPlugin(entry: PluginManifestEntry): OpenAdminPlugin {
 
 function createContext(entry: PluginManifestEntry): PluginRegistrationContext {
   const config = (entry.config ?? {}) as Record<string, unknown>;
+  const capabilities = new Set(entry.capabilities ?? []);
+  const ensureCap = (name: string) => {
+    if ((entry.trustMode ?? "trusted") === "trusted" && capabilities.size === 0) return;
+    if (!capabilities.has(name as never)) {
+      throw new Error(`Plugin "${entry.id}" attempted to use capability "${name}" but it is not declared in manifest.`);
+    }
+  };
+  const registerSurface = (surface: PluginSurfaceRegistry) => {
+    if (surface.resource) {
+      ensureCap("resource.hooks");
+      throw new Error('Use registerResourceHooks(resourceName, hooks) for resource lifecycle hooks.');
+    }
+    if (surface.api) {
+      if (surface.api.routes?.length) ensureCap("api.routes");
+      else ensureCap("api.hooks");
+    }
+    if (surface.media) ensureCap("media.pipeline");
+    if (surface.seo) ensureCap("seo.extend");
+    if (surface.jobs?.length) ensureCap("jobs.run");
+    if (surface.adminUi?.length) ensureCap("admin.ui.extend");
+    pluginRuntime.register(entry.id, surface);
+  };
   return {
     pluginId: entry.id,
     config,
+    trustMode: entry.trustMode ?? "trusted",
+    capabilities: [...capabilities],
     registerResourceHooks: (resourceName, hooks, options) =>
-      registerResourceHooks(resourceName, hooks, { ...options, source: entry.id })
+      registerResourceHooks(resourceName, hooks, { ...options, source: entry.id }),
+    registerSurface
   };
 }
 
 /** Register hooks for one manifest entry (same as bootstrap). Throws on failure. */
-export function applyManifestPluginEntry(entry: PluginManifestEntry): void {
+export async function applyManifestPluginEntry(entry: PluginManifestEntry): Promise<void> {
   if (entry.enabled === false) return;
   const plugin: OpenAdminPlugin = entry.bundled ? resolveBundledPlugin(entry) : resolveNpmPlugin(entry);
   const ctx = createContext(entry);
-  const result = plugin.register(ctx as PluginRegistrationContext);
-  if (result && typeof (result as Promise<void>).then === "function") {
-    throw new Error(`Plugin ${entry.id} must use synchronous register() at bootstrap`);
-  }
+  await plugin.register(ctx as PluginRegistrationContext);
+  if (plugin.onStart) await plugin.onStart(ctx as PluginRegistrationContext);
   log.log(`Loaded plugin ${entry.id} (${entry.bundled ? `bundled:${entry.bundled}` : `package:${entry.package}`})`);
 }
 
 /** Drop all hook registrations attributed to this plugin id (before re-apply or disable). */
 export function removeManifestPluginHooks(pluginId: string): void {
   unregisterResourceHooksBySource(pluginId);
+  pluginRuntime.removeBySource(pluginId);
   log.log(`Removed runtime hooks for plugin ${pluginId}`);
 }
 
-export function loadPluginsFromManifestSync(): void {
+export async function loadPluginsFromManifest(): Promise<void> {
   const raw = readManifest();
   if (!raw) {
     log.log("No plugins.manifest.json found — skipping plugins");
@@ -100,7 +125,7 @@ export function loadPluginsFromManifestSync(): void {
   for (const entry of manifest.plugins) {
     if (entry.enabled === false) continue;
     try {
-      applyManifestPluginEntry(entry);
+      await applyManifestPluginEntry(entry);
     } catch (e) {
       log.error(`Failed to load plugin ${entry.id}: ${(e as Error).message}`);
       if (process.env.NODE_ENV === "production") throw e;

@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const { copySync, ensureDirSync, readFileSync, writeFileSync } = fsExtra;
 
 export type PackageManager = "pnpm" | "npm" | "yarn";
-export type DatabaseDriver = "postgresql";
+export type DatabaseDriver = "postgresql" | "mysql" | "sqlite";
 
 export type CreateProjectOptions = {
   projectName?: string;
@@ -19,6 +19,12 @@ export type CreateProjectOptions = {
   database?: DatabaseDriver;
   superadminEmail?: string;
   superadminPassword?: string;
+  databaseUrl?: string;
+  redisUrl?: string;
+  jwtSecret?: string;
+  jwtRefreshSecret?: string;
+  adminOrigin?: string;
+  apiPort?: string;
   git?: boolean;
   install?: boolean;
   templateDir?: string;
@@ -36,7 +42,7 @@ export type CreateProjectResult = {
 };
 
 const placeholderPattern =
-  /__APP_NAME__|__PACKAGE_NAME__|__DATABASE_URL__|__DATABASE_PROVIDER__/g;
+  /__APP_NAME__|__PACKAGE_NAME__|__DATABASE_URL__|__DATABASE_PROVIDER__|__REDIS_URL__|__JWT_SECRET__|__JWT_REFRESH_SECRET__|__ADMIN_ORIGIN__|__API_PORT__/g;
 
 export function toPackageName(input: string): string {
   return input
@@ -54,7 +60,10 @@ function databaseUrl(packageName: string, database: DatabaseDriver): string {
   if (database === "postgresql") {
     return `postgresql://openadminjs:openadminjs@localhost:5432/${packageName}?schema=public`;
   }
-  return "";
+  if (database === "mysql") {
+    return `mysql://openadminjs:openadminjs@localhost:3306/${packageName}`;
+  }
+  return "file:./prisma/dev.db";
 }
 
 function renderFile(file: string, replacements: Record<string, string>): void {
@@ -96,7 +105,12 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     __APP_NAME__: appName,
     __PACKAGE_NAME__: packageName,
     __DATABASE_PROVIDER__: options.database,
-    __DATABASE_URL__: databaseUrl(packageName, options.database)
+    __DATABASE_URL__: options.databaseUrl,
+    __REDIS_URL__: options.redisUrl,
+    __JWT_SECRET__: options.jwtSecret,
+    __JWT_REFRESH_SECRET__: options.jwtRefreshSecret,
+    __ADMIN_ORIGIN__: options.adminOrigin,
+    __API_PORT__: options.apiPort
   });
 
   if (options.git) {
@@ -122,8 +136,9 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
 
 export function printNextSteps(result: CreateProjectResult): void {
   const pm = result.packageManager;
+  const installStep = result.install ? "" : `\n  ${pm} install`;
   outro(
-    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}\n  ${pm} install\n  docker compose up -d\n  ${pm} db:migrate\n  ${pm} db:seed\n  ${pm} dev\n\nAdmin: http://localhost:3000\nAPI: http://localhost:4000\nDocs: http://localhost:4000/api/docs\n\nSuperadmin: ${result.superadminEmail} / <your password>`
+    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  docker compose up -d\n  ${pm} db:migrate\n  ${pm} db:seed\n  ${pm} dev\n\nAdmin: http://localhost:3000\nAPI: http://localhost:4000\nDocs: http://localhost:4000/api/docs\n\nSuperadmin: ${result.superadminEmail} / <your password>`
   );
 }
 
@@ -162,7 +177,11 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     options.database ??
     (await select<DatabaseDriver>({
       message: "Database",
-      options: [{ value: "postgresql", label: "PostgreSQL" }],
+      options: [
+        { value: "postgresql", label: "PostgreSQL" },
+        { value: "mysql", label: "MySQL" },
+        { value: "sqlite", label: "SQLite" }
+      ],
       initialValue: "postgresql"
     }));
   if (isCancel(database)) {
@@ -199,17 +218,81 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     return undefined;
   }
 
+  const selectedDatabaseUrl =
+    options.databaseUrl ??
+    (await text({
+      message: "Database URL",
+      defaultValue: databaseUrl(toPackageName(String(projectName)), database)
+    }));
+  if (isCancel(selectedDatabaseUrl)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+
+  const redisUrl =
+    options.redisUrl ??
+    (await text({
+      message: "Redis URL (optional for queues)",
+      defaultValue: "redis://localhost:6379"
+    }));
+  if (isCancel(redisUrl)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+
+  const jwtSecret =
+    options.jwtSecret ??
+    (await text({
+      message: "JWT secret",
+      defaultValue: "change-me-to-a-long-random-secret",
+      placeholder: "at least 32 chars recommended"
+    }));
+  if (isCancel(jwtSecret)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+
+  const jwtRefreshSecret =
+    options.jwtRefreshSecret ??
+    (await text({
+      message: "JWT refresh secret",
+      defaultValue: "change-me-too",
+      placeholder: "at least 32 chars recommended"
+    }));
+  if (isCancel(jwtRefreshSecret)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+
+  const adminOrigin =
+    options.adminOrigin ??
+    (await text({
+      message: "Admin origin",
+      defaultValue: "http://localhost:3000"
+    }));
+  if (isCancel(adminOrigin)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+
+  const apiPort =
+    options.apiPort ??
+    (await text({
+      message: "API port",
+      defaultValue: "4000"
+    }));
+  if (isCancel(apiPort)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+
   const git = options.git ?? (await confirm({ message: "Initialize git?", initialValue: true }));
   if (isCancel(git)) {
     cancel("Cancelled");
     return undefined;
   }
 
-  const install = options.install ?? (await confirm({ message: "Install dependencies now?", initialValue: false }));
-  if (isCancel(install)) {
-    cancel("Cancelled");
-    return undefined;
-  }
+  const install = options.install ?? true;
 
   const result = createProject({
     projectName: String(projectName),
@@ -218,6 +301,12 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     database,
     superadminEmail: String(superadminEmail),
     superadminPassword: String(superadminPassword),
+    databaseUrl: String(selectedDatabaseUrl),
+    redisUrl: String(redisUrl),
+    jwtSecret: String(jwtSecret),
+    jwtRefreshSecret: String(jwtRefreshSecret),
+    adminOrigin: String(adminOrigin),
+    apiPort: String(apiPort),
     git,
     install,
     templateDir: options.templateDir ?? defaultTemplateDir()

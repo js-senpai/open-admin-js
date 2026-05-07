@@ -5,9 +5,17 @@ describe("pluginManifestSchema", () => {
   it("accepts bundled-only entry", () => {
     const r = pluginManifestSchema.safeParse({
       version: 1,
-      plugins: [{ id: "a.b", bundled: "hello", enabled: true, config: { x: 1 } }]
+      plugins: [{ id: "a.b", bundled: "hello", enabled: true, config: { x: 1 }, capabilities: ["resource.hooks"], trustMode: "sandboxed" }]
     });
     expect(r.success).toBe(true);
+  });
+
+  it("rejects unknown capability", () => {
+    const r = pluginManifestSchema.safeParse({
+      version: 1,
+      plugins: [{ id: "a.b", bundled: "hello", capabilities: ["unknown.cap"] }]
+    });
+    expect(r.success).toBe(false);
   });
 
   it("rejects both bundled and package", () => {

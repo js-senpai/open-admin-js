@@ -17,6 +17,7 @@ import {
   type PluginManifest,
   type PluginManifestEntry
 } from "../plugins/manifest.schema";
+import { pluginRuntime } from "../plugins/plugin-runtime";
 
 const execFileAsync = promisify(execFile);
 
@@ -62,7 +63,14 @@ export class AdminPluginsService {
     return {
       manifestPath: path,
       bundledAvailable: Object.keys(bundledOpenAdminPlugins),
-      plugins: manifest.plugins
+      plugins: manifest.plugins,
+      runtime: {
+        adminUiExtensions: pluginRuntime.getAdminUiExtensions().length,
+        jobs: pluginRuntime.getJobs().length,
+        apiHooks: pluginRuntime.getApiHooks().length,
+        mediaHooks: pluginRuntime.getMediaHooks().length,
+        seoHooks: pluginRuntime.getSeoHooks().length
+      }
     };
   }
 
@@ -81,6 +89,8 @@ export class AdminPluginsService {
     package?: string;
     enabled?: boolean;
     config?: Record<string, unknown>;
+    trustMode?: "trusted" | "sandboxed";
+    capabilities?: string[];
     runPnpmInstall?: boolean;
   }) {
     const hasBundled = Boolean(dto.bundled);
@@ -103,7 +113,9 @@ export class AdminPluginsService {
       id: dto.id,
       enabled: dto.enabled ?? true,
       ...(dto.bundled ? { bundled: dto.bundled } : { package: dto.package! }),
-      config: dto.config ?? {}
+      config: dto.config ?? {},
+      trustMode: dto.trustMode ?? "trusted",
+      capabilities: dto.capabilities ?? []
     };
 
     const entryParsed = pluginManifestEntrySchema.safeParse(entry);
@@ -144,7 +156,7 @@ export class AdminPluginsService {
     };
   }
 
-  async patch(id: string, dto: { enabled?: boolean; config?: Record<string, unknown> }) {
+  async patch(id: string, dto: { enabled?: boolean; config?: Record<string, unknown>; trustMode?: "trusted" | "sandboxed"; capabilities?: string[] }) {
     const manifest = this.readManifestOrEmpty();
     const idx = manifest.plugins.findIndex((p) => p.id === id);
     if (idx === -1) {
@@ -153,6 +165,8 @@ export class AdminPluginsService {
     const cur = { ...manifest.plugins[idx]! };
     if (dto.enabled !== undefined) cur.enabled = dto.enabled;
     if (dto.config !== undefined) cur.config = dto.config;
+    if (dto.trustMode !== undefined) cur.trustMode = dto.trustMode;
+    if (dto.capabilities !== undefined) cur.capabilities = dto.capabilities;
 
     const entryParsed = pluginManifestEntrySchema.safeParse(cur);
     if (!entryParsed.success) {
@@ -224,7 +238,7 @@ export class AdminPluginsService {
         invalidateNpmPluginMainModule(entry.package);
       }
       try {
-        applyManifestPluginEntry(entry);
+        await applyManifestPluginEntry(entry);
         return;
       } catch (e) {
         last = e instanceof Error ? e : new Error(String(e));

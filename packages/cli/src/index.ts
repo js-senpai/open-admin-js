@@ -67,6 +67,24 @@ function generateResource(modelName: string, options: { force?: boolean }): void
   console.log(pc.green(`Created ${target}`));
 }
 
+function generatePlugin(pluginId: string, options: { force?: boolean }): void {
+  const safeId = pluginId.trim().toLowerCase().replace(/[^a-z0-9.-]+/g, "-");
+  const slug = safeId.replace(/\./g, "-");
+  const targetDir = join(process.cwd(), "apps/api/src/plugins/custom");
+  const target = join(targetDir, `${slug}.plugin.ts`);
+  if (existsSync(target) && !options.force) {
+    console.error(pc.red(`${target} already exists. Use --force to overwrite.`));
+    process.exitCode = 1;
+    return;
+  }
+  mkdirSync(targetDir, { recursive: true });
+  writeFileSync(
+    target,
+    `import type { OpenAdminPlugin } from "@openadminjs/plugin-sdk";\n\nexport const ${slug.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Plugin: OpenAdminPlugin = {\n  id: "${safeId}",\n  version: "0.1.0",\n  register({ registerSurface }) {\n    registerSurface({\n      seo: {\n        metadata({ resourceName, record }) {\n          if (resourceName !== "posts") return {};\n          return { title: record.title ?? "Untitled" };\n        }\n      }\n    });\n  }\n};\n`
+  );
+  console.log(pc.green(`Created ${target}`));
+}
+
 cli.command("dev", "Start API and admin apps").action(() => runScript("dev"));
 cli.command("create [projectName]", "Create a new OpenAdminJS project").action(async (projectName?: string) => {
   try {
@@ -97,24 +115,33 @@ cli
     }
   });
 
-function runResourceCommand(kind: string | undefined, modelName: string | undefined, options: { force?: boolean }): void {
-  if (kind !== "resource" || !modelName) {
-    console.error(pc.red("Usage: openadminjs generate resource <modelName> [--force]"));
+function runGenerateCommand(kind: string | undefined, name: string | undefined, options: { force?: boolean }): void {
+  if (!kind || !name) {
+    console.error(pc.red("Usage: openadminjs generate <resource|plugin> <name> [--force]"));
     process.exitCode = 1;
     return;
   }
-  generateResource(modelName, options);
+  if (kind === "resource") {
+    generateResource(name, options);
+    return;
+  }
+  if (kind === "plugin") {
+    generatePlugin(name, options);
+    return;
+  }
+  console.error(pc.red(`Unknown generate kind: ${kind}. Use resource or plugin.`));
+  process.exitCode = 1;
 }
 
 cli
-  .command("generate <kind> <modelName>", "Generate safe resource config")
+  .command("generate <kind> <name>", "Generate resource or plugin starter")
   .option("--force", "Overwrite existing file")
-  .action(runResourceCommand);
+  .action(runGenerateCommand);
 
 cli
-  .command("make <kind> <modelName>", "Alias for generate resource")
+  .command("make <kind> <name>", "Alias for generate")
   .option("--force", "Overwrite existing file")
-  .action(runResourceCommand);
+  .action(runGenerateCommand);
 cli.command("doctor", "Check generated project health").action(doctor);
 cli.command("security", "Run security checklist").action(securityCheck);
 cli.command("security check", "Run security checklist").action(securityCheck);
