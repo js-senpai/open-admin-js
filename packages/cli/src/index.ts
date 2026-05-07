@@ -78,11 +78,43 @@ cli.command("create [projectName]", "Create a new OpenAdminJS project").action(a
 });
 cli.command("build", "Build all workspaces").action(() => runScript("build"));
 cli.command("start", "Start production apps").action(() => runScript("start"));
-cli.command("db migrate", "Run Prisma migrations").action(() => console.log("Run: pnpm --filter @openadminjs/api prisma migrate dev"));
-cli.command("db seed", "Seed demo data").action(() => console.log("Run: pnpm --filter @openadminjs/api prisma db seed"));
-cli.command("db studio", "Open Prisma Studio").action(() => console.log("Run: pnpm --filter @openadminjs/api prisma studio"));
-cli.command("generate resource <modelName>", "Generate safe resource config").option("--force", "Overwrite existing file").action(generateResource);
-cli.command("make resource <modelName>", "Alias for generate resource").option("--force", "Overwrite existing file").action(generateResource);
+cli
+  .command("db <action>", "Run database helper commands")
+  .action((action?: string) => {
+    switch (action) {
+      case "migrate":
+        console.log("Run: pnpm --filter @openadminjs/api prisma migrate dev");
+        return;
+      case "seed":
+        console.log("Run: pnpm --filter @openadminjs/api prisma db seed");
+        return;
+      case "studio":
+        console.log("Run: pnpm --filter @openadminjs/api prisma studio");
+        return;
+      default:
+        console.error(pc.red("Unknown db action. Use: migrate, seed, studio."));
+        process.exitCode = 1;
+    }
+  });
+
+function runResourceCommand(kind: string | undefined, modelName: string | undefined, options: { force?: boolean }): void {
+  if (kind !== "resource" || !modelName) {
+    console.error(pc.red("Usage: openadminjs generate resource <modelName> [--force]"));
+    process.exitCode = 1;
+    return;
+  }
+  generateResource(modelName, options);
+}
+
+cli
+  .command("generate <kind> <modelName>", "Generate safe resource config")
+  .option("--force", "Overwrite existing file")
+  .action(runResourceCommand);
+
+cli
+  .command("make <kind> <modelName>", "Alias for generate resource")
+  .option("--force", "Overwrite existing file")
+  .action(runResourceCommand);
 cli.command("doctor", "Check generated project health").action(doctor);
 cli.command("security", "Run security checklist").action(securityCheck);
 cli.command("security check", "Run security checklist").action(securityCheck);

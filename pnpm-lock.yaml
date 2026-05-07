@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@openadminjs/cli':
-        specifier: workspace:*
-        version: link:packages/cli
       '@prisma/client':
         specifier: ^6.1.0
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
@@ -20,6 +17,9 @@ importers:
       eslint:
         specifier: ^9.17.0
         version: 9.39.4(jiti@2.6.1)
+      openadminjs:
+        specifier: workspace:*
+        version: 'link:'
       prettier:
         specifier: ^3.4.2
         version: 3.8.3
