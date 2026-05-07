@@ -1,6 +1,6 @@
 {
   "name": "openadminjs",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "type": "module",
   "bin": {
     "openadminjs": "dist/index.js"
@@ -22,6 +22,7 @@
   },
   "files": [
     "dist",
+    "template",
     "README.md"
   ],
   "scripts": {

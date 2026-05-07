@@ -264,27 +264,8 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     return undefined;
   }
 
-  const adminOrigin =
-    options.adminOrigin ??
-    (await text({
-      message: "Admin origin",
-      defaultValue: "http://localhost:3000"
-    }));
-  if (isCancel(adminOrigin)) {
-    cancel("Cancelled");
-    return undefined;
-  }
-
-  const apiPort =
-    options.apiPort ??
-    (await text({
-      message: "API port",
-      defaultValue: "4000"
-    }));
-  if (isCancel(apiPort)) {
-    cancel("Cancelled");
-    return undefined;
-  }
+  const adminOrigin = options.adminOrigin ?? "http://localhost:3000";
+  const apiPort = options.apiPort ?? "4000";
 
   const git = options.git ?? (await confirm({ message: "Initialize git?", initialValue: true }));
   if (isCancel(git)) {

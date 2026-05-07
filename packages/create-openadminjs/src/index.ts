@@ -73,17 +73,8 @@ async function main(): Promise<void> {
   });
   if (isCancel(jwtRefreshSecret)) return cancel("Cancelled");
 
-  const adminOrigin = await text({
-    message: "Admin origin",
-    defaultValue: "http://localhost:3000"
-  });
-  if (isCancel(adminOrigin)) return cancel("Cancelled");
-
-  const apiPort = await text({
-    message: "API port",
-    defaultValue: "4000"
-  });
-  if (isCancel(apiPort)) return cancel("Cancelled");
+  const adminOrigin = "http://localhost:3000";
+  const apiPort = "4000";
 
   const git = await confirm({ message: "Initialize git?", initialValue: true });
   if (isCancel(git)) return cancel("Cancelled");

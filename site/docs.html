@@ -159,7 +159,7 @@
             <h2>Installation</h2>
             <p>
               Prerequisites: <strong>Node.js 20+</strong>, <strong>pnpm</strong> (recommended) or npm/yarn, and the OpenAdminJS CLI.
-              The flow mirrors a typical Nest.js workspace bootstrap: scaffold, migrate, seed, run. Dependency installation and core env prompts (DB/Redis/JWT/origins) happen automatically during project creation.
+              The flow mirrors a typical Nest.js workspace bootstrap: scaffold, migrate, seed, run. Dependency installation and core env prompts (DB/Redis/JWT) happen automatically during project creation, while admin origin and API port are prefilled with local defaults.
             </p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
@@ -208,6 +208,7 @@ prisma/
             <h2>Configuration</h2>
             <p>
               During <code>openadminjs create</code>, the wizard asks for DB credentials and key env values, then writes them into <code>.env.example</code>.
+              <code>ADMIN_ORIGIN</code> and <code>API_PORT</code> are written with defaults (<code>http://localhost:3000</code> and <code>4000</code>) so you only change them when your environment differs.
               Copy <code>.env.example</code> to <code>.env</code> at the repo root. Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
               <code>NEXT_PUBLIC_*</code> variables—treat secrets like you would in a Nest <code>ConfigModule</code> setup.
             </p>

@@ -20,7 +20,8 @@ During scaffolding, you can choose the database driver from a list (PostgreSQL, 
 
 ### 2. Configure environment
 
-The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets, `ADMIN_ORIGIN`, `API_PORT`) and writes them into `.env.example`.
+The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes them into `.env.example`.
+`ADMIN_ORIGIN` and `API_PORT` are prefilled with defaults (`http://localhost:3000` and `4000`) and can be changed manually if needed.
 Copy it to `.env` in the generated project, then adjust as needed.
 
 Minimal `.env` example:
