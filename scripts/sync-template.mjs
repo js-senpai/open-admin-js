@@ -49,6 +49,9 @@ for (const pkg of readdirSync(join(root, "packages"))) {
 rmSync(join(templateDir, "prisma"), { recursive: true, force: true });
 copyDir(join(root, "prisma"), join(templateDir, "prisma"));
 
+// ── root TypeScript base config (required by apps/*/tsconfig.json extends) ───
+cpSync(join(root, "tsconfig.base.json"), join(templateDir, "tsconfig.base.json"));
+
 // Patch prisma schema: replace hardcoded provider with template placeholder so
 // createProject can substitute the user's chosen database driver.
 const schemaPath = join(templateDir, "prisma", "schema.prisma");

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import net from "node:net";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -57,6 +58,90 @@ export function toPackageName(input: string): string {
 
 export function defaultTemplateDir(): string {
   return resolve(__dirname, "../template");
+}
+
+function parseUrlHostPort(input: string): { host: string; port: number } | undefined {
+  try {
+    const url = new URL(input);
+    if (!url.hostname) return undefined;
+    const port = url.port ? Number(url.port) : undefined;
+    if (port !== undefined && (!Number.isFinite(port) || port <= 0)) return undefined;
+    return { host: url.hostname, port: port ?? 0 };
+  } catch {
+    return undefined;
+  }
+}
+
+async function checkTcpConnection(host: string, port: number, timeoutMs = 1500): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const socket = net.createConnection({ host, port });
+    const onError = (err: unknown) => {
+      socket.destroy();
+      reject(err);
+    };
+    socket.setTimeout(timeoutMs, () => onError(new Error("timeout")));
+    socket.once("error", onError);
+    socket.once("connect", () => {
+      socket.end();
+      resolve();
+    });
+  });
+}
+
+async function pingRedis(urlInput: string, timeoutMs = 1500): Promise<void> {
+  const parsed = parseUrlHostPort(urlInput);
+  if (!parsed) throw new Error("Invalid Redis URL");
+  const port = parsed.port || 6379;
+
+  await new Promise<void>((resolve, reject) => {
+    const socket = net.createConnection({ host: parsed.host, port });
+    const onError = (err: unknown) => {
+      socket.destroy();
+      reject(err);
+    };
+    socket.setTimeout(timeoutMs, () => onError(new Error("timeout")));
+    socket.once("error", onError);
+    socket.once("connect", () => {
+      socket.write("*1\r\n$4\r\nPING\r\n");
+    });
+    let buffer = "";
+    socket.on("data", (chunk) => {
+      buffer += chunk.toString("utf8");
+      if (buffer.includes("+PONG")) {
+        socket.end();
+        resolve();
+      }
+      if (buffer.includes("-ERR")) {
+        onError(new Error("redis error"));
+      }
+    });
+  });
+}
+
+async function validateDbConnectivity(database: DatabaseDriver, databaseUrlInput: string): Promise<string | undefined> {
+  if (database === "sqlite") return undefined;
+  const parsed = parseUrlHostPort(databaseUrlInput);
+  if (!parsed) return "Invalid database URL.";
+
+  const port = parsed.port || (database === "postgresql" ? 5432 : 3306);
+  try {
+    await checkTcpConnection(parsed.host, port);
+    return undefined;
+  } catch {
+    return `Cannot connect to ${parsed.host}:${port}.`;
+  }
+}
+
+async function validateRedisConnectivity(redisUrlInput: string): Promise<string | undefined> {
+  try {
+    await pingRedis(redisUrlInput);
+    return undefined;
+  } catch {
+    const parsed = parseUrlHostPort(redisUrlInput);
+    if (!parsed) return "Invalid Redis URL.";
+    const port = parsed.port || 6379;
+    return `Cannot connect to Redis at ${parsed.host}:${port}.`;
+  }
 }
 
 function databaseUrl(packageName: string, database: DatabaseDriver): string {
@@ -132,6 +217,12 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     __ADMIN_ORIGIN__: options.adminOrigin,
     __API_PORT__: options.apiPort
   });
+
+  const envExamplePath = join(targetDir, ".env.example");
+  const envPath = join(targetDir, ".env");
+  if (existsSync(envExamplePath) && !existsSync(envPath)) {
+    writeFileSync(envPath, readFileSync(envExamplePath, "utf8"));
+  }
 
   // Write the real .env for apps/api so the app starts and seed runs without
   // manual intervention. Superadmin credentials are picked up by prisma/seed.ts
@@ -282,15 +373,69 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     return undefined;
   }
 
-  const redisUrl =
-    options.redisUrl ??
-    (await text({
-      message: "Redis URL (optional for queues)",
-      defaultValue: "redis://localhost:6379"
-    }));
-  if (isCancel(redisUrl)) {
-    cancel("Cancelled");
-    return undefined;
+  let checkedDatabaseUrl = String(selectedDatabaseUrl).trim();
+  while (true) {
+    const dbError = await validateDbConnectivity(database, checkedDatabaseUrl);
+    if (!dbError) break;
+    const retry = await confirm({
+      message: `${dbError} Retry entering DATABASE_URL?`,
+      initialValue: true
+    });
+    if (isCancel(retry)) {
+      cancel("Cancelled");
+      return undefined;
+    }
+    if (!retry) break;
+    const next = await text({
+      message: "Database URL",
+      defaultValue: checkedDatabaseUrl
+    });
+    if (isCancel(next)) {
+      cancel("Cancelled");
+      return undefined;
+    }
+    checkedDatabaseUrl = String(next).trim();
+  }
+
+  let checkedRedisUrl = (options.redisUrl ?? "").trim();
+  while (!checkedRedisUrl) {
+    const entered =
+      options.redisUrl ??
+      (await text({
+        message: "Redis URL (required)",
+        defaultValue: "redis://localhost:6379",
+        validate(value) {
+          return value.trim().length > 0 ? undefined : "Redis URL is required.";
+        }
+      }));
+    if (isCancel(entered)) {
+      cancel("Cancelled");
+      return undefined;
+    }
+    checkedRedisUrl = String(entered).trim();
+  }
+
+  while (true) {
+    const redisError = await validateRedisConnectivity(checkedRedisUrl);
+    if (!redisError) break;
+    const retry = await confirm({
+      message: `${redisError} Retry entering REDIS_URL?`,
+      initialValue: true
+    });
+    if (isCancel(retry)) {
+      cancel("Cancelled");
+      return undefined;
+    }
+    if (!retry) break;
+    const next = await text({
+      message: "Redis URL (required)",
+      defaultValue: checkedRedisUrl
+    });
+    if (isCancel(next)) {
+      cancel("Cancelled");
+      return undefined;
+    }
+    checkedRedisUrl = String(next).trim();
   }
 
   const jwtSecret =
@@ -335,8 +480,8 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     database,
     superadminEmail: String(superadminEmail),
     superadminPassword: String(superadminPassword),
-    databaseUrl: String(selectedDatabaseUrl),
-    redisUrl: String(redisUrl),
+    databaseUrl: checkedDatabaseUrl,
+    redisUrl: checkedRedisUrl,
     jwtSecret: String(jwtSecret),
     jwtRefreshSecret: String(jwtRefreshSecret),
     adminOrigin: String(adminOrigin),
