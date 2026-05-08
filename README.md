@@ -20,9 +20,9 @@ During scaffolding, you can choose the database driver from a list (PostgreSQL, 
 
 ### 2. Configure environment
 
-The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes them into `.env.example`.
+The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes ready-to-use values into `apps/api/.env`.
 `ADMIN_ORIGIN` and `API_PORT` are prefilled with defaults (`http://localhost:3000` and `4000`) and can be changed manually if needed.
-Copy it to `.env` in the generated project, then adjust as needed.
+`.env.example` is left as a reference template.
 
 Minimal `.env` example:
 
@@ -42,11 +42,9 @@ REDIS_URL=redis://localhost:6379
 OPENADMIN_PLUGIN_PNPM_INSTALL=0
 ```
 
-### 3. Prepare database and run
+### 3. Run project
 
 ```bash
-pnpm db:migrate
-pnpm db:seed
 pnpm dev
 ```
 
@@ -61,10 +59,10 @@ Typical URLs:
 
 ### 4. Sign in
 
-After a successful seed:
+After project creation, migrations and seed are run automatically. Use the superadmin credentials you entered in the scaffold wizard:
 
-- **Email:** `openadminjs@proton.me`
-- **Password:** `password`
+- **Email:** your `Superadmin email`
+- **Password:** your `Superadmin password`
 
 ## MVP scope
 

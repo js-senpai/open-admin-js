@@ -165,8 +165,6 @@
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>npx openadminjs create my-app
 cd my-app
-pnpm db:migrate
-pnpm db:seed
 pnpm dev</code></pre>
             </div>
             <p>Default local URLs after <code>pnpm dev</code>:</p>
@@ -207,9 +205,9 @@ prisma/
           <section id="configuration">
             <h2>Configuration</h2>
             <p>
-              During <code>openadminjs create</code>, the wizard asks for DB credentials and key env values, then writes them into <code>.env.example</code>.
+              During <code>openadminjs create</code>, the wizard asks for DB credentials and key env values, then writes ready-to-use values into <code>apps/api/.env</code>.
               <code>ADMIN_ORIGIN</code> and <code>API_PORT</code> are written with defaults (<code>http://localhost:3000</code> and <code>4000</code>) so you only change them when your environment differs.
-              Copy <code>.env.example</code> to <code>.env</code> at the repo root. Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
+              <code>.env.example</code> remains a reference template. Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
               <code>NEXT_PUBLIC_*</code> variables—treat secrets like you would in a Nest <code>ConfigModule</code> setup.
             </p>
             <div class="docs-code-block" data-language="env">
@@ -234,8 +232,8 @@ NEXT_PUBLIC_SITE_URL="http://localhost:3001"</code></pre>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>pnpm dev                 # API + admin + web (see root package.json)
-pnpm db:migrate          # prisma migrate dev (API context)
-pnpm db:seed             # seed demo roles / users / data
+pnpm db:migrate          # run Prisma migrations manually when schema changes
+pnpm db:seed             # run seed manually (reseed / reset flows)
 pnpm test                # all workspace tests
 pnpm --filter @openadminjs/api build</code></pre>
             </div>
@@ -570,7 +568,7 @@ await prisma.role.create({
               <pre><code>POST /auth/login
 Content-Type: application/json
 
-{ "email": "openadminjs@proton.me", "password": "password" }</code></pre>
+{ "email": "&lt;superadmin-email&gt;", "password": "&lt;superadmin-password&gt;" }</code></pre>
             </div>
             <div class="docs-code-block" data-language="http">
               <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
@@ -1153,8 +1151,8 @@ node apps/api/dist/main.js</code></pre>
 Content-Type: application/json
 
 {
-  "email": "openadminjs@proton.me",
-  "password": "password",
+  "email": "&lt;superadmin-email&gt;",
+  "password": "&lt;superadmin-password&gt;",
   "realm": "admin"
 }</code></pre>
             </div>
@@ -1165,7 +1163,7 @@ Content-Type: application/json
   "refreshToken": "&lt;jwt&gt;",
   "user": {
     "id": "clx123",
-    "email": "openadminjs@proton.me",
+    "email": "&lt;superadmin-email&gt;",
     "permissions": ["*"]
   }
 }</code></pre>

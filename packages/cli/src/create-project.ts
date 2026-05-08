@@ -41,6 +41,7 @@ export type CreateProjectResult = {
   superadminEmail: string;
   git: boolean;
   install: boolean;
+  dbInitialized: boolean;
 };
 
 const placeholderPattern =
@@ -87,6 +88,16 @@ function renderTemplateFiles(targetDir: string, replacements: Record<string, str
         renderFile(path, replacements);
       }
     }
+  }
+}
+
+function runPackageManagerScript(packageManager: PackageManager, script: "db:migrate" | "db:seed", cwd: string): void {
+  const command = packageManager === "npm" ? "npm" : packageManager;
+  const args = packageManager === "npm" ? ["run", script] : [script];
+  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+  if (result.status !== 0 || result.error) {
+    const displayCommand = packageManager === "npm" ? `npm run ${script}` : `${packageManager} ${script}`;
+    throw new Error(`Failed to run "${displayCommand}" in ${cwd}.`);
   }
 }
 
@@ -158,6 +169,8 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
         `Dependency installation failed. Run "${options.packageManager} ${installArgs.join(" ")}" inside ${targetDir}.`
       );
     }
+    runPackageManagerScript(options.packageManager, "db:migrate", targetDir);
+    runPackageManagerScript(options.packageManager, "db:seed", targetDir);
   }
 
   return {
@@ -168,15 +181,17 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     database: options.database,
     superadminEmail: options.superadminEmail,
     git: options.git,
-    install: options.install
+    install: options.install,
+    dbInitialized: options.install
   };
 }
 
 export function printNextSteps(result: CreateProjectResult): void {
   const pm = result.packageManager;
-  const installStep = result.install ? "" : `\n  ${pm} install`;
+  const installStep = result.install ? "" : `\n  ${pm} install\n  ${pm} db:migrate\n  ${pm} db:seed`;
+  const dbStepNote = result.dbInitialized ? "\nDatabase initialized: migrations + seed completed automatically." : "";
   outro(
-    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  ${pm} db:migrate\n  ${pm} db:seed\n  ${pm} dev\n\nAdmin:  http://localhost:3000\nAPI:    http://localhost:4000\nSwagger: http://localhost:4000/api/docs\nWeb:    http://localhost:3001\n\nSuperadmin: ${result.superadminEmail} / <your password>`
+    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  ${pm} dev${dbStepNote}\n\nAdmin:  http://localhost:3000\nAPI:    http://localhost:4000\nSwagger: http://localhost:4000/api/docs\nWeb:    http://localhost:3001\n\nSuperadmin: ${result.superadminEmail} / <your password>`
   );
 }
 
