@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   createMailDriver,
@@ -21,7 +21,7 @@ export class MailService {
   private readonly appName: string;
   private readonly appUrl: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(@Inject(ConfigService) private readonly config: ConfigService) {
     const host = this.config.get<string>("SMTP_HOST");
     this.appName = this.config.get<string>("APP_NAME") ?? "OpenAdminJS";
     this.appUrl = this.config.get<string>("APP_URL") ?? "http://localhost:3000";

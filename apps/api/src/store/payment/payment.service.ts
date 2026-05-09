@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma.service";
 import { PaymentProviderService } from "./payment.provider";
 
@@ -29,8 +29,8 @@ export type OrderStatusResponse = {
 @Injectable()
 export class PaymentService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly paymentProvider: PaymentProviderService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PaymentProviderService) private readonly paymentProvider: PaymentProviderService
   ) {}
 
   /** Create a new order and return a checkout URL. */

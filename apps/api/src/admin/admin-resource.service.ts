@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { ResourceConfig, ResourceField } from "@openadminjs/core";
 import {
@@ -33,7 +33,7 @@ type PrismaDelegate = {
 
 @Injectable()
 export class AdminResourceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   listResources(user: UserContext, locale?: string) {
     return resources

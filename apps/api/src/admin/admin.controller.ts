@@ -13,8 +13,8 @@ type UserContext = { id: string; email?: string; permissions: string[] };
 @Controller("admin/resources")
 export class AdminController {
   constructor(
-    private readonly resources: AdminResourceService,
-    private readonly analytics: AdminAnalyticsService,
+    @Inject(AdminResourceService) private readonly resources: AdminResourceService,
+    @Inject(AdminAnalyticsService) private readonly analytics: AdminAnalyticsService,
     @Optional() @Inject(PaymentService) private readonly payments?: PaymentService
   ) {}
 

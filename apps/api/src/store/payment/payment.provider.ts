@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   createPaymentProvider,
@@ -19,7 +19,7 @@ export class PaymentProviderService {
   private readonly provider: PaymentProvider;
   private readonly logger = new Logger(PaymentProviderService.name);
 
-  constructor(private readonly config: ConfigService) {
+  constructor(@Inject(ConfigService) private readonly config: ConfigService) {
     const providerName = (this.config.get<string>("PAYMENT_PROVIDER") ?? "mock") as ProviderName;
     this.provider = createPaymentProvider(providerName, {
       stripeSecretKey: this.config.get<string>("STRIPE_SECRET_KEY"),

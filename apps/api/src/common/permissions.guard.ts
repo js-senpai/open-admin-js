@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { REQUIRE_PERMISSION, REQUIRE_ROLE } from "./permission.decorator";
 import { CaslAbilityFactory } from "./casl-ability.factory";
@@ -6,8 +6,8 @@ import { CaslAbilityFactory } from "./casl-ability.factory";
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(
-    private readonly reflector: Reflector,
-    private readonly abilityFactory: CaslAbilityFactory
+    @Inject(Reflector) private readonly reflector: Reflector,
+    @Inject(CaslAbilityFactory) private readonly abilityFactory: CaslAbilityFactory
   ) {}
 
   canActivate(context: ExecutionContext): boolean {

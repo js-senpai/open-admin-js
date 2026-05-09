@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+  UseGuards
+} from "@nestjs/common";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
 import { CurrentUser } from "../common/current-user.decorator";
@@ -11,7 +24,7 @@ type UserContext = { id: string; email?: string; permissions: string[] };
 @RequireAuthRealm("admin")
 @Controller("admin/ai")
 export class AdminAiController {
-  constructor(private readonly ai: AdminAiService) {}
+  constructor(@Inject(AdminAiService) private readonly ai: AdminAiService) {}
 
   @Get("config")
   config() {

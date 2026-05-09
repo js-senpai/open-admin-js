@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
 import { AddPluginDto, PatchPluginDto } from "./dto/plugins.dto";
@@ -8,7 +8,7 @@ import { AdminPluginsService } from "./admin-plugins.service";
 @RequireAuthRealm("admin")
 @Controller("admin/plugins")
 export class AdminPluginsController {
-  constructor(private readonly plugins: AdminPluginsService) {}
+  constructor(@Inject(AdminPluginsService) private readonly plugins: AdminPluginsService) {}
 
   @Get()
   list() {

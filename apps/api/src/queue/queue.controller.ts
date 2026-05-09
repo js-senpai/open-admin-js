@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Controller, Get, Inject, Post, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
 import { PermissionsGuard } from "../common/permissions.guard";
@@ -12,7 +12,7 @@ type UserContext = { id: string };
 @UseGuards(AuthGuard, PermissionsGuard)
 @RequireAuthRealm("admin")
 export class QueueController {
-  constructor(private readonly queue: QueueService) {}
+  constructor(@Inject(QueueService) private readonly queue: QueueService) {}
 
   @Get("stats")
   @RequirePermission("jobs.read")

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../common/prisma.service";
 
 type Period = "7d" | "30d" | "90d";
@@ -6,7 +6,7 @@ type UserContext = { id: string; permissions: string[] };
 
 @Injectable()
 export class AdminAnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async overview(user: UserContext, period: Period = "30d") {
     const days = period === "7d" ? 7 : period === "90d" ? 90 : 30;

@@ -11,7 +11,7 @@ export class AuthService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(JwtService) private readonly jwt: JwtService,
-    @Optional() private readonly mail?: MailService
+    @Optional() @Inject(MailService) private readonly mail?: MailService
   ) {}
 
   async login(

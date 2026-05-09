@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Headers,
+  Inject,
   Param,
   Post,
   Query,
@@ -20,7 +21,7 @@ type RequestLike = { user?: UserContext; rawBody?: Buffer };
 
 @Controller("store")
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(@Inject(PaymentService) private readonly paymentService: PaymentService) {}
 
   // ──────────────────────────────────────────────
   // Public endpoints — no JWT required

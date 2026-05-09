@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PrismaService } from "../common/prisma.service";
@@ -7,7 +7,7 @@ import { PrismaService } from "../common/prisma.service";
 export class QueueService {
   constructor(
     @InjectQueue("default") private readonly queue: Queue,
-    private readonly prisma: PrismaService
+    @Inject(PrismaService) private readonly prisma: PrismaService
   ) {}
 
   async getStats() {

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../common/prisma.service";
 import { pluginRuntime } from "../plugins/plugin-runtime";
@@ -79,8 +79,8 @@ const DEFAULT_SYSTEM_PROMPT = [
 @Injectable()
 export class AdminAiService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly resourcesService: AdminResourceService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AdminResourceService) private readonly resourcesService: AdminResourceService
   ) {}
 
   async getConfig() {
