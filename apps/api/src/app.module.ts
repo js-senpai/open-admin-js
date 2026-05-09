@@ -26,9 +26,9 @@ const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "a
       envFilePath: envFilePath.length > 0 ? envFilePath : [".env"]
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    MailModule,
     AuthModule,
     AdminModule,
-    MailModule,
     QueueModule,
     StoreModule
   ],
