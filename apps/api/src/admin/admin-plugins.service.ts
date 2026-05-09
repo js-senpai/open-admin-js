@@ -90,7 +90,7 @@ export class AdminPluginsService {
     enabled?: boolean;
     config?: Record<string, unknown>;
     trustMode?: "trusted" | "sandboxed";
-    capabilities?: string[];
+    capabilities?: PluginManifestEntry["capabilities"];
     runPnpmInstall?: boolean;
   }) {
     const hasBundled = Boolean(dto.bundled);
@@ -156,7 +156,15 @@ export class AdminPluginsService {
     };
   }
 
-  async patch(id: string, dto: { enabled?: boolean; config?: Record<string, unknown>; trustMode?: "trusted" | "sandboxed"; capabilities?: string[] }) {
+  async patch(
+    id: string,
+    dto: {
+      enabled?: boolean;
+      config?: Record<string, unknown>;
+      trustMode?: "trusted" | "sandboxed";
+      capabilities?: PluginManifestEntry["capabilities"];
+    }
+  ) {
     const manifest = this.readManifestOrEmpty();
     const idx = manifest.plugins.findIndex((p) => p.id === id);
     if (idx === -1) {

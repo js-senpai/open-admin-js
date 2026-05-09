@@ -19,7 +19,7 @@ importers:
         version: 9.39.4(jiti@2.6.1)
       openadminjs:
         specifier: workspace:*
-        version: 'link:'
+        version: link:packages/cli
       prettier:
         specifier: ^3.4.2
         version: 3.8.3
@@ -321,6 +321,18 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.17)(jsdom@29.1.1)(terser@5.46.2)
 
+  examples/plugin-ai-admin:
+    devDependencies:
+      '@openadminjs/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.17)(jsdom@29.1.1)(terser@5.46.2)
+
   examples/support-admin:
     devDependencies:
       '@openadminjs/core':
@@ -386,28 +398,6 @@ importers:
         specifier: workspace:*
         version: link:../resource
     devDependencies:
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.9(@types/node@22.19.17)(jsdom@29.1.1)(terser@5.46.2)
-
-  packages/create-openadminjs:
-    dependencies:
-      '@clack/prompts':
-        specifier: ^0.8.2
-        version: 0.8.2
-      fs-extra:
-        specifier: ^11.2.0
-        version: 11.3.4
-      picocolors:
-        specifier: ^1.1.1
-        version: 1.1.1
-    devDependencies:
-      '@types/fs-extra':
-        specifier: ^11.0.4
-        version: 11.0.4
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

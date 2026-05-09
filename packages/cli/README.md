@@ -20,25 +20,26 @@ During scaffolding, you can choose the database driver from a list (PostgreSQL, 
 
 ### 2. Configure environment
 
-The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes ready-to-use values into `apps/api/.env`.
+The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes ready-to-use values into `apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for non-interactive seed).
 `ADMIN_ORIGIN` and `API_PORT` are prefilled with defaults (`http://localhost:3000` and `4000`) and can be changed manually if needed.
-`.env.example` is left as a reference template.
+New projects do **not** include a root `.env.example` or root `.env`—use `apps/api/.env` as the source of truth (you can add your own `.env.example` for your team if you want).
 
-Minimal `.env` example:
+Typical `apps/api/.env` keys (after create, edit as needed):
 
 ```env
-NODE_ENV=development
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public
-API_PORT=4000
+REDIS_URL=redis://localhost:6379
 JWT_SECRET=replace-with-a-long-random-string-at-least-32-chars
 JWT_REFRESH_SECRET=another-long-random-string
 ADMIN_ORIGIN=http://localhost:3000
+API_PORT=4000
+SUPERADMIN_EMAIL=admin@localhost.dev
+SUPERADMIN_PASSWORD=your-secure-password
 ```
 
-Optional:
+Optional (elsewhere / advanced):
 
 ```env
-REDIS_URL=redis://localhost:6379
 OPENADMIN_PLUGIN_PNPM_INSTALL=0
 ```
 
@@ -102,9 +103,9 @@ Generate a starter plugin:
 pnpm exec openadminjs generate plugin com.example.my-plugin
 ```
 
-### Optional queue setup
+### Queue setup
 
-Set `REDIS_URL` in your environment to enable queue processing (example: `redis://localhost:6379`).
+Set `REDIS_URL` in your environment to run queue processing (example: `redis://localhost:6379`).
 
 ## Partners
 

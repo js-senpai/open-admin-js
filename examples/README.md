@@ -17,6 +17,7 @@ pnpm --filter "./examples/*" test
 | [crm-admin](./crm-admin/) | Sales: contacts, companies, deals, activities |
 | [ecommerce-admin](./ecommerce-admin/) | Catalog: products, variants, orders, inventory |
 | [marketplace-admin](./marketplace-admin/) | Two-sided: listings, sellers, payouts, disputes |
+| [plugin-ai-admin](./plugin-ai-admin/) | Custom plugin starter + AI assistant env/manifest snippets |
 | [support-admin](./support-admin/) | Ops: tickets, SLAs, canned replies, assignments |
 
 ## Publishing packages to npm (maintainers)

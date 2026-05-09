@@ -29,8 +29,14 @@ function runScript(name: string): void {
 }
 
 function doctor(): void {
-  const required = ["package.json", "pnpm-workspace.yaml", ".env.example", "prisma/schema.prisma"];
-  const missing = required.filter((file) => !existsSync(join(process.cwd(), file)));
+  const cwd = process.cwd();
+  const required = ["package.json", "pnpm-workspace.yaml", "prisma/schema.prisma"];
+  const missing = required.filter((file) => !existsSync(join(cwd, file)));
+  const hasEnvSample =
+    existsSync(join(cwd, ".env.example")) || existsSync(join(cwd, "apps", "api", ".env"));
+  if (!hasEnvSample) {
+    missing.push("apps/api/.env (or .env.example at repo root)");
+  }
   if (missing.length) {
     console.error(pc.red("OpenAdminJS doctor found missing files:"));
     for (const file of missing) console.error(` - ${file}`);
@@ -41,10 +47,19 @@ function doctor(): void {
 }
 
 function securityCheck(): void {
-  const envExample = existsSync(".env.example") ? readFileSync(".env.example", "utf8") : "";
+  const cwd = process.cwd();
+  const envSample = existsSync(join(cwd, ".env.example"))
+    ? readFileSync(join(cwd, ".env.example"), "utf8")
+    : existsSync(join(cwd, "apps", "api", ".env"))
+      ? readFileSync(join(cwd, "apps", "api", ".env"), "utf8")
+      : "";
   const findings: string[] = [];
-  if (!envExample.includes("JWT_SECRET")) findings.push("JWT_SECRET is missing from .env.example");
-  if (envExample.includes("DATABASE_URL=postgresql://") && !envExample.includes("localhost")) {
+  if (!envSample) {
+    findings.push("No .env.example or apps/api/.env found for security checklist");
+  } else if (!envSample.includes("JWT_SECRET")) {
+    findings.push("JWT_SECRET is missing from env sample (.env.example or apps/api/.env)");
+  }
+  if (envSample.includes("DATABASE_URL=postgresql://") && !envSample.includes("localhost")) {
     findings.push("DATABASE_URL example should not point to production");
   }
   if (existsSync("apps/admin/app")) {

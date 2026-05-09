@@ -205,9 +205,11 @@ prisma/
           <section id="configuration">
             <h2>Configuration</h2>
             <p>
-              During <code>openadminjs create</code>, the wizard asks for DB credentials and key env values, then writes ready-to-use values into <code>apps/api/.env</code>.
+              During <code>openadminjs create</code>, the wizard asks for DB credentials and key env values, then writes ready-to-use values into <code>apps/api/.env</code>
+              (including <code>SUPERADMIN_EMAIL</code> / <code>SUPERADMIN_PASSWORD</code> for non-interactive seed).
               <code>ADMIN_ORIGIN</code> and <code>API_PORT</code> are written with defaults (<code>http://localhost:3000</code> and <code>4000</code>) so you only change them when your environment differs.
-              <code>.env.example</code> remains a reference template. Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
+              New apps do <strong>not</strong> get a root <code>.env.example</code> or root <code>.env</code>—treat <code>apps/api/.env</code> as the API env source of truth.
+              Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
               <code>NEXT_PUBLIC_*</code> variables—treat secrets like you would in a Nest <code>ConfigModule</code> setup.
             </p>
             <div class="docs-code-block" data-language="env">
@@ -265,7 +267,7 @@ pnpm exec openadminjs make resource Invoice   # alias</code></pre>
             <p>Always register the new file in <code>registry.ts</code>, extend Prisma if needed, then migrate.</p>
 
             <h3 id="cli-doctor">doctor</h3>
-            <p>Runs quick health checks (env files, Prisma generate, lockfile) so CI or onboarding catches misconfiguration early.</p>
+            <p>Runs quick health checks for a generated workspace: <code>package.json</code>, <code>pnpm-workspace.yaml</code>, <code>prisma/schema.prisma</code>, and either <code>apps/api/.env</code> or a root <code>.env.example</code>.</p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>pnpm exec openadminjs doctor</code></pre>

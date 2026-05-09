@@ -1,0 +1,17 @@
+{
+  "name": "@openadminjs/example-plugin-ai",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Reference code: custom plugin snippet + AI assistant env/manifest snippets.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@openadminjs/plugin-sdk": "workspace:*",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -27,21 +27,12 @@ describe("create project", () => {
     }
   });
 
-  it("creates project with rendered .env.example values", () => {
+  it("does not scaffold root .env.example or .env files", () => {
     const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
     try {
       const result = createProject({ ...BASE_OPTIONS, projectName: "my-app", cwd, templateDir: defaultTemplateDir() });
-
-      const envExample = readFileSync(join(result.targetDir, ".env.example"), "utf8");
-      const env = readFileSync(join(result.targetDir, ".env"), "utf8");
-      expect(envExample).toContain("DATABASE_URL=postgresql://localhost:5432/my-app?schema=public");
-      expect(envExample).toContain("REDIS_URL=redis://localhost:6379");
-      expect(envExample).toContain("JWT_SECRET=test-jwt-secret");
-      expect(envExample).toContain("JWT_REFRESH_SECRET=test-jwt-refresh-secret");
-      expect(envExample).toContain("ADMIN_ORIGIN=http://localhost:3000");
-      expect(envExample).toContain("API_PORT=4000");
-
-      expect(env).toBe(envExample);
+      expect(existsSync(join(result.targetDir, ".env.example"))).toBe(false);
+      expect(existsSync(join(result.targetDir, ".env"))).toBe(false);
       expect(existsSync(join(result.targetDir, "tsconfig.base.json"))).toBe(true);
     } finally {
       rmSync(cwd, { recursive: true, force: true });

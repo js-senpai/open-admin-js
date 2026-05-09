@@ -200,7 +200,10 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     errorOnExist: true,
     filter: (source) => {
       const segments = relative(options.templateDir, source).split(sep);
-      return !segments.some((segment) => segment === "node_modules" || segment === ".next" || segment === "dist");
+      return !segments.some(
+        (segment) =>
+          segment === "node_modules" || segment === ".next" || segment === "dist" || segment === ".env.example"
+      );
     }
   });
   if (!existsSync(join(targetDir, "package.json"))) {
@@ -217,12 +220,6 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
     __ADMIN_ORIGIN__: options.adminOrigin,
     __API_PORT__: options.apiPort
   });
-
-  const envExamplePath = join(targetDir, ".env.example");
-  const envPath = join(targetDir, ".env");
-  if (existsSync(envExamplePath) && !existsSync(envPath)) {
-    writeFileSync(envPath, readFileSync(envExamplePath, "utf8"));
-  }
 
   // Write the real .env for apps/api so the app starts and seed runs without
   // manual intervention. Superadmin credentials are picked up by prisma/seed.ts
@@ -402,7 +399,7 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     const entered =
       options.redisUrl ??
       (await text({
-        message: "Redis URL (required)",
+        message: "Redis URL",
         defaultValue: "redis://localhost:6379",
         validate(value) {
           return value.trim().length > 0 ? undefined : "Redis URL is required.";
@@ -428,7 +425,7 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     }
     if (!retry) break;
     const next = await text({
-      message: "Redis URL (required)",
+      message: "Redis URL",
       defaultValue: checkedRedisUrl
     });
     if (isCancel(next)) {
