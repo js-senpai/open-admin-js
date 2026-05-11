@@ -1,0 +1,43 @@
+---
+description: Prisma + PostgreSQL conventions
+globs: prisma/**/*,**/*.prisma,**/prisma*.ts,**/*.repository.ts
+alwaysApply: false
+---
+
+# Prisma
+
+Single schema lives at `prisma/schema.prisma`. Migrations are **shared** across all apps via the API workspace.
+
+## Schema changes
+
+1. Edit `prisma/schema.prisma`.
+2. From repo root: `pnpm db:migrate` (creates a new dated migration, applies it, regenerates client).
+3. Update seed (`prisma/seed.ts`) only if new tables need demo data.
+4. Never edit existing migration SQL files — write a new migration instead.
+
+Migration name = short snake_case describing the change (e.g. `add_post_seo_fields`).
+
+## Client usage
+
+- Inject `PrismaService` (or `PrismaClient` in resource handlers) — don't `new PrismaClient()` in app code.
+- Always pass `where`. Never use raw SQL unless necessary; if you must, use `$queryRaw` with parameterized values.
+- Prefer `select`/`include` to bound the payload; don't return entire rows when only a few fields are needed.
+- Use transactions (`prisma.$transaction`) for multi-write invariants.
+
+```ts
+await prisma.$transaction([
+  prisma.user.update({ where: { id }, data: { status: "active" } }),
+  prisma.auditLog.create({ data: { userId: id, action: "user.activate" } }),
+]);
+```
+
+## Modeling
+
+- IDs default to `cuid()` (see existing `User`, `Role` models). Don't switch to UUID/integer without a migration plan.
+- Soft-deleted/audited entities should expose `createdAt @default(now())` and `updatedAt @updatedAt`.
+- Add an `@@index` for any field used in non-trivial filters or sorts.
+
+## Local dev
+
+- `DATABASE_URL` must be reachable; the API loads `<repo>/.env` then `apps/api/.env`.
+- After pulling new migrations: `pnpm db:migrate && pnpm db:seed`.
