@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   ChevronRight,
@@ -22,9 +22,11 @@ import {
   Users,
   X
 } from "lucide-react";
-import { getUiLocale, setUiLocale } from "../lib/locale";
 import { AiAssistantWidget } from "./ai-assistant-widget";
+import { api } from "../lib/api";
 import { Logo } from "./logo";
+
+type SearchHit = { resource: string; resourceLabel: string; id: string; title: string };
 
 const navGroups = [
   {
@@ -45,6 +47,7 @@ const navGroups = [
     label: "System",
     items: [
       { href: "/audit-logs", label: "Audit Logs", icon: History },
+      { href: "/system-logs", label: "System Logs", icon: FileText },
       { href: "/plugins", label: "Plugins", icon: Puzzle },
       { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/api-tokens", label: "API Tokens", icon: KeyRound },
@@ -189,27 +192,49 @@ function ThemeToggle() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const [locale, setLocale] = useState("en");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
-    setLocale(getUiLocale());
-  }, []);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  const onLocaleChange = useCallback(
-    (next: string) => {
-      setUiLocale(next);
-      setLocale(next);
-      router.refresh();
-    },
-    [router]
-  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const q = query.trim();
+    if (q.length < 2) {
+      setHits([]);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const result = await api<SearchHit[]>(`/admin/resources/search?q=${encodeURIComponent(q)}&limit=6`);
+        setHits(result);
+      } catch {
+        setHits([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 180);
+    return () => clearTimeout(handle);
+  }, [query, searchOpen]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#0a0f1e] dark:text-slate-100">
@@ -262,7 +287,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Search */}
-          <button className="hidden min-w-0 flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-400 transition-all hover:border-slate-300 hover:bg-white focus-visible:outline-none md:flex">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="hidden min-w-0 flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-400 transition-all hover:border-slate-300 hover:bg-white focus-visible:outline-none md:flex"
+          >
             <Search className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">Search anything...</span>
             <kbd className="hidden h-5 items-center rounded border border-slate-200 bg-white px-1.5 text-[10px] font-medium text-slate-400 lg:inline-flex">
@@ -300,6 +328,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <AiAssistantWidget />
+
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/45 p-4 pt-20 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search resources by title…"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+              />
+              <button
+                onClick={() => setSearchOpen(false)}
+                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                aria-label="Close search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto p-2">
+              {searchLoading && <p className="px-3 py-2 text-xs text-slate-400">Searching…</p>}
+              {!searchLoading && query.trim().length < 2 && (
+                <p className="px-3 py-2 text-xs text-slate-400">Type at least 2 characters.</p>
+              )}
+              {!searchLoading && query.trim().length >= 2 && hits.length === 0 && (
+                <p className="px-3 py-2 text-xs text-slate-400">No matches.</p>
+              )}
+              {hits.map((hit) => (
+                <Link
+                  key={`${hit.resource}:${hit.id}`}
+                  href={`/resources/${hit.resource}/${hit.id}`}
+                  onClick={() => setSearchOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{hit.title}</p>
+                  <p className="text-xs text-slate-500">
+                    {hit.resourceLabel} · {hit.id.slice(-8)}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

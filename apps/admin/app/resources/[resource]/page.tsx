@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { AppShell } from "../../../components/app-shell";
 import { ResourceTable, type PaginationMeta, type SortState } from "../../../components/resource-table";
@@ -27,12 +27,25 @@ export default function ResourcePage() {
   const [error, setError] = useState<string | null>(null);
 
   const resource = resources.find((item) => item.name === resourceName);
+  const lastResourceName = useRef<string | null>(null);
 
   useEffect(() => {
     api<ResourceMeta[]>("/admin/resources")
       .then(setResources)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load resources"));
   }, []);
+
+  useEffect(() => {
+    if (!resource) return;
+    if (lastResourceName.current === resourceName) return;
+    lastResourceName.current = resourceName;
+    const orderField = resource.fields.order;
+    if (orderField?.sortable && orderField.type === "number") {
+      setSort({ field: "order", dir: "asc" });
+    } else {
+      setSort(null);
+    }
+  }, [resource, resourceName]);
 
   const loadRows = useCallback(async () => {
     if (!resourceName) return;
@@ -87,6 +100,7 @@ export default function ResourcePage() {
           onPageChange={setPage}
           loading={loading}
           error={error}
+          onRefresh={loadRows}
         />
       ) : (
         <div className="space-y-5">

@@ -1,0 +1,76 @@
+---
+description: CLI scaffold architecture — rules for touching packages/cli, scripts/sync-template.mjs, or template files
+globs:
+  - "packages/cli/**"
+  - "scripts/sync-template.mjs"
+alwaysApply: false
+---
+
+# CLI scaffold (`openadminjs create`)
+
+## Architecture
+
+```
+packages/cli/
+  src/
+    index.ts            CAC CLI — commands: create, dev, build, start, db, generate, doctor, security
+    create-project.ts   createProject() + createProjectInteractive() + printNextSteps()
+  template/             npm package payload
+    package.json        }
+    pnpm-workspace.yaml } static files — IN GIT
+    .env.example        }
+    .gitignore          }
+    README.md           }
+    apps/               } GENERATED — gitignored, populated by sync-template.mjs
+    packages/           }
+    prisma/             }
+
+scripts/sync-template.mjs
+  Copies apps/* + packages/* (excl. cli, create-openadminjs) + prisma/
+  into packages/cli/template/.
+  - Patches prisma/schema.prisma provider → __DATABASE_PROVIDER__ placeholder.
+  - Runs on: `pnpm --filter openadminjs build`, `prepack` (before npm publish).
+```
+
+## Placeholder tokens (replaced by createProject at scaffold time)
+
+| Token | Replaced with |
+|---|---|
+| `__APP_NAME__` | project name as entered |
+| `__PACKAGE_NAME__` | slugified package name |
+| `__DATABASE_PROVIDER__` | `postgresql` / `mysql` / `sqlite` |
+| `__DATABASE_URL__` | full connection string |
+| `__REDIS_URL__` | Redis connection string |
+| `__JWT_SECRET__` | JWT signing secret |
+| `__JWT_REFRESH_SECRET__` | JWT refresh secret |
+| `__ADMIN_ORIGIN__` | admin CORS origin |
+| `__API_PORT__` | API listen port |
+
+Binary files (images, fonts) are skipped during placeholder rendering.
+
+## Root env files in new projects
+
+`createProject` **excludes** `template/.env.example` from the copy (filter on path segment `.env.example`) and does **not** write a root `.env`. Only `apps/api/.env` is populated with wizard values.
+
+## apps/api/.env
+
+After copying the template, `createProject` writes `apps/api/.env` with the actual collected
+values **and** `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` so `pnpm db:seed` runs
+non-interactively out of the box.
+
+`prisma/seed.ts` resolution order for superadmin credentials:
+1. `--superadmin-email=` / `--superadmin-password=` CLI args
+2. `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` env vars  ← set by scaffold
+3. Interactive TTY prompt (fallback for manual `pnpm db:seed`)
+
+## Rules for agents
+
+- **Never edit** `packages/cli/template/apps/`, `template/packages/`, `template/prisma/` directly.
+  Edit the source (`apps/`, `packages/`, `prisma/`) and run `pnpm --filter openadminjs sync-template`.
+- When adding a placeholder token, update ALL of:
+  1. `placeholderPattern` regex in `create-project.ts`
+  2. The `renderTemplateFiles` call's replacements map
+  3. The relevant template source file(s)
+- `runScript` in `index.ts` spawns real `pnpm` processes — do not revert to console.log.
+- Tests live in `src/create-project.test.ts` and use a real temp-dir copy of `defaultTemplateDir()`.
+  After changing template static files, run `pnpm --filter openadminjs test`.

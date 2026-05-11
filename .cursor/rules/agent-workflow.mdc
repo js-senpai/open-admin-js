@@ -1,0 +1,46 @@
+---
+description: Token-efficient agent workflow for this repo
+alwaysApply: true
+---
+
+# Agent workflow — be fast and cheap
+
+Optimize for the smallest correct change. Token cost is real.
+
+## Discovery
+
+- **Don't read whole files** when looking for symbols. Use `Grep`/`Glob` first; `Read` only the relevant range.
+- For unfamiliar areas use `SemanticSearch` with one focused question, then narrow by directory.
+- Skip re-reading files already shown in context (open files, recent edits, prior tool output).
+- Batch independent reads/searches in a single tool-call round-trip.
+
+## Editing
+
+- Prefer `StrReplace` over rewriting whole files. Never use `Write` to "refactor" a file you could patch.
+- Keep diffs minimal: don't reformat unrelated lines, don't reorder imports cosmetically, don't add narration comments.
+- Match existing style: ESM imports with explicit extensions where the rest of the file does, double quotes, 2-space indent, trailing commas as already used in the file.
+- New files only when there's no sensible existing home. Don't proactively create `README.md` / docs.
+
+## Verification
+
+- After non-trivial edits run the cheapest signal first: `ReadLints` on the touched files.
+- If types or behavior changed, run scoped checks (e.g. `pnpm --filter @openadminjs/api typecheck`)
+  instead of the whole monorepo.
+- **Always run automated checks that prove the change works** — at minimum the smallest relevant
+  test or typecheck for the packages you touched (e.g. `pnpm --filter openadminjs test` after CLI
+  edits, `pnpm --filter @openadminjs/api test -- <file>` for API unit tests). Do not finish a task
+  only with static reasoning; confirm green where feasible.
+- **Security pass on new or changed code** — think like a reviewer: trust boundaries (auth, file
+  paths, env, SQL/Prisma, redirects, webhooks), injection, secrets in logs, and dependency on user
+  input for filesystem or URLs. Fix issues you introduce; flag pre-existing risks briefly.
+- **Optimization pass** — avoid obvious waste (N+1 queries, unbounded reads, huge in-memory buffers,
+  accidental full-repo commands). Prefer the smallest correct change; do not micro-optimize unless
+  the code path is hot or user asked.
+- Only run full `pnpm test`/`pnpm e2e` when the change can plausibly affect many packages or flows.
+
+## Communication
+
+- One short status line per logical step is enough. No restating the user request, no filler.
+- When done, list changed files briefly and call out anything the user must run themselves
+  (migrations, env vars, restarts).
+- Ask a clarifying question only if a wrong guess would cause non-trivial rework.

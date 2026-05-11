@@ -15,6 +15,11 @@ export class AdminPluginsController {
     return this.plugins.getState();
   }
 
+  @Get("widgets")
+  widgets() {
+    return this.plugins.getDashboardWidgets();
+  }
+
   @Post()
   add(@Body() dto: AddPluginDto) {
     return this.plugins.add(dto);

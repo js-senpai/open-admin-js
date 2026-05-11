@@ -16,6 +16,7 @@ export default defineResource({
     id: { type: "id", label: "ID", create: false, edit: false, list: false },
     name: { type: "text", label: "Name", required: true, searchable: true, sortable: true },
     slug: { type: "slug", label: "Slug", from: "name", searchable: true },
+    order: { type: "number", label: "Order", list: true, sortable: true, min: 0 },
     createdAt: { type: "datetime", label: "Created at", create: false, edit: false, sortable: true }
   }
 });

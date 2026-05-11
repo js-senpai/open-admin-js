@@ -1,0 +1,43 @@
+---
+description: Next.js 15 + React 19 admin/web conventions
+globs: apps/admin/**/*.{ts,tsx},apps/web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Next.js 15 + React 19
+
+App Router only. Tailwind + shadcn/ui. Data via TanStack Query, forms via react-hook-form + zod resolvers.
+
+## Server vs Client components
+
+- Default to **Server Components**. Add `"use client"` only when you need state/effects/event handlers/browser APIs.
+- Don't import server-only modules (Prisma, Node fs, secrets) into client components.
+- Async server components are fine: `export default async function Page()`.
+
+## Data fetching
+
+- Inside the admin app, use the `api()` helper from `lib/api` for the back-office REST API — it handles auth, base URL, refresh.
+- Client-side caching/mutations: TanStack Query (`@tanstack/react-query`). Wrap with the existing provider; don't create a second `QueryClient`.
+- Server fetches go through `fetch()` with explicit `cache`/`next.revalidate` — pick one, don't rely on defaults.
+
+## Forms
+
+- Use `react-hook-form` + `@hookform/resolvers/zod`. Define a `zod` schema next to the component and infer the form type from it.
+
+```tsx
+const schema = z.object({ email: z.string().email(), password: z.string().min(8) });
+type FormValues = z.infer<typeof schema>;
+const form = useForm<FormValues>({ resolver: zodResolver(schema) });
+```
+
+## UI
+
+- Compose from `components/` and shadcn primitives. Use `clsx` + `tailwind-merge` (`cn(...)`) — don't ad-hoc concat class strings.
+- Icons: `lucide-react`. Toasts: `sonner`. Charts: `recharts`. Theme: `next-themes` (don't reimplement).
+- i18n via `next-intl` — wrap user-facing strings in the existing message system; don't hardcode English.
+
+## Routes & files
+
+- Keep route files lean: `page.tsx` orchestrates, real logic lives in `components/` or `lib/`.
+- Dynamic segments use the established pattern (`app/resources/[resource]/[id]/page.tsx`).
+- Middleware (`middleware.ts`) handles auth redirects — don't duplicate that logic per page.

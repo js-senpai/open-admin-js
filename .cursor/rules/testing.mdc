@@ -1,0 +1,42 @@
+---
+description: Vitest testing conventions
+globs: **/*.{test,spec}.{ts,tsx},**/test-setup.ts,**/vitest.config.ts
+alwaysApply: false
+---
+
+# Testing (Vitest)
+
+Every app/package uses Vitest. Run `pnpm --filter <pkg> test` to scope.
+
+## Layout
+
+- Co-locate tests next to source: `auth.service.test.ts` lives next to `auth.service.ts`.
+- E2E specs are named `*.e2e.test.ts` (admin app `pnpm e2e` runs `lib/auth-flow.e2e.test.ts`).
+- Shared setup belongs in `test-setup.ts` referenced from `vitest.config.ts`.
+
+## Style
+
+- One `describe` per unit, nested for behaviour groups. Names describe behaviour, not implementation:
+  `describe("AuthService.login", () => { it("rejects unknown email", ...) })`.
+- Arrange/Act/Assert. Avoid hidden state across tests — always reset mocks in `beforeEach`.
+- Use `vi.fn()` and `vi.mock()` from `vitest`. Don't pull in jest globals.
+- For React (admin/web): `@testing-library/react` + `jsdom`. Query by role/text, not by class names.
+
+## What to test
+
+- Service-level business logic (auth, permissions, queue handlers).
+- DTO validation edge cases (invalid email, missing realm, weak password).
+- Resource action handlers — mock Prisma via the existing `prisma` mock helper.
+- UI: smoke-render critical screens (login, resource table) and form validation; skip pixel snapshots.
+
+## Don'ts
+
+- Don't hit a real database from a unit test. Use the Prisma mock pattern in `apps/api/src/test-setup.ts`.
+- Don't add tests that only assert "function gets called" without a behavior claim.
+- Don't `console.log` from tests; if a test is hard to debug, simplify the arrangement.
+
+## Workspace packages
+
+- Root `pnpm test` builds `@openadminjs/resource` first, then runs all package tests. `@openadminjs/core`
+  Vitest resolves `@openadminjs/resource` via the package `exports` `development` condition (TS sources)
+  when `dist/` is absent; `packages/core/vitest.config.ts` sets `resolve.conditions` accordingly.

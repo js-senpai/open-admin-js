@@ -224,8 +224,11 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
   // Write the real .env for apps/api so the app starts and seed runs without
   // manual intervention. Superadmin credentials are picked up by prisma/seed.ts
   // via the SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD env vars.
+  // Only when the template is a full-stack scaffold (has apps/api); skip for minimal
+  // templates (e.g. npx smoke fixtures) that intentionally omit apps/api.
+  const templateApiDir = join(options.templateDir, "apps", "api");
   const apiEnvDir = join(targetDir, "apps", "api");
-  if (existsSync(apiEnvDir)) {
+  if (existsSync(templateApiDir)) {
     mkdirSync(apiEnvDir, { recursive: true });
     writeFileSync(
       join(apiEnvDir, ".env"),

@@ -8,6 +8,7 @@ function createContext(authHeader?: string, requiredRealm?: string) {
   return {
     request,
     ctx: {
+      getType: () => "http",
       switchToHttp: () => ({ getRequest: () => request }),
       getHandler: () => "handler",
       getClass: () => "class"

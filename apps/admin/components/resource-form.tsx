@@ -164,6 +164,7 @@ function RelationPicker({ field, value, onChange, disabled }: RelationPickerProp
 export function ResourceForm({ resource, mode, recordId, initialData }: Props) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [selectedUpload, setSelectedUpload] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [values, setValues] = useState<Record<string, string>>({});
@@ -189,6 +190,23 @@ export function ResourceForm({ resource, mode, recordId, initialData }: Props) {
     setError(null);
     setFieldErrors({});
     try {
+      if (resource.name === "files" && mode === "create" && selectedUpload) {
+        const contentBase64 = await fileToBase64(selectedUpload);
+        const created = await api<Record<string, unknown>>(
+          "/admin/resources/files/upload",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              filename: selectedUpload.name,
+              mimeType: selectedUpload.type || "application/octet-stream",
+              contentBase64
+            })
+          }
+        );
+        router.push(`/resources/${resource.name}/${String(created.id ?? "")}`);
+        router.refresh();
+        return;
+      }
       const payload = Object.fromEntries(
         Object.entries(values).map(([name, value]) => [
           name,
@@ -258,6 +276,22 @@ export function ResourceForm({ resource, mode, recordId, initialData }: Props) {
 
       {/* Fields card */}
       <div className="card stagger-2 p-6 space-y-5 dark:border-slate-700 dark:bg-slate-900">
+        {resource.name === "files" && mode === "create" && (
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload file</span>
+            <input
+              type="file"
+              onChange={(e) => setSelectedUpload(e.target.files?.[0] ?? null)}
+              className="input-base"
+              disabled={submitting}
+            />
+            {selectedUpload && (
+              <p className="text-xs text-slate-500">
+                {selectedUpload.name} · {(selectedUpload.size / 1024).toFixed(1)} KB
+              </p>
+            )}
+          </label>
+        )}
         {fields.map(([name, field]) => {
           const errs = fieldErrors[name];
           return (
@@ -346,4 +380,17 @@ export function ResourceForm({ resource, mode, recordId, initialData }: Props) {
       </div>
     </form>
   );
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === "string" ? reader.result : "";
+      const base64 = value.includes(",") ? value.split(",")[1] ?? "" : value;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 }

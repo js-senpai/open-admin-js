@@ -11,6 +11,8 @@ model User {
   id                 String               @id @default(cuid())
   email              String               @unique
   passwordHash       String
+  /** Stable IdP subject, format `issuerNormalized::sub` — set when user signs in via OIDC. */
+  oidcKey            String?              @unique
   refreshTokenHash   String?
   name               String?
   avatarUrl          String?
@@ -70,9 +72,12 @@ model Category {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   posts     Post[]
+
+  @@index([order])
 }
 
 model Post {

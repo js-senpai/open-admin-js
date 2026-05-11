@@ -11,7 +11,7 @@
     "start": "pnpm --parallel --filter @openadminjs/api --filter @openadminjs/admin start",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter @openadminjs/resource build && pnpm -r test",
     "e2e": "pnpm --filter @openadminjs/admin exec vitest run lib/auth-flow.e2e.test.ts && node scripts/e2e-smoke.mjs",
     "doctor": "node packages/cli/dist/index.js doctor",
     "security:check": "node packages/cli/dist/index.js security check",

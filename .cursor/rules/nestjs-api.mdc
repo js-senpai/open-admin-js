@@ -1,0 +1,44 @@
+---
+description: Nest.js API conventions for apps/api
+globs: apps/api/**/*.ts
+alwaysApply: false
+---
+
+# Nest.js API
+
+Stack: Nest 10, class-validator/class-transformer DTOs, `@nestjs/jwt`, `@nestjs/throttler`, BullMQ, `helmet`, Prisma.
+
+## Modules
+
+- One module per feature folder (`auth/`, `audit/`, `files/`, `resources/`, ...).
+- Wire providers/controllers in `<feature>.module.ts`. Do not import controllers from sibling modules — re-export services instead.
+- Register cross-cutting things (guards, interceptors, pipes) globally via `app.module.ts` / `main.ts`.
+
+## Controllers
+
+- Routes under `@Controller("<segment>")`. Keep controllers thin — they validate input and delegate.
+- Validate request bodies with **class-validator DTOs** placed next to the controller (`*.dto.ts`).
+- Apply `@UseGuards(AuthGuard)` for protected endpoints; admin-only routes use `@RequireAuthRealm("admin")`.
+- Throttle login/forgot/reset endpoints with `@Throttle({ default: { limit, ttl } })`.
+
+```ts
+@Throttle({ default: { limit: 5, ttl: 60000 } })
+@Post("login")
+login(@Body() dto: LoginDto) { return this.auth.login(dto.email, dto.password); }
+```
+
+## Services
+
+- Inject services with `@Inject(Foo) private readonly foo: Foo`.
+- Throw Nest HTTP exceptions (`UnauthorizedException`, `BadRequestException`, ...) — never raw `Error` from a controller path.
+- Don't access `req`/`res` directly from services; pass what's needed as params.
+
+## Auth & permissions
+
+- Use the shared realm constants from `@openadminjs/permissions` (`DEFAULT_AUTH_REALM`).
+- Permission strings follow `resource.action` (`posts.publish`, `users.create`).
+
+## Background work
+
+- Long jobs go through BullMQ (`@nestjs/bullmq`). Don't `setTimeout` long-running work inside request handlers.
+- Queue is optional — code paths must degrade gracefully when `REDIS_URL` is unset.

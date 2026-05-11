@@ -74,6 +74,17 @@ export class AdminPluginsService {
     };
   }
 
+  getDashboardWidgets() {
+    return pluginRuntime
+      .getAdminUiExtensions()
+      .filter((item) => item.kind === "widget")
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        config: item.config ?? {}
+      }));
+  }
+
   private writeManifest(manifest: PluginManifest) {
     const path = resolveWritableManifestPath();
     const parsed = pluginManifestSchema.safeParse(manifest);

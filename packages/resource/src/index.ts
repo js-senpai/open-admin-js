@@ -1,3 +1,5 @@
+import IntlMessageFormat from "intl-messageformat";
+
 export type FieldType =
   | "id"
   | "text"
@@ -216,6 +218,67 @@ export function pickLocalizedLabel(label: LocalizedLabel | undefined, locale: st
   if (label == null || label === "") return "";
   if (typeof label === "string") return label;
   return label[locale] ?? label[fallbackLocale] ?? Object.values(label)[0] ?? "";
+}
+
+/** ICU-style plural categories for `Intl.PluralRules` (locales like `en`, `ru`). */
+export type PluralFormBundle = {
+  zero?: string;
+  one: string;
+  two?: string;
+  few?: string;
+  many?: string;
+  other: string;
+};
+
+/**
+ * Picks the correct plural template for `count` in `locale`, then replaces `{count}`.
+ * Use in resource `i18n.translations` blocks for list summaries, pagination, etc.
+ */
+export function formatPlural(locale: string, count: number, forms: PluralFormBundle): string {
+  const pr = new Intl.PluralRules(locale);
+  const cat = pr.select(count);
+  const raw =
+    (cat === "zero" && forms.zero) ||
+    (cat === "one" && forms.one) ||
+    (cat === "two" && forms.two) ||
+    (cat === "few" && forms.few) ||
+    (cat === "many" && forms.many) ||
+    forms.other ||
+    forms.one;
+  return raw.replace(/\{count\}/g, String(count));
+}
+
+/**
+ * Full ICU MessageFormat strings (plural/select/rich text per Unicode TR35).
+ * Example: `"{n, plural, one {# item} other {# items}}"`.
+ */
+export function formatIcuMessage(
+  locale: string,
+  pattern: string,
+  values?: Record<string, string | number | boolean | Date | null | undefined>
+): string {
+  try {
+    return new IntlMessageFormat(pattern, locale).format(values ?? {}) as string;
+  } catch {
+    return pattern;
+  }
+}
+
+export type IcuMessageValues = Record<string, string | number | boolean | Date | null | undefined>;
+
+/**
+ * Resolve localized ICU template then render it with `intl-messageformat`.
+ * Useful for translation blocks where each locale has its own ICU string.
+ */
+export function formatLocalizedIcuMessage(
+  label: LocalizedLabel | undefined,
+  locale: string,
+  values?: IcuMessageValues,
+  fallbackLocale = "en"
+): string {
+  const pattern = pickLocalizedLabel(label, locale, fallbackLocale);
+  if (!pattern) return "";
+  return formatIcuMessage(locale, pattern, values);
 }
 
 export function effectiveLocale(resource: ResourceConfig, requested: string | undefined): string {

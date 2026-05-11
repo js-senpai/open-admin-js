@@ -121,6 +121,19 @@ function initDocsPage() {
   window.addEventListener("hashchange", fromHash);
 
   if (searchInput instanceof HTMLInputElement && contentEl instanceof HTMLElement) {
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+        const t = e.target;
+        if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
+        if (t instanceof HTMLElement && t.isContentEditable) return;
+        e.preventDefault();
+        searchInput.focus();
+      },
+      true
+    );
+
     const sections = Array.from(contentEl.querySelectorAll("section[id]"));
 
     const updateSearch = () => {

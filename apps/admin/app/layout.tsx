@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { ApiErrorBanner } from "../components/api-error-banner";
 import { AuthGuard } from "../components/auth-guard";
 import { BRAND } from "../lib/brand";
 import "./globals.css";
@@ -49,7 +50,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AuthGuard>{children}</AuthGuard>
+          <AuthGuard>
+            <ApiErrorBanner />
+            {children}
+          </AuthGuard>
         </ThemeProvider>
       </body>
     </html>

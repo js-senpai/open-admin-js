@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
+import { GqlExecutionContext } from "@nestjs/graphql";
 import { JwtService } from "@nestjs/jwt";
 import { DEFAULT_AUTH_REALM } from "@openadminjs/permissions";
 import { PrismaService } from "./prisma.service";
@@ -32,7 +33,7 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = this.getRequest(context);
     const header = request.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException({ message: "Missing access token", code: "AUTH_REQUIRED" });
@@ -81,5 +82,18 @@ export class AuthGuard implements CanActivate {
       if (e instanceof ForbiddenException) throw e;
       throw new UnauthorizedException({ message: "Invalid access token", code: "AUTH_INVALID" });
     }
+  }
+
+  private getRequest(context: ExecutionContext): {
+    headers: { authorization?: string };
+    user?: RequestUser;
+    ip?: string;
+  } {
+    const type = context.getType<string>();
+    if (type === "graphql") {
+      const gql = GqlExecutionContext.create(context);
+      return gql.getContext<{ req: { headers: { authorization?: string }; user?: RequestUser; ip?: string } }>().req;
+    }
+    return context.switchToHttp().getRequest();
   }
 }

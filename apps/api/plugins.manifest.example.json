@@ -18,6 +18,18 @@
       "config": {}
     },
     {
+      "id": "io.openadminjs.webhook",
+      "enabled": false,
+      "trustMode": "sandboxed",
+      "capabilities": ["resource.hooks"],
+      "bundled": "webhook",
+      "config": {
+        "url": "https://example.com/openadmin-hooks",
+        "secret": "optional-shared-secret",
+        "resources": ["posts", "orders"]
+      }
+    },
+    {
       "id": "com.vendor.billing",
       "enabled": false,
       "trustMode": "sandboxed",

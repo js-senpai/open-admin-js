@@ -1,0 +1,22 @@
+---
+description: Plugin Platform v2 guidance (breaking model)
+alwaysApply: true
+---
+
+# Plugin Platform v2 (current architecture)
+
+This repo now uses a broad, capability-gated plugin model. Do not assume legacy resource-only plugins.
+
+## Key facts
+
+- Plugin SDK surfaces include: `resource`, `api`, `media`, `seo`, `jobs`, `adminUi`.
+- Manifest entries declare `trustMode` and `capabilities` in `apps/api/plugins.manifest.json`.
+- Loader enforces capability checks before plugin surface registration.
+- Runtime dispatch is centralized via `apps/api/src/plugins/plugin-runtime.ts`.
+
+## Agent rules for plugin-related changes
+
+- When adding plugin behavior, update both SDK contracts and manifest validation if needed.
+- Keep examples in `apps/api/plugins.manifest.example.json` aligned with schema.
+- If UI/runtime plugin state changes, update `apps/admin/app/plugins/page.tsx` and API plugin service payloads together.
+- Prefer sandbox-friendly defaults: minimal capabilities, explicit declarations.

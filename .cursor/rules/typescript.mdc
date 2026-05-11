@@ -1,0 +1,49 @@
+---
+description: TypeScript standards for OpenAdminJS
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# TypeScript
+
+`tsconfig.base.json` has `strict`, `noUncheckedIndexedAccess`, ESM, `moduleResolution: Bundler`.
+
+## Types
+
+- Never use `any`. If escape hatch is required, prefer `unknown` and narrow.
+- Use `import type { Foo }` for type-only imports — avoids runtime imports and helps tree-shaking.
+- Validate untrusted input (HTTP body/query, env, file content) with `zod` (already a dep).
+  Don't trust DTO shapes derived from `any`.
+- Index access yields `T | undefined` (because of `noUncheckedIndexedAccess`). Narrow before use:
+
+```ts
+const first = items[0];
+if (!first) throw new Error("empty list");
+first.id;
+```
+
+## Errors
+
+- Throw `Error` subclasses with a message — never `throw "string"`.
+- Don't swallow errors with empty `catch {}`. Either rethrow with `cause`, log, or convert to a typed result.
+
+```ts
+// ❌
+try { await doIt(); } catch (e) {}
+
+// ✅
+try { await doIt(); } catch (e) {
+  throw new Error("doIt failed", { cause: e });
+}
+```
+
+## Modules
+
+- ESM everywhere (`"type": "module"`). Use named exports; avoid default exports for libs.
+- Don't introduce circular imports across workspace packages — keep `core` dependency-free.
+
+## Style
+
+- Double quotes, 2-space indent, trailing commas where the file already uses them.
+- No dead `console.log`; debug noise must be removed before commit.
+- No comments that narrate what the code does — only explain non-obvious *why*.

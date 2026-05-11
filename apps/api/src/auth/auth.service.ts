@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, Optional, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { DEFAULT_AUTH_REALM } from "@openadminjs/permissions";
 import bcrypt from "bcryptjs";
@@ -11,6 +12,7 @@ export class AuthService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(ConfigService) private readonly config: ConfigService,
     @Optional() @Inject(MailService) private readonly mail?: MailService
   ) {}
 
@@ -44,6 +46,88 @@ export class AuthService {
         after: { realm }
       }
     });
+    return {
+      ...session,
+      realm,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        roles: assignments.map((item) => item.role.name),
+        permissions: assignments.flatMap((item) => item.role.permissions.map((permission) => permission.permission.name))
+      }
+    };
+  }
+
+  /** OIDC / OAuth2 Authorization Code + PKCE — link by `oidcKey` or existing email. */
+  async loginWithOidcProfile(
+    profile: { sub: string; issuer: string; email: string; name?: string | null; picture?: string | null },
+    meta: { ipAddress?: string; userAgent?: string },
+    realm: string = DEFAULT_AUTH_REALM
+  ) {
+    const issuer = profile.issuer.replace(/\/$/, "");
+    const oidcKey = `${issuer}::${profile.sub}`;
+    const emailNorm = profile.email.toLowerCase().trim();
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ oidcKey }, { email: emailNorm }] },
+      include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
+    });
+
+    if (!user) {
+      const randomPass = randomBytes(48).toString("hex");
+      const created = await this.prisma.user.create({
+        data: {
+          email: emailNorm,
+          name: profile.name ?? null,
+          avatarUrl: profile.picture ?? null,
+          passwordHash: await bcrypt.hash(randomPass, 12),
+          oidcKey
+        }
+      });
+      const roleName = this.config.get<string>("OIDC_DEFAULT_ROLE")?.trim() ?? "viewer";
+      const role = await this.prisma.role.findUnique({
+        where: { name_realm: { name: roleName, realm } }
+      });
+      if (role) {
+        await this.prisma.userRole.create({ data: { userId: created.id, roleId: role.id } });
+      }
+      user = await this.prisma.user.findUniqueOrThrow({
+        where: { id: created.id },
+        include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
+      });
+    } else {
+      const updates: { oidcKey?: string; avatarUrl?: string | null; name?: string | null } = {};
+      if (!user.oidcKey) updates.oidcKey = oidcKey;
+      if (profile.picture && !user.avatarUrl) updates.avatarUrl = profile.picture;
+      if (profile.name && !user.name) updates.name = profile.name;
+      if (Object.keys(updates).length) {
+        await this.prisma.user.update({ where: { id: user.id }, data: updates });
+        user = await this.prisma.user.findUniqueOrThrow({
+          where: { id: user.id },
+          include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
+        });
+      }
+    }
+
+    const assignments = user.roles.filter((ur) => ur.role.realm === realm);
+    if (assignments.length === 0) {
+      throw new UnauthorizedException({
+        message: "OIDC account has no role in this realm. Ask an admin to assign a role.",
+        code: "AUTH_REALM_EMPTY"
+      });
+    }
+
+    const session = await this.issueSession(user.id, realm);
+    await this.prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "login.sso",
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+        after: { realm, issuer, oidcKey }
+      }
+    });
+
     return {
       ...session,
       realm,

@@ -1,0 +1,48 @@
+---
+description: Admin resource definitions (defineResource)
+globs: apps/api/src/resources/**/*.ts,packages/resource/**/*.ts,packages/core/**/*.ts
+alwaysApply: false
+---
+
+# Admin resources
+
+Resources are declarative `defineResource(...)` definitions consumed by the admin and the generic CRUD API.
+
+## Anatomy (see `apps/api/src/resources/posts.resource.ts` for a canonical example)
+
+```ts
+import { defineResource } from "@openadminjs/core";
+
+export default defineResource({
+  name: "posts",                    // URL segment, must be kebab/snake unique
+  label: { en: "Posts", ru: "..." },// localized labels (en + ru minimum)
+  model: "post",                    // Prisma model name (camelCase)
+  titleField: "title",              // shown in lists/relations
+  icon: "FileText",                 // lucide-react icon
+  permissions: { read, create, update, delete, ...customAction },
+  fields: { /* per-column metadata */ },
+  actions: { /* row-level custom actions */ },
+});
+```
+
+## Field metadata rules
+
+- Every field needs a `type` and a localized `label`. Hide auto-managed fields from create/edit forms with `create: false, edit: false`.
+- `searchable`, `sortable`, `filterable` are opt-in — don't enable them on heavy columns (richtext, JSON, large text).
+- Relation fields: set `resource` (target resource name) and `displayField` (label in dropdowns).
+- File/image fields use `resource: "files"`.
+
+## Permissions
+
+- Strings follow `resource.action`. Use the same names in seed roles and in `@openadminjs/permissions`.
+- Custom actions must declare a `permission` and a `handler(ctx)` returning the updated record.
+
+## Registering
+
+- New resource files in `apps/api/src/resources/` are picked up via `registry.ts`. Keep registry imports alphabetical.
+- For programmatic generation, prefer the CLI: `pnpm exec openadminjs generate resource <Model>`.
+
+## Don'ts
+
+- Don't put business logic in field config — keep `fields` declarative; behavior goes into `actions` or service classes.
+- Don't access Prisma directly in admin UI; the generic CRUD endpoints already cover list/create/update/delete.
