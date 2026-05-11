@@ -8,6 +8,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+## stray JS next to TS in packages (shadows Vitest; tsc mis-target)
+packages/*/src/**/*.js
+
 ## build outputs
 dist/
 build/
