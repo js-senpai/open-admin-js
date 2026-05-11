@@ -211,9 +211,10 @@ function generateResourceField(
     process.exitCode = 1;
     return;
   }
+  const labelJson = JSON.stringify(options.label?.trim() || startCase(fieldName));
   const attributes = [
     `type: '${fieldType}'`,
-    `label: '${(options.label?.trim() || startCase(fieldName)).replace(/'/g, "\\'")}'`,
+    `label: ${labelJson}`,
     options.required ? "required: true" : "",
     options.list ? "list: true" : "",
     options.sortable ? "sortable: true" : "",

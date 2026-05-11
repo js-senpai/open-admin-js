@@ -11,7 +11,7 @@ import {
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { PrismaService } from "../common/prisma.service";
 import { pluginRuntime } from "../plugins/plugin-runtime";
 import { getResource, resources } from "../resources/registry";
@@ -378,7 +378,7 @@ export class AdminResourceService {
 
     const now = Date.now();
     const safeFilename = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
-    const relPath = input.targetPath?.trim() || `uploads/${now}-${safeFilename}`;
+    const relPath = this.resolveStorageRelativePath(input.targetPath, `uploads/${now}-${safeFilename}`);
     const absPath = join(process.cwd(), relPath);
     await mkdir(dirname(absPath), { recursive: true });
     await writeFile(absPath, fileBuffer);
@@ -400,6 +400,26 @@ export class AdminResourceService {
     }
 
     return record as Record<string, unknown>;
+  }
+
+  /**
+   * Resolve a relative storage path strictly under {@link process.cwd} (no traversal, no absolute paths).
+   */
+  private resolveStorageRelativePath(targetPath: string | undefined, fallbackRelative: string): string {
+    const raw = (targetPath?.trim() || fallbackRelative).replace(/^[\\/]+/, "");
+    if (!raw || raw.includes("\0")) {
+      throw new BadRequestException({ message: "Invalid storage path", code: "UPLOAD_PATH_INVALID" });
+    }
+    if (raw.split(/[/\\]/).some((seg) => seg === "..")) {
+      throw new BadRequestException({ message: "Path traversal is not allowed", code: "UPLOAD_PATH_INVALID" });
+    }
+    const cwd = resolve(process.cwd());
+    const absolute = resolve(cwd, raw);
+    const rel = relative(cwd, absolute);
+    if (!rel || rel.startsWith("..") || rel === "..") {
+      throw new BadRequestException({ message: "Path must stay within project directory", code: "UPLOAD_PATH_INVALID" });
+    }
+    return rel.replace(/\\/g, "/");
   }
 
   private bulkErrorMessage(err: unknown): string {
