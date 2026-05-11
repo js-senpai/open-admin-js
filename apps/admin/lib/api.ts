@@ -27,6 +27,7 @@ const API_ERROR_EVENT = "openadmin:api-error";
 
 function emitApiError(error: ApiError): void {
   if (typeof window === "undefined") return;
+  if (typeof window.dispatchEvent !== "function") return;
   window.dispatchEvent(new CustomEvent<ApiError>(API_ERROR_EVENT, { detail: error }));
 }
 
@@ -111,7 +112,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const url = `${API_URL}${withAdminLocale(path)}`;
   const response = await requestWithAuthRetry(url, options);
   if (!response.ok) {
-    const retryAfterHeader = response.headers.get("retry-after");
+    const retryAfterHeader = response.headers?.get?.("retry-after") ?? null;
     const retryAfterSec = retryAfterHeader ? Number(retryAfterHeader) : undefined;
     const error = await response.json().catch(() => ({ message: response.statusText }));
     if (response.status === 429) {
