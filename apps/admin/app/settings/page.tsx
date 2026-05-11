@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "../../components/app-shell";
 import { api } from "../../lib/api";
-import { Bot, Plus, Save, Trash2 } from "lucide-react";
+import { getUiLocale, LOCALE_LABELS, setUiLocale, SUPPORTED_UI_LOCALES, type SupportedUiLocale } from "../../lib/locale";
+import { Bot, Languages, Plus, Save, Trash2 } from "lucide-react";
 
 type ProviderKind = "openai" | "anthropic" | "gemini";
 type AiProvider = {
@@ -15,6 +16,7 @@ type AiProvider = {
 };
 
 export default function SettingsPage() {
+  const [adminLocale, setAdminLocale] = useState<string>("en");
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [activeProvider, setActiveProvider] = useState("");
   const [tokenProviderId, setTokenProviderId] = useState("");
@@ -22,6 +24,10 @@ export default function SettingsPage() {
   const [configured, setConfigured] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAdminLocale(getUiLocale());
+  }, []);
 
   async function loadConfig() {
     const config = await api<{
@@ -89,7 +95,39 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="card p-6 animate-in">
+        <div className="card space-y-4 p-6 animate-in">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef3ff] text-[#2454ff]">
+              <Languages className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Language</h2>
+              <p className="text-sm text-slate-500">
+                Admin labels use this locale and append <code className="text-xs">?locale=</code> to API requests.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              className="input-base max-w-xs"
+              value={adminLocale}
+              onChange={(e) => {
+                const v = e.target.value as SupportedUiLocale;
+                setAdminLocale(v);
+                setUiLocale(v);
+                window.location.reload();
+              }}
+            >
+              {SUPPORTED_UI_LOCALES.map((loc) => (
+                <option key={loc} value={loc}>
+                  {LOCALE_LABELS[loc] ?? loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="card p-6 animate-in stagger-1">
           <p className="text-[11px] font-bold uppercase tracking-widest text-[#0ea5a4]">Settings</p>
           <div className="mt-2 flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef3ff] text-[#2454ff]">

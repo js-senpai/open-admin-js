@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Lock, Loader2, Mail } from "lucide-react";
 import { hasUsableAccessToken } from "../../lib/api";
+import { setTokenCookies } from "../../lib/tokens";
 import { Logo } from "../../components/logo";
 import { safeNextParam } from "./safe-next-param";
 
@@ -11,6 +12,34 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const oidcEnabled = process.env.NEXT_PUBLIC_OIDC_LOGIN === "true";
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("sso_error") === "1") {
+      const code = sp.get("sso_code");
+      const message = sp.get("sso_message");
+      const detail = message?.trim() || "Single sign-on failed. Try again or sign in with email and password.";
+      setError(code ? `${detail} (${code})` : detail);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash.includes("sso=1")) return;
+    const params = new URLSearchParams(hash);
+    if (params.get("sso") !== "1") return;
+    const access = params.get("access_token");
+    const refresh = params.get("refresh_token");
+    if (access && refresh) {
+      setTokenCookies(access, refresh);
+      const next = safeNextParam(new URLSearchParams(window.location.search).get("next"));
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      router.replace(next);
+    }
+  }, [router]);
 
   useEffect(() => {
     if (!hasUsableAccessToken()) return;
@@ -128,6 +157,15 @@ export default function LoginPage() {
                   <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
                   {error}
                 </div>
+              )}
+
+              {oidcEnabled && (
+                <a
+                  href={`${apiBase}/auth/sso/oidc/login?realm=admin`}
+                  className="btn-ghost flex w-full items-center justify-center gap-2 py-3"
+                >
+                  Continue with SSO
+                </a>
               )}
 
               <button

@@ -6,6 +6,8 @@ import { PrismaService } from "../common/prisma.service";
 import { MailModule } from "../mail/mail.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { SsoOidcController } from "./sso-oidc.controller";
+import { SsoOidcService } from "./sso-oidc.service";
 
 @Module({
   imports: [
@@ -24,8 +26,8 @@ import { AuthService } from "./auth.service";
       }
     })
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PrismaService, AuthGuard],
+  controllers: [AuthController, SsoOidcController],
+  providers: [AuthService, SsoOidcService, PrismaService, AuthGuard],
   exports: [AuthService, AuthGuard, JwtModule]
 })
 export class AuthModule {}

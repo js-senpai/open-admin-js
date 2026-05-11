@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, HttpException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { defaultFileValidation } from "@openadminjs/storage";
 import type { ResourceConfig, ResourceField } from "@openadminjs/core";
 import {
   listScopeWhereClause,
@@ -9,7 +10,10 @@ import {
 } from "@openadminjs/core";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { PrismaService } from "../common/prisma.service";
+import { pluginRuntime } from "../plugins/plugin-runtime";
 import { getResource, resources } from "../resources/registry";
 import {
   runAfterCreate,
@@ -52,6 +56,48 @@ export class AdminResourceService {
           seo: view.seo
         };
       });
+  }
+
+  async globalSearch(
+    query: string,
+    user: UserContext,
+    opts?: { perResourceLimit?: number; resources?: string[] }
+  ): Promise<Array<{ resource: string; resourceLabel: string; id: string; title: string }>> {
+    const q = query.trim();
+    if (q.length < 2) return [];
+    const perResourceLimit = Math.min(Math.max(opts?.perResourceLimit ?? 5, 1), 20);
+    const whitelist = opts?.resources ? new Set(opts.resources.map((v) => v.toLowerCase())) : null;
+    const out: Array<{ resource: string; resourceLabel: string; id: string; title: string }> = [];
+
+    for (const resource of resources) {
+      if (whitelist && !whitelist.has(resource.name.toLowerCase())) continue;
+      if (!this.has(user, resource.permissions.read)) continue;
+      const searchable = Object.entries(resource.fields).filter(([, f]) => f.searchable).map(([name]) => name);
+      if (!searchable.length) continue;
+
+      const scope = shouldApplyListScope(resource, user.permissions) ? listScopeWhereClause(resource, user.id) : undefined;
+      const where = mergeWhereClauses(
+        {
+          OR: searchable.map((field) => ({ [field]: { contains: q, mode: "insensitive" } }))
+        },
+        scope
+      );
+      const rows = await this.delegate(resource).findMany({
+        where,
+        take: perResourceLimit,
+        orderBy: this.buildOrderBy(resource, "createdAt:desc")
+      });
+      for (const row of rows) {
+        const safe = this.sanitizeRecord(resource, row) as Record<string, unknown>;
+        const id = String(safe.id ?? "");
+        if (!id) continue;
+        const tf = resource.titleField ?? "id";
+        const title = String(safe[tf] ?? safe.name ?? safe.title ?? id);
+        out.push({ resource: resource.name, resourceLabel: String(resource.label), id, title });
+      }
+    }
+
+    return out.slice(0, 60);
   }
 
   async list(name: string, query: Record<string, unknown>, user: UserContext) {
@@ -201,6 +247,174 @@ export class AdminResourceService {
     }
 
     throw new NotFoundException({ message: "Action not implemented for this resource", code: "ACTION_NOT_IMPLEMENTED" });
+  }
+
+  async bulk(
+    name: string,
+    dto: { action: string; ids: string[]; input?: Record<string, unknown> },
+    user: UserContext
+  ): Promise<{ ok: number; failures: { id: string; message: string }[] }> {
+    const uniqueIds = [...new Set(dto.ids.map(String).filter(Boolean))];
+    if (!uniqueIds.length) throw new BadRequestException({ message: "No ids provided", code: "BULK_EMPTY" });
+
+    const failures: { id: string; message: string }[] = [];
+    let ok = 0;
+
+    if (dto.action === "delete") {
+      this.authorizedResource(name, user, "delete");
+      for (const id of uniqueIds) {
+        try {
+          await this.delete(name, id, user);
+          ok += 1;
+        } catch (err: unknown) {
+          failures.push({ id, message: this.bulkErrorMessage(err) });
+        }
+      }
+      return { ok, failures };
+    }
+
+    const resource = getResource(name);
+    const config = resource?.actions?.[dto.action];
+    if (!resource || !config?.handler) {
+      throw new NotFoundException({ message: "Action not found", code: "ACTION_NOT_FOUND" });
+    }
+    if (!this.has(user, config.permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
+
+    for (const id of uniqueIds) {
+      try {
+        await this.action(name, id, dto.action, user, dto.input);
+        ok += 1;
+      } catch (err: unknown) {
+        failures.push({ id, message: this.bulkErrorMessage(err) });
+      }
+    }
+    return { ok, failures };
+  }
+
+  async reorder(name: string, orderedIds: string[], user: UserContext, baseIndex = 0): Promise<{ ok: true }> {
+    const resource = this.authorizedResource(name, user, "update");
+    const orderField = resource.fields.order;
+    if (!orderField || orderField.type !== "number" || orderField.edit === false) {
+      throw new BadRequestException({ message: "Resource does not support drag-and-drop ordering", code: "REORDER_UNSUPPORTED" });
+    }
+    const uniqueIds = [...new Set(orderedIds.map(String).filter(Boolean))];
+    if (!uniqueIds.length) throw new BadRequestException({ message: "No ids provided", code: "REORDER_EMPTY" });
+
+    const delegate = this.delegate(resource);
+    const rows = await delegate.findMany({ where: { id: { in: uniqueIds } } });
+    if (rows.length !== uniqueIds.length) {
+      throw new BadRequestException({ message: "One or more records were not found", code: "REORDER_IDS_INVALID" });
+    }
+    for (const row of rows) {
+      if (this.isOutOfListScope(resource, user, row)) {
+        throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const txDelegate = (tx as unknown as Record<string, PrismaDelegate>)[resource.model];
+      if (!txDelegate) throw new NotFoundException({ message: "Prisma model not found", code: "MODEL_NOT_FOUND" });
+      for (let i = 0; i < uniqueIds.length; i++) {
+        await txDelegate.update({
+          where: { id: uniqueIds[i] },
+          data: { order: baseIndex + i }
+        });
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        resource: name,
+        resourceId: uniqueIds[0],
+        action: "reorder",
+        before: { ids: uniqueIds, previous: rows.map((r) => ({ id: (r as { id: string }).id, order: (r as { order?: number }).order })) } as object,
+        after: { ids: uniqueIds, baseIndex, order: uniqueIds.map((id, index) => ({ id, order: baseIndex + index })) } as object
+      }
+    });
+
+    return { ok: true };
+  }
+
+  async uploadFile(
+    input: { filename: string; mimeType: string; contentBase64: string; targetPath?: string },
+    user: UserContext
+  ): Promise<Record<string, unknown>> {
+    const filesResource = this.authorizedResource("files", user, "create");
+    const filename = String(input.filename ?? "").trim();
+    const mimeType = String(input.mimeType ?? "").trim().toLowerCase();
+    const rawBase64 = String(input.contentBase64 ?? "").trim();
+    if (!filename || !mimeType || !rawBase64) {
+      throw new BadRequestException({ message: "filename, mimeType and contentBase64 are required", code: "UPLOAD_INVALID" });
+    }
+    if (!defaultFileValidation.mimeTypes.includes(mimeType)) {
+      throw new BadRequestException({ message: "MIME type is not allowed", code: "UPLOAD_MIME_DENIED" });
+    }
+
+    let contentBase64 = rawBase64;
+    for (const mediaHook of pluginRuntime.getMediaHooks()) {
+      await mediaHook.beforeStore?.({
+        filename,
+        mimeType,
+        size: Math.floor((contentBase64.length * 3) / 4),
+        contentBase64,
+        user: { ...user, email: user.email ?? "" }
+      });
+      const transformed = await mediaHook.transform?.({
+        filename,
+        mimeType,
+        contentBase64,
+        user: { ...user, email: user.email ?? "" }
+      });
+      if (transformed) {
+        contentBase64 = transformed.contentBase64;
+      }
+    }
+
+    const fileBuffer = Buffer.from(contentBase64, "base64");
+    if (fileBuffer.byteLength > defaultFileValidation.maxSizeBytes) {
+      throw new BadRequestException({ message: "File is too large", code: "UPLOAD_TOO_LARGE" });
+    }
+
+    const now = Date.now();
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
+    const relPath = input.targetPath?.trim() || `uploads/${now}-${safeFilename}`;
+    const absPath = join(process.cwd(), relPath);
+    await mkdir(dirname(absPath), { recursive: true });
+    await writeFile(absPath, fileBuffer);
+
+    const record = await this.create(
+      "files",
+      { filename, path: relPath, mimeType, size: fileBuffer.byteLength },
+      user
+    );
+
+    for (const mediaHook of pluginRuntime.getMediaHooks()) {
+      await mediaHook.afterStore?.({
+        fileId: String((record as Record<string, unknown>).id ?? ""),
+        filename,
+        mimeType,
+        size: fileBuffer.byteLength,
+        user: { ...user, email: user.email ?? "" }
+      });
+    }
+
+    return record as Record<string, unknown>;
+  }
+
+  private bulkErrorMessage(err: unknown): string {
+    if (err instanceof HttpException) {
+      const r = err.getResponse();
+      if (typeof r === "string") return r;
+      if (r && typeof r === "object" && "message" in r) {
+        const m = (r as { message: unknown }).message;
+        if (Array.isArray(m)) return m.join(", ");
+        if (typeof m === "string") return m;
+      }
+      return err.message;
+    }
+    if (err instanceof Error) return err.message;
+    return "Request failed";
   }
 
   private isOutOfListScope(resource: ResourceConfig, user: UserContext, record: unknown): boolean {

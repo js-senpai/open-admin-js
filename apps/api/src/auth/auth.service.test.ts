@@ -39,7 +39,8 @@ describe("AuthService", () => {
     });
     bcryptCompareMock.mockResolvedValue(true);
 
-    const service = new AuthService(prisma as never, jwt as never);
+    const config = { get: vi.fn().mockReturnValue(undefined) };
+    const service = new AuthService(prisma as never, jwt as never, config as never);
     const result = await service.login("openadminjs@proton.me", "password", {}, "admin");
 
     expect(result.accessToken).toBe("jwt");
@@ -59,7 +60,8 @@ describe("AuthService", () => {
     });
     bcryptCompareMock.mockResolvedValue(true);
 
-    const service = new AuthService(prisma as never, jwt as never);
+    const config = { get: vi.fn().mockReturnValue(undefined) };
+    const service = new AuthService(prisma as never, jwt as never, config as never);
     await expect(service.login("openadminjs@proton.me", "password", {}, "admin")).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
@@ -69,7 +71,8 @@ describe("AuthService", () => {
     prisma.user.findMany.mockResolvedValue([{ id: "u1", refreshTokenHash: "hash-1" }]);
     bcryptCompareMock.mockResolvedValue(false);
 
-    const service = new AuthService(prisma as never, jwt as never);
+    const config = { get: vi.fn().mockReturnValue(undefined) };
+    const service = new AuthService(prisma as never, jwt as never, config as never);
     await expect(service.refresh("bad-token", "admin")).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

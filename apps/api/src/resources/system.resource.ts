@@ -10,6 +10,7 @@ export const filesResource = defineResource({
   fields: {
     id: { type: "id", create: false, edit: false, list: false },
     filename: { type: "text", label: "Filename", searchable: true },
+    path: { type: "text", label: "Path", list: false },
     mimeType: { type: "text", label: "MIME", filterable: true },
     size: { type: "number", label: "Size" },
     createdAt: { type: "datetime", label: "Created", create: false, edit: false }

@@ -1,12 +1,57 @@
 import { describe, expect, it } from "vitest";
 import {
   defineResource,
+  formatIcuMessage,
+  formatLocalizedIcuMessage,
+  formatPlural,
   isSensitiveField,
   resolveResourceForLocale,
   validateResource,
   visibleFields,
   withSafeFields
 } from "./index";
+
+describe("formatPlural", () => {
+  it("replaces {count} using English plural rules", () => {
+    expect(
+      formatPlural("en", 1, { one: "{count} item", other: "{count} items" })
+    ).toBe("1 item");
+    expect(
+      formatPlural("en", 42, { one: "{count} item", other: "{count} items" })
+    ).toBe("42 items");
+  });
+});
+
+describe("formatIcuMessage", () => {
+  it("formats ICU plural rules", () => {
+    expect(
+      formatIcuMessage("en", "{count, plural, one {# file} other {# files}}", { count: 1 })
+    ).toBe("1 file");
+    expect(
+      formatIcuMessage("en", "{count, plural, one {# file} other {# files}}", { count: 5 })
+    ).toBe("5 files");
+  });
+
+  it("formats select/plural complex ICU patterns", () => {
+    const output = formatIcuMessage(
+      "en",
+      "{gender, select, male {{count, plural, one {He has # alert} other {He has # alerts}}} female {{count, plural, one {She has # alert} other {She has # alerts}}} other {{count, plural, one {They have # alert} other {They have # alerts}}}}",
+      { gender: "female", count: 3 }
+    );
+    expect(output).toBe("She has 3 alerts");
+  });
+});
+
+describe("formatLocalizedIcuMessage", () => {
+  it("resolves locale map and renders ICU", () => {
+    const label = {
+      en: "{count, plural, one {# draft} other {# drafts}}",
+      ru: "{count, plural, one {# черновик} few {# черновика} many {# черновиков} other {# черновика}}"
+    };
+    expect(formatLocalizedIcuMessage(label, "en", { count: 2 })).toBe("2 drafts");
+    expect(formatLocalizedIcuMessage(label, "ru", { count: 5 })).toContain("5 ");
+  });
+});
 
 describe("defineResource", () => {
   it("hides sensitive fields by default", () => {

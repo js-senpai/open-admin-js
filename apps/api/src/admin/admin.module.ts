@@ -6,16 +6,18 @@ import { PermissionsGuard } from "../common/permissions.guard";
 import { CaslAbilityFactory } from "../common/casl-ability.factory";
 import { AdminController } from "./admin.controller";
 import { AdminAiController } from "./admin-ai.controller";
+import { AdminLogsController } from "./admin-logs.controller";
 import { AdminPluginsController } from "./admin-plugins.controller";
 import { AdminPluginsService } from "./admin-plugins.service";
 import { AdminResourceService } from "./admin-resource.service";
 import { AdminAnalyticsService } from "./admin-analytics.service";
 import { AdminAiService } from "./admin-ai.service";
 import { PaymentModule } from "../store/payment/payment.module";
+import { LoggingModule } from "../common/logging.module";
 
 @Module({
-  imports: [JwtModule.register({}), PaymentModule],
-  controllers: [AdminController, AdminPluginsController, AdminAiController],
+  imports: [JwtModule.register({}), PaymentModule, LoggingModule],
+  controllers: [AdminController, AdminPluginsController, AdminAiController, AdminLogsController],
   providers: [
     AdminResourceService,
     AdminAnalyticsService,
@@ -25,6 +27,7 @@ import { PaymentModule } from "../store/payment/payment.module";
     AuthGuard,
     PermissionsGuard,
     CaslAbilityFactory
-  ]
+  ],
+  exports: [AdminResourceService]
 })
 export class AdminModule {}
