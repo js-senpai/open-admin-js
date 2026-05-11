@@ -34,3 +34,9 @@ Every app/package uses Vitest. Run `pnpm --filter <pkg> test` to scope.
 - Don't hit a real database from a unit test. Use the Prisma mock pattern in `apps/api/src/test-setup.ts`.
 - Don't add tests that only assert "function gets called" without a behavior claim.
 - Don't `console.log` from tests; if a test is hard to debug, simplify the arrangement.
+
+## Workspace packages
+
+- Root `pnpm test` builds `@openadminjs/resource` first, then runs all package tests. `@openadminjs/core`
+  Vitest resolves `@openadminjs/resource` via the package `exports` `development` condition (TS sources)
+  when `dist/` is absent; `packages/core/vitest.config.ts` sets `resolve.conditions` accordingly.
