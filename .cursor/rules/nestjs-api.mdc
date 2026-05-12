@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Nest.js API
 
-Stack: Nest 10, class-validator/class-transformer DTOs, `@nestjs/jwt`, `@nestjs/throttler`, BullMQ, `helmet`, Prisma.
+Stack: Nest 11, class-validator/class-transformer DTOs, `@nestjs/jwt`, `@nestjs/throttler`, BullMQ, `helmet`, Prisma.
 
 ## Modules
 

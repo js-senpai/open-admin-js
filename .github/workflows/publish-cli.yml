@@ -1,0 +1,57 @@
+name: Publish openadminjs to npm
+
+# Publishes the `openadminjs` CLI when `packages/cli/package.json` version is
+# higher than the latest version on npm (typical flow: bump version on main, push).
+# Requires repository secret NPM_TOKEN (npm "Automation" access token).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/cli/package.json"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI
+        run: pnpm --filter openadminjs build
+
+      - name: Publish if version is new
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          LOCAL=$(node -p "require('./packages/cli/package.json').version")
+          REMOTE=$(npm view openadminjs version 2>/dev/null || true)
+          if [ -z "${REMOTE:-}" ]; then
+            echo "No published version found; publishing $LOCAL"
+            pnpm --filter openadminjs publish --access public --no-git-checks
+            exit 0
+          fi
+          if [ "$(printf '%s\n' "$REMOTE" "$LOCAL" | sort -V | tail -1)" = "$LOCAL" ] && [ "$LOCAL" != "$REMOTE" ]; then
+            echo "Publishing $LOCAL (npm has $REMOTE)"
+            pnpm --filter openadminjs publish --access public --no-git-checks
+          else
+            echo "Skip publish: local=$LOCAL npm=$REMOTE"
+          fi
