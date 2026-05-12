@@ -14,7 +14,7 @@
     "db:seed": "prisma db seed --schema ../../prisma/schema.prisma"
   },
   "dependencies": {
-    "@apollo/server": "^4.11.0",
+    "@apollo/server": "^5.5.0",
     "@casl/ability": "^6.8.1",
     "@nestjs/apollo": "^12.2.1",
     "@nestjs/bullmq": "^11.0.4",
