@@ -8,7 +8,6 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import sharp from "sharp";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 /** `packages/brand/src` → monorepo root */
@@ -42,7 +41,7 @@ function svgRasterImage(href, w, h, label) {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${w} ${h}" role="img" aria-label="${safe}"><image xlink:href="${href}" href="${href}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/></svg>`;
 }
 
-async function extractLogoMark(logoBuf) {
+async function extractLogoMark(sharp, logoBuf) {
   const { data, info } = await sharp(logoBuf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width, height, channels } = info;
   const alphaIndex = channels - 1;
@@ -114,7 +113,7 @@ async function extractLogoMark(logoBuf) {
     .toBuffer();
 }
 
-async function writeBrandToDir(targetDir) {
+async function writeBrandToDir(sharp, targetDir) {
   mkdirSync(targetDir, { recursive: true });
 
   const logoBuf = readFileSync(LOGO_SRC);
@@ -127,7 +126,7 @@ async function writeBrandToDir(targetDir) {
   const monoPng = await sharp(logoBuf).grayscale().png().toBuffer();
   writeFileSync(join(targetDir, "openadminjs-logo-monochrome.png"), monoPng);
 
-  const iconBuf = await extractLogoMark(logoBuf);
+  const iconBuf = await extractLogoMark(sharp, logoBuf);
   writeFileSync(join(targetDir, "openadminjs-icon-new.png"), iconBuf);
 
   writeFileSync(join(targetDir, "favicon.svg"), svgRasterImage("openadminjs-icon-new.png", 512, 512, "OpenAdminJS"));
@@ -168,9 +167,17 @@ async function main() {
     throw new Error(`Missing required source logo: ${LOGO_SRC}`);
   }
 
+  let sharp;
+  try {
+    const sharpModule = await import("sharp");
+    sharp = sharpModule.default;
+  } catch {
+    throw new Error("Missing optional dependency 'sharp'. Install dependencies before generating brand assets.");
+  }
+
   for (const rel of targets) {
     const dir = join(repoRoot, rel);
-    await writeBrandToDir(dir);
+    await writeBrandToDir(sharp, dir);
     console.log("Wrote", rel);
   }
   console.log("Brand assets generated from openadminjs-logo-new.png");

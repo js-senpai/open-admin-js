@@ -81,10 +81,11 @@ export class AdminAiController {
       }
     } catch (error) {
       const err = error as { response?: { message?: string; code?: string; details?: unknown } };
+      const errorCode = err.response?.code ?? "AI_STREAM_FAILED";
       const payload: AiStreamErrorEvent = {
         type: "error",
-        message: err.response?.message ?? (error instanceof Error ? error.message : "Chat stream failed"),
-        code: err.response?.code ?? "AI_STREAM_FAILED",
+        message: "Chat stream failed",
+        code: errorCode,
         details: err.response?.details ?? null
       };
       res.write(`data: ${JSON.stringify(payload)}\n\n`);
