@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
+    "prebuild": "pnpm run prisma:generate",
     "build": "nest build",
     "start": "node dist/apps/api/src/main.js",
+    "prelint": "pnpm run prisma:generate",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "pretypecheck": "pnpm run prisma:generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "pnpm run prisma:generate",
     "test": "vitest run",
     "db:migrate": "prisma migrate dev --schema ../../prisma/schema.prisma",
     "db:seed": "prisma db seed --schema ../../prisma/schema.prisma"
@@ -60,8 +65,5 @@
     "tsx": "4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^3.2.0"
-  },
-  "prisma": {
-    "seed": "tsx ../../prisma/seed.ts"
   }
 }
