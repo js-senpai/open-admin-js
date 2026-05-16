@@ -11,7 +11,6 @@ describe("AdminResourcesResolver", () => {
 
     await resolver.adminResourceList(
       "posts",
-      user as never,
       2,
       15,
       "hello",
@@ -21,7 +20,8 @@ describe("AdminResourcesResolver", () => {
         status: { eq: "published" },
         views: { gte: 10, lte: 100 },
         authorId: "u1"
-      }
+      },
+      { req: { user } } as never
     );
 
     expect(adminResources.list).toHaveBeenCalledWith(
