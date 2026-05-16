@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "tsx watch src/main.ts",
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "prebuild": "pnpm run prisma:generate",
     "build": "nest build",

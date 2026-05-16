@@ -10,16 +10,18 @@ describe("AdminResourcesResolver", () => {
     const user = { id: "u1", permissions: ["*"] };
 
     await resolver.adminResourceList(
-      "posts",
-      2,
-      15,
-      "hello",
-      "createdAt:desc",
-      "en",
       {
-        status: { eq: "published" },
-        views: { gte: 10, lte: 100 },
-        authorId: "u1"
+        name: "posts",
+        page: 2,
+        limit: 15,
+        search: "hello",
+        sort: "createdAt:desc",
+        locale: "en",
+        filter: {
+          status: { eq: "published" },
+          views: { gte: 10, lte: 100 },
+          authorId: "u1"
+        }
       },
       { req: { user } } as never
     );
@@ -41,4 +43,3 @@ describe("AdminResourcesResolver", () => {
     );
   });
 });
-
