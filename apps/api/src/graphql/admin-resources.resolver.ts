@@ -47,10 +47,10 @@ export class AdminResourcesResolver {
     @Args("name") name: string,
     @Args("page", { type: () => Int, nullable: true, defaultValue: 1 }) page: number,
     @Args("limit", { type: () => Int, nullable: true, defaultValue: 20 }) limit: number,
-    @Args("search", { type: () => String, nullable: true }) search?: string,
-    @Args("sort", { type: () => String, nullable: true }) sort?: string,
-    @Args("locale", { type: () => String, nullable: true }) locale?: string,
-    @Args("filter", { type: () => GraphQLJSON, nullable: true }) filter?: unknown,
+    @Args("search", { type: () => String, nullable: true }) search: string | undefined,
+    @Args("sort", { type: () => String, nullable: true }) sort: string | undefined,
+    @Args("locale", { type: () => String, nullable: true }) locale: string | undefined,
+    @Args("filter", { type: () => GraphQLJSON, nullable: true }) filter: unknown | undefined,
     @Context() ctx: GqlAuthContext
   ) {
     const query: Record<string, unknown> = { page, limit, ...this.flattenFilters(filter) };
