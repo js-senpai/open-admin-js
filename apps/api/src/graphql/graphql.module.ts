@@ -4,7 +4,6 @@ import { ApolloDriver, ApolloDriverConfig } from "@nestjs/apollo";
 import { GraphQLJSON } from "graphql-scalars";
 import { AdminModule } from "../admin/admin.module";
 import { AuthModule } from "../auth/auth.module";
-import { AuthGuard } from "../common/auth.guard";
 import { AdminResourcesResolver } from "./admin-resources.resolver";
 
 @Module({
@@ -21,6 +20,6 @@ import { AdminResourcesResolver } from "./admin-resources.resolver";
     AdminModule,
     AuthModule
   ],
-  providers: [AdminResourcesResolver, AuthGuard]
+  providers: [AdminResourcesResolver]
 })
 export class GraphqlApiModule {}

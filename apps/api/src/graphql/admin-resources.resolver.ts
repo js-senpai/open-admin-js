@@ -1,12 +1,13 @@
 import { UseGuards } from "@nestjs/common";
-import { Args, Int, Query, Resolver } from "@nestjs/graphql";
+import { Args, Context, Int, Query, Resolver } from "@nestjs/graphql";
 import { GraphQLJSON } from "graphql-scalars";
 import { AdminResourceService } from "../admin/admin-resource.service";
 import { AuthGuard } from "../common/auth.guard";
 import type { RequestUser } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
-import { CurrentUser } from "../common/current-user.decorator";
 import { resources } from "../resources/registry";
+
+type GqlAuthContext = { req: { user: RequestUser } };
 
 @Resolver()
 @UseGuards(AuthGuard)
@@ -30,7 +31,8 @@ export class AdminResourcesResolver {
   }
 
   @Query(() => [String], { name: "adminRegisteredResourceNames" })
-  adminRegisteredResourceNames(@CurrentUser() user: RequestUser): string[] {
+  adminRegisteredResourceNames(@Context() ctx: GqlAuthContext): string[] {
+    const user = ctx.req.user;
     return resources
       .filter(
         (r) =>
@@ -43,23 +45,23 @@ export class AdminResourcesResolver {
   @Query(() => GraphQLJSON, { name: "adminResourceList", description: "Paginated list (same rules as REST /admin/resources/:name)" })
   adminResourceList(
     @Args("name") name: string,
-    @CurrentUser() user: RequestUser,
     @Args("page", { type: () => Int, nullable: true, defaultValue: 1 }) page: number,
     @Args("limit", { type: () => Int, nullable: true, defaultValue: 20 }) limit: number,
-    @Args("search", { nullable: true }) search?: string,
-    @Args("sort", { nullable: true }) sort?: string,
-    @Args("locale", { nullable: true }) locale?: string,
-    @Args("filter", { type: () => GraphQLJSON, nullable: true }) filter?: Record<string, unknown>
+    @Args("search", { type: () => String, nullable: true }) search?: string,
+    @Args("sort", { type: () => String, nullable: true }) sort?: string,
+    @Args("locale", { type: () => String, nullable: true }) locale?: string,
+    @Args("filter", { type: () => GraphQLJSON, nullable: true }) filter?: unknown,
+    @Context() ctx: GqlAuthContext
   ) {
     const query: Record<string, unknown> = { page, limit, ...this.flattenFilters(filter) };
     if (search) query.search = search;
     if (sort) query.sort = sort;
     if (locale) query.locale = locale;
-    return this.adminResources.list(name, query, user);
+    return this.adminResources.list(name, query, ctx.req.user);
   }
 
   @Query(() => GraphQLJSON, { name: "adminResourceRecord" })
-  adminResourceRecord(@Args("name") name: string, @Args("id") id: string, @CurrentUser() user: RequestUser) {
-    return this.adminResources.get(name, id, user);
+  adminResourceRecord(@Args("name") name: string, @Args("id") id: string, @Context() ctx: GqlAuthContext) {
+    return this.adminResources.get(name, id, ctx.req.user);
   }
 }

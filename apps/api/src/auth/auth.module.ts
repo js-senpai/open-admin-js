@@ -28,6 +28,6 @@ import { SsoOidcService } from "./sso-oidc.service";
   ],
   controllers: [AuthController, SsoOidcController],
   providers: [AuthService, SsoOidcService, PrismaService, AuthGuard],
-  exports: [AuthService, AuthGuard, JwtModule]
+  exports: [AuthService, AuthGuard, JwtModule, PrismaService]
 })
 export class AuthModule {}
