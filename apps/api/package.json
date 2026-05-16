@@ -57,6 +57,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "dotenv": "^16.4.7",
     "@nestjs/cli": "^11.0.21",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",

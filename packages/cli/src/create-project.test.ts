@@ -39,6 +39,18 @@ describe("create project", () => {
     }
   });
 
+  it("scaffolds prisma.config.ts that loads apps/api/.env for Prisma CLI", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
+    try {
+      const result = createProject({ ...BASE_OPTIONS, projectName: "my-app", cwd, templateDir: defaultTemplateDir() });
+      const prismaConfig = readFileSync(join(result.targetDir, "apps", "api", "prisma.config.ts"), "utf8");
+      expect(prismaConfig).toContain("dotenv");
+      expect(prismaConfig).toContain('.env")');
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("writes apps/api/.env with real secrets and superadmin credentials", () => {
     const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
     try {
