@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { BadRequestException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
@@ -275,7 +275,7 @@ export class AdminPluginsService {
 }
 
 function findPnpmWorkspaceRoot(): string {
-  let dir = fileURLToPath(new URL("../..", import.meta.url));
+  let dir = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
   for (let i = 0; i < 12; i++) {
     if (existsSync(join(dir, "pnpm-workspace.yaml"))) return dir;
     const parent = dirname(dir);

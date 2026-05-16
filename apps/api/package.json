@@ -2,13 +2,12 @@
   "name": "@openadminjs/api",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "nest start --watch",
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "prebuild": "pnpm run prisma:generate",
     "build": "nest build",
-    "start": "node dist/apps/api/src/main.js",
+    "start": "node dist/main.js",
     "prelint": "pnpm run prisma:generate",
     "lint": "tsc -p tsconfig.json --noEmit",
     "pretypecheck": "pnpm run prisma:generate",
@@ -62,9 +61,13 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/nodemailer": "^8.0.0",
+    "dotenv": "^16.4.7",
     "prisma": "^6.1.0",
+    "ts-loader": "^9.5.7",
     "tsx": "4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "webpack": "^5.106.2",
+    "webpack-node-externals": "^3.0.0"
   }
 }
