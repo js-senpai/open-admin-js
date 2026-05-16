@@ -3,7 +3,7 @@ import { GraphQLJSON } from "graphql-scalars";
 
 @ArgsType()
 export class AdminResourceListArgs {
-  @Field()
+  @Field(() => String)
   name!: string;
 
   @Field(() => Int, { nullable: true, defaultValue: 1 })
@@ -27,9 +27,9 @@ export class AdminResourceListArgs {
 
 @ArgsType()
 export class AdminResourceRecordArgs {
-  @Field()
+  @Field(() => String)
   name!: string;
 
-  @Field()
+  @Field(() => String)
   id!: string;
 }
