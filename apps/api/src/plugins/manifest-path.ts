@@ -1,12 +1,14 @@
 import { existsSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const pluginsDir = dirname(fileURLToPath(import.meta.url));
+const apiPkgDir = resolve(pluginsDir, "..", "..");
 
 /** Same resolution order as plugin-loader (env → cwd → beside apps/api). */
 export function getManifestCandidateStrings(): string[] {
   const fromEnv = process.env.OPENADMIN_PLUGINS_MANIFEST;
   const fromCwd = join(process.cwd(), "plugins.manifest.json");
-  const apiPkgDir = fileURLToPath(new URL("../..", import.meta.url));
   const besideApi = join(apiPkgDir, "plugins.manifest.json");
   return [...new Set([fromEnv, fromCwd, besideApi].filter(Boolean) as string[])];
 }
@@ -26,7 +28,6 @@ export function resolveExistingManifestPath(): string | undefined {
 
 /** Path to write when no file exists yet (beside apps/api). */
 export function defaultWritableManifestPath(): string {
-  const apiPkgDir = fileURLToPath(new URL("../..", import.meta.url));
   return join(apiPkgDir, "plugins.manifest.json");
 }
 
