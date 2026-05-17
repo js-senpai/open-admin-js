@@ -1,14 +1,34 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Inject, Logger } from "@nestjs/common";
-import type { Job } from "bullmq";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Worker } from "bullmq";
+import type { ConnectionOptions, Job } from "bullmq";
 import { PrismaService } from "../common/prisma.service";
 
-@Processor("default")
-export class QueueProcessor extends WorkerHost {
+const QUEUE_NAME = "default";
+
+function redisConnection(): ConnectionOptions | undefined {
+  const url = process.env.REDIS_URL?.trim();
+  return url ? { url } : undefined;
+}
+
+@Injectable()
+export class QueueProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(QueueProcessor.name);
+  private worker?: Worker<{ initiatedBy?: string; at?: string }, { ok: boolean }>;
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
-    super();
+  }
+
+  onModuleInit() {
+    const connection = redisConnection();
+    if (!connection) {
+      this.logger.log("Redis is not configured; queue worker is disabled.");
+      return;
+    }
+    this.worker = new Worker(QUEUE_NAME, (job) => this.process(job), { connection });
+  }
+
+  async onModuleDestroy() {
+    await this.worker?.close();
   }
 
   async process(job: Job<{ initiatedBy?: string; at?: string }>) {

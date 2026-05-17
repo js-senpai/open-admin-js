@@ -1,10 +1,36 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { fileURLToPath } from "node:url";
 import { materializeAllRoles, roleMatrixKey } from "@openadminjs/permissions";
 import { catalogSlugList, permissionCatalog, roleBlueprints } from "../apps/api/src/access/catalog";
 import { publicPermissionCatalog, publicRoleBlueprints } from "../apps/api/src/access/public-catalog";
+
+function loadApiEnv(): void {
+  const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const candidates = [
+    join(process.cwd(), ".env"),
+    join(process.cwd(), "apps", "api", ".env"),
+    join(rootDir, "apps", "api", ".env")
+  ];
+  const envFile = candidates.find((path) => existsSync(path));
+  if (!envFile) return;
+
+  for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
+    if (!line || line.trimStart().startsWith("#")) continue;
+    const separator = line.indexOf("=");
+    if (separator <= 0) continue;
+    const key = line.slice(0, separator).trim();
+    if (process.env[key] !== undefined) continue;
+    const value = line.slice(separator + 1).trim().replace(/^(['"])(.*)\1$/, "$2");
+    process.env[key] = value;
+  }
+}
+
+loadApiEnv();
 
 const prisma = new PrismaClient();
 
@@ -118,7 +144,10 @@ async function main() {
 
   const user = await prisma.user.upsert({
     where: { email: superadmin.email },
-    update: {},
+    update: {
+      name: "Admin",
+      passwordHash: await bcrypt.hash(superadmin.password, 12)
+    },
     create: {
       email: superadmin.email,
       name: "Admin",

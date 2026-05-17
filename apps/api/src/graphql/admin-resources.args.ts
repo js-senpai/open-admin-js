@@ -1,5 +1,6 @@
 import { ArgsType, Field, Int } from "@nestjs/graphql";
 import { GraphQLJSON } from "graphql-scalars";
+import { ensureGqlFieldTypes } from "./ensure-gql-paramtypes";
 
 @ArgsType()
 export class AdminResourceListArgs {
@@ -33,3 +34,17 @@ export class AdminResourceRecordArgs {
   @Field(() => String)
   id!: string;
 }
+
+ensureGqlFieldTypes(AdminResourceListArgs.prototype, {
+  name: String,
+  page: Number,
+  limit: Number,
+  search: String,
+  sort: String,
+  locale: String,
+  filter: GraphQLJSON
+});
+ensureGqlFieldTypes(AdminResourceRecordArgs.prototype, {
+  name: String,
+  id: String
+});

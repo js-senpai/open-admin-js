@@ -13,3 +13,18 @@ export function ensureGqlParamTypes(
   if (Array.isArray(existing) && existing.length >= paramTypes.length) return;
   Reflect.defineMetadata(key, paramTypes, prototype, methodName);
 }
+
+/**
+ * `@Field(() => Type)` is still resolved through lazy metadata that expects
+ * `design:type` to exist. Define the property metadata when `tsx watch` did not emit it.
+ */
+export function ensureGqlFieldTypes(
+  prototype: object,
+  fieldTypes: Record<string, unknown>
+): void {
+  const key = "design:type";
+  for (const [fieldName, fieldType] of Object.entries(fieldTypes)) {
+    if (Reflect.hasMetadata(key, prototype, fieldName)) continue;
+    Reflect.defineMetadata(key, fieldType, prototype, fieldName);
+  }
+}
