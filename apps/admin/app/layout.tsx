@@ -1,16 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ApiErrorBanner } from "../components/api-error-banner";
 import { AuthGuard } from "../components/auth-guard";
 import { BRAND } from "../lib/brand";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-inter",
-  display: "swap"
-});
 
 function resolveMetadataBase(): URL {
   const origin = process.env.ADMIN_ORIGIN ?? "http://localhost:3000";
@@ -47,8 +40,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthGuard>
             <ApiErrorBanner />

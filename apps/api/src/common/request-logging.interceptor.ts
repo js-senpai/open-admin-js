@@ -1,6 +1,7 @@
 import {
   CallHandler,
   ExecutionContext,
+  Inject,
   Injectable,
   NestInterceptor
 } from "@nestjs/common";
@@ -9,7 +10,7 @@ import { AppLoggerService } from "./app-logger.service";
 
 @Injectable()
 export class RequestLoggingInterceptor implements NestInterceptor {
-  constructor(private readonly logger: AppLoggerService) {}
+  constructor(@Inject(AppLoggerService) private readonly logger: AppLoggerService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== "http") return next.handle();
@@ -25,11 +26,12 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     const path = req.url ?? "/";
     const ip = req.ip ?? "";
     const userId = req.user?.id;
+    const logger = this.logger;
 
     return next.handle().pipe(
       tap(() => {
         const durationMs = Date.now() - started;
-        this.logger.info("request.completed", {
+        logger.info("request.completed", {
           context: "http",
           method,
           path,
@@ -52,7 +54,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
               ? String((err as { message?: unknown }).message ?? "unknown error")
               : "unknown error";
 
-        this.logger.error("request.failed", {
+        logger.error("request.failed", {
           context: "http",
           method,
           path,

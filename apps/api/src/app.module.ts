@@ -6,10 +6,11 @@ import { Module } from "@nestjs/common";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { PrismaService } from "./common/prisma.service";
 import { LoggingModule } from "./common/logging.module";
 import { RequestLoggingInterceptor } from "./common/request-logging.interceptor";
+import { OpenAdminThrottlerGuard } from "./common/openadmin-throttler.guard";
 import { AuthModule } from "./auth/auth.module";
 import { AdminModule } from "./admin/admin.module";
 import { GraphqlApiModule } from "./graphql/graphql.module";
@@ -22,6 +23,12 @@ import { PluginApiInterceptor } from "./plugins/plugin-api.interceptor";
 const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "api", ".env")].filter((p) =>
   existsSync(p)
 );
+
+type ThrottleRequest = { headers?: { authorization?: string }; ip?: string } | undefined;
+
+export function throttleIpTracker(req: ThrottleRequest): string {
+  return req?.ip ?? "unknown";
+}
 
 @Module({
   imports: [
@@ -39,14 +46,14 @@ const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "a
           name: "default",
           ttl: 60_000,
           limit: 100,
-          getTracker: (req: { ip?: string }) => req.ip ?? "unknown"
+          getTracker: throttleIpTracker
         },
         {
           name: "perUser",
           ttl: 60_000,
           limit: Number(config.get("RATE_LIMIT_USER_PER_MIN") ?? 120),
-          getTracker: async (req: { headers?: { authorization?: string }; ip?: string }) => {
-            const h = req.headers?.authorization;
+          getTracker: async (req: ThrottleRequest) => {
+            const h = req?.headers?.authorization;
             const t = h?.startsWith("Bearer ") ? h.slice(7) : undefined;
             if (t) {
               try {
@@ -59,7 +66,7 @@ const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "a
                 /* use IP bucket for invalid JWT */
               }
             }
-            return `ip:${req.ip ?? "anon"}`;
+            return `ip:${req?.ip ?? "anon"}`;
           }
         }
       ]
@@ -73,12 +80,11 @@ const envFilePath = [join(process.cwd(), ".env"), join(process.cwd(), "apps", "a
   controllers: [HealthController],
   providers: [
     PrismaService,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_INTERCEPTOR, useClass: RequestLoggingInterceptor },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: PluginApiInterceptor
-    }
+    RequestLoggingInterceptor,
+    PluginApiInterceptor,
+    { provide: APP_GUARD, useClass: OpenAdminThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useExisting: RequestLoggingInterceptor },
+    { provide: APP_INTERCEPTOR, useExisting: PluginApiInterceptor }
   ],
   exports: [PrismaService]
 })
