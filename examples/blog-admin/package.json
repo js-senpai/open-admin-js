@@ -12,6 +12,6 @@
   "devDependencies": {
     "@openadminjs/core": "workspace:*",
     "typescript": "^5.7.2",
-    "vitest": "^3.2.0"
+    "vitest": "^4.1.0"
   }
 }
