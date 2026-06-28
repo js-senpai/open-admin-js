@@ -1,6 +1,28 @@
 {
   "name": "openadminjs",
-  "version": "0.1.24",
+  "version": "0.1.25",
+  "description": "CLI scaffold generator for OpenAdminJS monorepos (NestJS, Prisma, Next.js). Not a runtime library — use npx openadminjs create.",
+  "license": "MIT",
+  "keywords": [
+    "openadminjs",
+    "admin",
+    "nestjs",
+    "nextjs",
+    "prisma",
+    "cli",
+    "scaffold",
+    "generator",
+    "monorepo"
+  ],
+  "homepage": "https://js-senpai.github.io/open-admin-js/",
+  "bugs": {
+    "url": "https://github.com/js-senpai/open-admin-js/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/js-senpai/open-admin-js.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "bin": {
     "openadminjs": "dist/index.js"

@@ -1,24 +1,25 @@
-# OpenAdminJS
+# OpenAdminJS CLI
 
-OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with Nest.js, Prisma, PostgreSQL, Next.js, TailwindCSS and shadcn/ui.
-
-![OpenAdminJS logo](https://js-senpai.github.io/open-admin-js/assets/brand/openadminjs-logo-new.png)
-
-## Quick start (for package users)
+**`openadminjs` is a CLI scaffold generator**, not a runtime library you import into React/Next/Nest apps. It creates a full pnpm monorepo (NestJS API, Next.js admin/web, shared packages).
 
 Full documentation: [https://js-senpai.github.io/open-admin-js/docs.html](https://js-senpai.github.io/open-admin-js/docs.html)
 
-### 1. Create a new project
+## Quick start
+
+Requires **pnpm**, **npm**, or **yarn**. **pnpm is recommended**; npm/yarn projects are adapted at scaffold time (workspaces config, root scripts, dependency links).
 
 ```bash
 npx openadminjs create my-app
 cd my-app
+pnpm install      # skipped if you chose install during create
+pnpm db:migrate   # skipped if install ran during create
+pnpm db:seed      # skipped if install ran during create
+pnpm dev
 ```
 
-`npx` runs the single `openadminjs` package and scaffolds the project with dependencies installed automatically.
-During scaffolding, you can choose the database driver from a list (PostgreSQL, MySQL, or SQLite), and the CLI fills `DATABASE_URL` for you.
+During scaffolding you can choose **PostgreSQL** or **MySQL**; the CLI fills `DATABASE_URL` for you.
 
-### 2. Configure environment
+### Configure environment
 
 The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes ready-to-use values into `apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for non-interactive seed).
 `ADMIN_ORIGIN` and `API_PORT` are prefilled with defaults (`http://localhost:3000` and `4000`) and can be changed manually if needed.
@@ -43,7 +44,7 @@ Optional (elsewhere / advanced):
 OPENADMIN_PLUGIN_PNPM_INSTALL=0
 ```
 
-### 3. Run project
+### Run project
 
 ```bash
 pnpm dev
@@ -58,12 +59,33 @@ Typical URLs:
 | API Swagger | http://localhost:4000/api/docs |
 | Web (demo)  | http://localhost:3001          |
 
-### 4. Sign in
+### Sign in
 
 After project creation, migrations and seed are run automatically. Use the superadmin credentials you entered in the scaffold wizard:
 
 - **Email:** your `Superadmin email`
 - **Password:** your `Superadmin password`
+
+## Programmatic API
+
+```ts
+import { createProject } from "openadminjs";
+
+createProject({
+  projectName: "my-app",
+  database: "postgresql",
+  superadminEmail: "admin@localhost.dev",
+  superadminPassword: "password1234",
+  databaseUrl: "postgresql://localhost:5432/my-app?schema=public",
+  redisUrl: "redis://localhost:6379",
+  jwtSecret: "change-me",
+  jwtRefreshSecret: "change-me-too",
+  adminOrigin: "http://localhost:3000",
+  apiPort: "4000"
+});
+```
+
+`templateDir` defaults to the bundled template. **pnpm** is recommended; **npm** and **yarn** are supported and the scaffold is adapted automatically.
 
 ## MVP scope
 

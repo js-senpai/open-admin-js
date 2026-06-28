@@ -6,14 +6,15 @@ import { fileURLToPath } from "node:url";
 import { cancel, confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
 import fsExtra from "fs-extra";
 import pc from "picocolors";
+import { adaptProjectForPackageManager, type PackageManager } from "./adapt-package-manager.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const { copySync, ensureDirSync, readFileSync, writeFileSync } = fsExtra;
 
 const BINARY_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot"]);
 
-export type PackageManager = "pnpm" | "npm" | "yarn";
-export type DatabaseDriver = "postgresql" | "mysql" | "sqlite";
+export type { PackageManager } from "./adapt-package-manager.js";
+export type DatabaseDriver = "postgresql" | "mysql";
 
 export type CreateProjectOptions = {
   projectName?: string;
@@ -119,7 +120,6 @@ async function pingRedis(urlInput: string, timeoutMs = 1500): Promise<void> {
 }
 
 async function validateDbConnectivity(database: DatabaseDriver, databaseUrlInput: string): Promise<string | undefined> {
-  if (database === "sqlite") return undefined;
   const parsed = parseUrlHostPort(databaseUrlInput);
   if (!parsed) return "Invalid database URL.";
 
@@ -145,13 +145,10 @@ async function validateRedisConnectivity(redisUrlInput: string): Promise<string 
 }
 
 function databaseUrl(packageName: string, database: DatabaseDriver): string {
-  if (database === "postgresql") {
-    return `postgresql://openadminjs:openadminjs@localhost:5432/${packageName}?schema=public`;
-  }
   if (database === "mysql") {
     return `mysql://openadminjs:openadminjs@localhost:3306/${packageName}`;
   }
-  return "file:./prisma/dev.db";
+  return `postgresql://openadminjs:openadminjs@localhost:5432/${packageName}?schema=public`;
 }
 
 function renderFile(file: string, replacements: Record<string, string>): void {
@@ -177,29 +174,81 @@ function renderTemplateFiles(targetDir: string, replacements: Record<string, str
 }
 
 function runPackageManagerScript(packageManager: PackageManager, script: "db:migrate" | "db:seed", cwd: string): void {
-  const command = packageManager === "npm" ? "npm" : packageManager;
   const args = packageManager === "npm" ? ["run", script] : [script];
-  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+  const result = spawnSync(packageManager, args, { cwd, stdio: "inherit" });
   if (result.status !== 0 || result.error) {
-    const displayCommand = packageManager === "npm" ? `npm run ${script}` : `${packageManager} ${script}`;
-    throw new Error(`Failed to run "${displayCommand}" in ${cwd}.`);
+    const display = packageManager === "npm" ? `npm run ${script}` : `${packageManager} ${script}`;
+    throw new Error(`Failed to run "${display}" in ${cwd}.`);
   }
 }
 
-export function createProject(options: Required<CreateProjectOptions>): CreateProjectResult {
-  const appName = options.projectName;
+function runInstall(packageManager: PackageManager, cwd: string): void {
+  const args = packageManager === "yarn" ? [] : ["install"];
+  const result = spawnSync(packageManager, args, { cwd, stdio: "inherit" });
+  if (result.status !== 0 || result.error) {
+    throw new Error(`Dependency installation failed. Run "${packageManager} install" inside ${cwd}.`);
+  }
+}
+
+type ResolvedCreateProjectOptions = Required<Omit<CreateProjectOptions, "templateDir">> & {
+  projectName: string;
+  templateDir: string;
+};
+
+function resolveCreateProjectOptions(
+  options: CreateProjectOptions & { projectName: string }
+): ResolvedCreateProjectOptions {
+  if (options.packageManager && !["pnpm", "npm", "yarn"].includes(options.packageManager)) {
+    throw new Error('packageManager must be "pnpm", "npm", or "yarn".');
+  }
+  const missing: string[] = [];
+  if (!options.database) missing.push("database");
+  if (!options.superadminEmail) missing.push("superadminEmail");
+  if (!options.superadminPassword) missing.push("superadminPassword");
+  if (!options.databaseUrl) missing.push("databaseUrl");
+  if (!options.redisUrl) missing.push("redisUrl");
+  if (!options.jwtSecret) missing.push("jwtSecret");
+  if (!options.jwtRefreshSecret) missing.push("jwtRefreshSecret");
+  if (!options.adminOrigin) missing.push("adminOrigin");
+  if (!options.apiPort) missing.push("apiPort");
+  if (missing.length) {
+    throw new Error(`createProject() missing required option(s): ${missing.join(", ")}`);
+  }
+
+  return {
+    projectName: options.projectName,
+    cwd: options.cwd ?? process.cwd(),
+    packageManager: options.packageManager ?? "pnpm",
+    database: options.database!,
+    superadminEmail: options.superadminEmail!,
+    superadminPassword: options.superadminPassword!,
+    databaseUrl: options.databaseUrl!,
+    redisUrl: options.redisUrl!,
+    jwtSecret: options.jwtSecret!,
+    jwtRefreshSecret: options.jwtRefreshSecret!,
+    adminOrigin: options.adminOrigin!,
+    apiPort: options.apiPort!,
+    git: options.git ?? false,
+    install: options.install ?? false,
+    templateDir: options.templateDir ?? defaultTemplateDir()
+  };
+}
+
+export function createProject(options: CreateProjectOptions & { projectName: string }): CreateProjectResult {
+  const resolved = resolveCreateProjectOptions(options);
+  const appName = resolved.projectName;
   const packageName = toPackageName(appName);
   if (!packageName) throw new Error("Project name must contain at least one letter or number.");
 
-  const targetDir = resolve(options.cwd, appName);
+  const targetDir = resolve(resolved.cwd, appName);
   if (existsSync(targetDir)) throw new Error(`${targetDir} already exists.`);
 
   ensureDirSync(targetDir);
-  copySync(options.templateDir, targetDir, {
+  copySync(resolved.templateDir, targetDir, {
     overwrite: false,
     errorOnExist: true,
     filter: (source) => {
-      const segments = relative(options.templateDir, source).split(sep);
+      const segments = relative(resolved.templateDir, source).split(sep);
       return !segments.some(
         (segment) =>
           segment === "node_modules" || segment === ".next" || segment === "dist" || segment === ".env.example"
@@ -212,68 +261,64 @@ export function createProject(options: Required<CreateProjectOptions>): CreatePr
   renderTemplateFiles(targetDir, {
     __APP_NAME__: appName,
     __PACKAGE_NAME__: packageName,
-    __DATABASE_PROVIDER__: options.database,
-    __DATABASE_URL__: options.databaseUrl,
-    __REDIS_URL__: options.redisUrl,
-    __JWT_SECRET__: options.jwtSecret,
-    __JWT_REFRESH_SECRET__: options.jwtRefreshSecret,
-    __ADMIN_ORIGIN__: options.adminOrigin,
-    __API_PORT__: options.apiPort
+    __DATABASE_PROVIDER__: resolved.database,
+    __DATABASE_URL__: resolved.databaseUrl,
+    __REDIS_URL__: resolved.redisUrl,
+    __JWT_SECRET__: resolved.jwtSecret,
+    __JWT_REFRESH_SECRET__: resolved.jwtRefreshSecret,
+    __ADMIN_ORIGIN__: resolved.adminOrigin,
+    __API_PORT__: resolved.apiPort
   });
+
+  adaptProjectForPackageManager(targetDir, resolved.packageManager);
 
   // Write the real .env for apps/api so the app starts and seed runs without
   // manual intervention. Superadmin credentials are picked up by prisma/seed.ts
   // via the SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD env vars.
   // Only when the template is a full-stack scaffold (has apps/api); skip for minimal
   // templates (e.g. npx smoke fixtures) that intentionally omit apps/api.
-  const templateApiDir = join(options.templateDir, "apps", "api");
+  const templateApiDir = join(resolved.templateDir, "apps", "api");
   const apiEnvDir = join(targetDir, "apps", "api");
   if (existsSync(templateApiDir)) {
     mkdirSync(apiEnvDir, { recursive: true });
     writeFileSync(
       join(apiEnvDir, ".env"),
       [
-        `DATABASE_URL=${options.databaseUrl}`,
-        `REDIS_URL=${options.redisUrl}`,
-        `JWT_SECRET=${options.jwtSecret}`,
-        `JWT_REFRESH_SECRET=${options.jwtRefreshSecret}`,
-        `ADMIN_ORIGIN=${options.adminOrigin}`,
-        `API_PORT=${options.apiPort}`,
-        `SUPERADMIN_EMAIL=${options.superadminEmail}`,
-        `SUPERADMIN_PASSWORD=${options.superadminPassword}`
+        `DATABASE_URL=${resolved.databaseUrl}`,
+        `REDIS_URL=${resolved.redisUrl}`,
+        `JWT_SECRET=${resolved.jwtSecret}`,
+        `JWT_REFRESH_SECRET=${resolved.jwtRefreshSecret}`,
+        `ADMIN_ORIGIN=${resolved.adminOrigin}`,
+        `API_PORT=${resolved.apiPort}`,
+        `SUPERADMIN_EMAIL=${resolved.superadminEmail}`,
+        `SUPERADMIN_PASSWORD=${resolved.superadminPassword}`
       ].join("\n") + "\n"
     );
   }
 
-  if (options.git) {
+  if (resolved.git) {
     const gitResult = spawnSync("git", ["init"], { cwd: targetDir, stdio: "ignore" });
     if (gitResult.status !== 0 || gitResult.error) {
       throw new Error("Failed to initialize git repository.");
     }
   }
 
-  if (options.install) {
-    const installArgs = options.packageManager === "yarn" ? [] : ["install"];
-    const installResult = spawnSync(options.packageManager, installArgs, { cwd: targetDir, stdio: "inherit" });
-    if (installResult.status !== 0 || installResult.error) {
-      throw new Error(
-        `Dependency installation failed. Run "${options.packageManager} ${installArgs.join(" ")}" inside ${targetDir}.`
-      );
-    }
-    runPackageManagerScript(options.packageManager, "db:migrate", targetDir);
-    runPackageManagerScript(options.packageManager, "db:seed", targetDir);
+  if (resolved.install) {
+    runInstall(resolved.packageManager, targetDir);
+    runPackageManagerScript(resolved.packageManager, "db:migrate", targetDir);
+    runPackageManagerScript(resolved.packageManager, "db:seed", targetDir);
   }
 
   return {
     appName,
     packageName,
     targetDir,
-    packageManager: options.packageManager,
-    database: options.database,
-    superadminEmail: options.superadminEmail,
-    git: options.git,
-    install: options.install,
-    dbInitialized: options.install
+    packageManager: resolved.packageManager,
+    database: resolved.database,
+    superadminEmail: resolved.superadminEmail,
+    git: resolved.git,
+    install: resolved.install,
+    dbInitialized: resolved.install
   };
 }
 
@@ -306,7 +351,7 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     (await select<PackageManager>({
       message: "Package manager",
       options: [
-        { value: "pnpm", label: "pnpm" },
+        { value: "pnpm", label: "pnpm (recommended)" },
         { value: "npm", label: "npm" },
         { value: "yarn", label: "yarn" }
       ],
@@ -323,8 +368,7 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
       message: "Database",
       options: [
         { value: "postgresql", label: "PostgreSQL" },
-        { value: "mysql", label: "MySQL" },
-        { value: "sqlite", label: "SQLite" }
+        { value: "mysql", label: "MySQL" }
       ],
       initialValue: "postgresql"
     }));
@@ -488,7 +532,7 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     apiPort: String(apiPort),
     git,
     install,
-    templateDir: options.templateDir ?? defaultTemplateDir()
+    templateDir: options.templateDir
   });
   printNextSteps(result);
   return result;

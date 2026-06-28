@@ -38,7 +38,7 @@ scripts/sync-template.mjs
 |---|---|
 | `__APP_NAME__` | project name as entered |
 | `__PACKAGE_NAME__` | slugified package name |
-| `__DATABASE_PROVIDER__` | `postgresql` / `mysql` / `sqlite` |
+| `__DATABASE_PROVIDER__` | `postgresql` / `mysql` |
 | `__DATABASE_URL__` | full connection string |
 | `__REDIS_URL__` | Redis connection string |
 | `__JWT_SECRET__` | JWT signing secret |
