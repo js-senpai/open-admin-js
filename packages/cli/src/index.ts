@@ -1,11 +1,25 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { cac } from "cac";
 import pc from "picocolors";
 import { createProjectInteractive } from "./create-project.js";
 import { modelNameToResourceSlug } from "./resource-slug.js";
+
+export {
+  createProject,
+  createProjectInteractive,
+  defaultTemplateDir,
+  printNextSteps,
+  toPackageName,
+  type CreateProjectOptions,
+  type CreateProjectResult,
+  type DatabaseDriver,
+  type PackageManager
+} from "./create-project.js";
+export { modelNameToResourceSlug } from "./resource-slug.js";
 
 const cli = cac("openadminjs");
 
@@ -320,4 +334,18 @@ cli.command("doctor", "Check generated project health").action(doctor);
 cli.command("security", "Run security checklist").action(securityCheck);
 cli.command("security check", "Run security checklist").action(securityCheck);
 cli.help();
-cli.parse();
+
+function isCliEntry(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  try {
+    return realpathSync(resolve(entry)) === realpathSync(modulePath);
+  } catch {
+    return resolve(entry) === modulePath;
+  }
+}
+
+if (isCliEntry()) {
+  cli.parse();
+}

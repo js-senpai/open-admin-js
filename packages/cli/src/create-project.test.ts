@@ -27,6 +27,30 @@ describe("create project", () => {
     }
   });
 
+  it("defaults templateDir when omitted", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
+    try {
+      const result = createProject({ ...BASE_OPTIONS, projectName: "default-template", cwd });
+      expect(existsSync(join(result.targetDir, "package.json"))).toBe(true);
+      expect(existsSync(join(result.targetDir, "pnpm-workspace.yaml"))).toBe(true);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("adapts npm projects when packageManager is npm", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
+    try {
+      const result = createProject({ ...BASE_OPTIONS, packageManager: "npm", projectName: "npm-app", cwd });
+      expect(result.packageManager).toBe("npm");
+      expect(existsSync(join(result.targetDir, "pnpm-workspace.yaml"))).toBe(false);
+      const root = JSON.parse(readFileSync(join(result.targetDir, "package.json"), "utf8")) as { workspaces?: string[] };
+      expect(root.workspaces).toEqual(["apps/*", "packages/*"]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("does not scaffold root .env.example or .env files", () => {
     const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
     try {

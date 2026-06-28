@@ -15,8 +15,8 @@ npx openadminjs create my-app
 cd my-app
 ```
 
-`npx` runs the single `openadminjs` package and scaffolds the project with dependencies installed automatically.
-During scaffolding, you can choose the database driver from a list (PostgreSQL, MySQL, or SQLite), and the CLI fills `DATABASE_URL` for you.
+`npx` runs the **`openadminjs` CLI scaffold generator** (not a runtime library) and scaffolds a monorepo. **pnpm is recommended**; npm and yarn are also supported — the CLI adapts workspace config and scripts for your choice.
+During scaffolding, you can choose **PostgreSQL** or **MySQL**, and the CLI fills `DATABASE_URL` for you.
 
 ### 2. Configure environment
 
