@@ -6,12 +6,17 @@ import { describe, expect, it } from "vitest";
 const here = dirname(fileURLToPath(import.meta.url));
 const moduleSource = readFileSync(join(here, "graphql.module.ts"), "utf8");
 
+// Strip comments so assertions check actual configuration, not explanatory prose
+// (a comment that names `graphql-playground` must not trip the guard below).
+const moduleCode = moduleSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
 describe("Apollo driver config (peer-conflict regression)", () => {
   it("does not enable the deprecated graphql-playground landing page", () => {
     // `playground: true` pulls in @apollo/server-plugin-landing-page-graphql-playground,
     // which has a non-optional @apollo/server@4 peer dependency and breaks a clean install.
-    expect(moduleSource).toMatch(/playground:\s*false/);
-    expect(moduleSource).not.toMatch(/graphql-playground/);
+    expect(moduleCode).toMatch(/playground:\s*false/);
+    expect(moduleCode).not.toMatch(/playground:\s*true/);
+    expect(moduleCode).not.toMatch(/graphql-playground/);
   });
 
   it("uses the Apollo Server 5 landing page plugin", () => {

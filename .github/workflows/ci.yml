@@ -163,7 +163,15 @@ jobs:
         run: |
           pnpm install
           pnpm exec prisma validate --schema prisma/schema.prisma
-          pnpm exec prisma migrate dev --name init --schema prisma/schema.prisma --skip-generate
+          # migrate dev is interactive (fails non-interactively) and needs a shadow DB
+          # (MySQL users often can't create one → P3014). Use the non-interactive path:
+          # PostgreSQL ships a baseline migration → deploy it; MySQL/SQLite have no
+          # migration history → push the schema directly (no shadow DB required).
+          if [ "${{ matrix.db }}" = "postgresql" ]; then
+            pnpm exec prisma migrate deploy --schema prisma/schema.prisma
+          else
+            pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate
+          fi
           pnpm exec prisma generate --schema prisma/schema.prisma
           pnpm db:seed
 
