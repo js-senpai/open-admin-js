@@ -9,8 +9,61 @@ permissions:
   contents: read
 
 jobs:
-  checks:
+  # Unit + CLI e2e tests across every supported Node.js version (Linux).
+  cli:
+    name: CLI tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck CLI
+        run: pnpm --filter openadminjs typecheck
+      - name: Build CLI
+        run: pnpm --filter openadminjs build
+      - name: Unit + CLI e2e tests
+        run: pnpm --filter openadminjs test
+
+  # Full monorepo checks + Prisma integration against a real PostgreSQL.
+  checks:
+    name: Lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: openadminjs
+          POSTGRES_PASSWORD: openadminjs
+          POSTGRES_DB: openadminjs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openadminjs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://openadminjs:openadminjs@localhost:5432/openadminjs?schema=public
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,6 +77,123 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Prisma integration (validate + migrate deploy)
+        run: |
+          pnpm exec prisma validate --schema prisma/schema.prisma
+          pnpm exec prisma migrate deploy --schema prisma/schema.prisma
       - run: pnpm build
       - run: pnpm security:check
       - run: pnpm e2e
+
+  # Database matrix: verify a generated project's schema + migrations for every
+  # advertised database (PostgreSQL + MySQL) against a real container.
+  database-matrix:
+    name: DB integration (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: postgresql
+            image: postgres:16
+            port: 5432
+            url: postgresql://openadminjs:openadminjs@localhost:5432/openadminjs?schema=public
+          - db: mysql
+            image: mysql:8
+            port: 3306
+            url: mysql://openadminjs:openadminjs@localhost:3306/openadminjs
+          - db: sqlite
+            image: ""
+            port: 0
+            url: file:./dev.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Start ${{ matrix.db }}
+        if: matrix.db != 'sqlite'
+        run: |
+          if [ "${{ matrix.db }}" = "postgresql" ]; then
+            docker run -d --name db -p ${{ matrix.port }}:5432 \
+              -e POSTGRES_USER=openadminjs -e POSTGRES_PASSWORD=openadminjs -e POSTGRES_DB=openadminjs \
+              ${{ matrix.image }}
+          else
+            docker run -d --name db -p ${{ matrix.port }}:3306 \
+              -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=openadminjs -e MYSQL_PASSWORD=openadminjs -e MYSQL_DATABASE=openadminjs \
+              ${{ matrix.image }}
+          fi
+      - run: pnpm install --frozen-lockfile
+      - name: Build CLI
+        run: pnpm --filter openadminjs build
+      - name: Scaffold a project for ${{ matrix.db }}
+        run: |
+          node --input-type=module -e "
+          import { createProject } from './packages/cli/dist/create-project.js';
+          import { randomBytes } from 'node:crypto';
+          createProject({
+            projectName: 'it-app', cwd: process.env.RUNNER_TEMP, packageManager: 'pnpm',
+            database: '${{ matrix.db }}',
+            superadminEmail: 'admin@localhost.dev', superadminPassword: 'a-strong-passphrase',
+            databaseUrl: '${{ matrix.url }}', redisUrl: 'redis://localhost:6379',
+            jwtSecret: randomBytes(48).toString('base64url'), jwtRefreshSecret: randomBytes(48).toString('base64url'),
+            adminOrigin: 'http://localhost:3000', apiPort: '4000', git: false, install: false
+          });
+          console.log('scaffolded', process.env.RUNNER_TEMP + '/it-app');
+          "
+      - name: Wait for DB
+        if: matrix.db != 'sqlite'
+        run: |
+          for i in $(seq 1 30); do
+            if [ "${{ matrix.db }}" = "postgresql" ]; then
+              docker exec db pg_isready -U openadminjs && break
+            else
+              docker exec db mysqladmin ping -uopenadminjs -popenadminjs --silent && break
+            fi
+            sleep 2
+          done
+      - name: prisma validate + migrate + generate
+        working-directory: ${{ runner.temp }}/it-app
+        env:
+          DATABASE_URL: ${{ matrix.url }}
+        run: |
+          pnpm install
+          pnpm exec prisma validate --schema prisma/schema.prisma
+          pnpm exec prisma migrate dev --name init --schema prisma/schema.prisma --skip-generate
+          pnpm exec prisma generate --schema prisma/schema.prisma
+          pnpm db:seed
+
+  # Verify the published tarball contains only what it should (no secrets).
+  pack:
+    name: npm pack inspection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter openadminjs build
+      - name: npm pack --dry-run
+        working-directory: packages/cli
+        run: npm pack --dry-run 2>&1 | tee pack.txt
+      - name: Assert tarball has no secrets / junk
+        working-directory: packages/cli
+        run: |
+          set -euo pipefail
+          if grep -E "(^|/)\.env($|[^.])" pack.txt | grep -v "\.env\.example"; then
+            echo "::error::real .env file would be published"; exit 1
+          fi
+          for bad in "apps/api/.env" "coverage/" ".tmp" ".sqlite" "node_modules/"; do
+            if grep -q "$bad" pack.txt; then echo "::error::tarball includes $bad"; exit 1; fi
+          done
+          grep -q "dist/index.js" pack.txt || { echo "::error::dist missing from tarball"; exit 1; }
+          echo "Tarball contents look correct."

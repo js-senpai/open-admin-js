@@ -11,8 +11,10 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "db:migrate": "pnpm --filter @openadminjs/api db:migrate",
+    "db:migrate:deploy": "pnpm --filter @openadminjs/api db:migrate:deploy",
     "db:seed": "pnpm --filter @openadminjs/api db:seed",
     "db:studio": "pnpm --filter @openadminjs/api db:studio",
+    "db:reset": "pnpm --filter @openadminjs/api db:reset",
     "generate": "pnpm --filter @openadminjs/api generate"
   },
   "devDependencies": {

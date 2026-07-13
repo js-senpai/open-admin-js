@@ -14,8 +14,10 @@ const ROOT_SCRIPTS: Record<PackageManager, Record<string, string>> = {
     typecheck: "pnpm -r typecheck",
     test: "pnpm -r test",
     "db:migrate": "pnpm --filter @openadminjs/api db:migrate",
+    "db:migrate:deploy": "pnpm --filter @openadminjs/api db:migrate:deploy",
     "db:seed": "pnpm --filter @openadminjs/api db:seed",
     "db:studio": "pnpm --filter @openadminjs/api db:studio",
+    "db:reset": "pnpm --filter @openadminjs/api db:reset",
     generate: "pnpm --filter @openadminjs/api generate"
   },
   npm: {
@@ -26,8 +28,10 @@ const ROOT_SCRIPTS: Record<PackageManager, Record<string, string>> = {
     typecheck: "npm run typecheck --workspaces --if-present",
     test: "npm run test --workspaces --if-present",
     "db:migrate": "npm run db:migrate --workspace=@openadminjs/api",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=@openadminjs/api",
     "db:seed": "npm run db:seed --workspace=@openadminjs/api",
     "db:studio": "npm run db:studio --workspace=@openadminjs/api",
+    "db:reset": "npm run db:reset --workspace=@openadminjs/api",
     generate: "npm run generate --workspace=@openadminjs/api"
   },
   yarn: {
@@ -38,8 +42,10 @@ const ROOT_SCRIPTS: Record<PackageManager, Record<string, string>> = {
     typecheck: "yarn workspaces run typecheck",
     test: "yarn workspaces run test",
     "db:migrate": "yarn workspace @openadminjs/api db:migrate",
+    "db:migrate:deploy": "yarn workspace @openadminjs/api db:migrate:deploy",
     "db:seed": "yarn workspace @openadminjs/api db:seed",
     "db:studio": "yarn workspace @openadminjs/api db:studio",
+    "db:reset": "yarn workspace @openadminjs/api db:reset",
     generate: "yarn workspace @openadminjs/api generate"
   }
 };

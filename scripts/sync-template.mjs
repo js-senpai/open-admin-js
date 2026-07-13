@@ -18,7 +18,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const templateDir = join(root, "packages", "cli", "template");
 
-const SKIP_DIRS = new Set(["node_modules", ".next", "dist", ".turbo"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  ".next",
+  "dist",
+  ".turbo",
+  "storybook-static",
+  "coverage",
+  "build",
+  "out"
+]);
 const SKIP_PKG_NAMES = new Set(["cli", "create-openadminjs"]);
 
 function filter(source) {

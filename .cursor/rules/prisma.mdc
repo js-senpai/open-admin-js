@@ -1,12 +1,26 @@
 ---
-description: Prisma + PostgreSQL conventions
+description: Prisma + multi-database conventions (PostgreSQL, MySQL, SQLite)
 globs: prisma/**/*,**/*.prisma,**/prisma*.ts,**/*.repository.ts
 alwaysApply: false
 ---
 
 # Prisma
 
-Single schema lives at `prisma/schema.prisma`. Migrations are **shared** across all apps via the API workspace.
+Single schema lives at `prisma/schema.prisma` (authored for **PostgreSQL**). Migrations are **shared** across all apps via the API workspace.
+
+## Multi-database support
+
+| Provider | Schema in repo | Generated project | Migrations |
+|---|---|---|---|
+| PostgreSQL | As-is (`Json`, `String[]`) | Baseline migration ships | `pnpm db:migrate` |
+| MySQL | CLI converts `String[]` → `Json` | No baseline; create on first migrate | `pnpm db:migrate` |
+| SQLite | CLI converts `Json` + `String[]` → `String` | No baseline; creates `dev.db` on migrate | `pnpm db:migrate` |
+
+On **SQLite**, `apps/api/src/common/json-field-codec.ts` JSON-encodes/decodes the `String`
+columns at runtime via a Prisma Client extension — app code still uses objects/arrays.
+
+When adding a new `Json` field to `schema.prisma`, also add it to `SQLITE_JSON_FIELDS` in
+`apps/api/src/common/json-field-codec.ts`.
 
 ## Schema changes
 

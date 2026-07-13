@@ -4,9 +4,15 @@
 
 Full documentation: [https://js-senpai.github.io/open-admin-js/docs.html](https://js-senpai.github.io/open-admin-js/docs.html)
 
-## Quick start
+## Requirements
 
-Requires **pnpm**, **npm**, or **yarn**. **pnpm is recommended**; npm/yarn projects are adapted at scaffold time (workspaces config, root scripts, dependency links).
+- **Node.js 20+**
+- **pnpm 9+** (the only supported package manager)
+- **PostgreSQL 14+**, **MySQL 8+**, or **SQLite 3** (local file)
+
+The CLI verifies Node.js and pnpm before writing any files.
+
+## Quick start
 
 ```bash
 npx openadminjs create my-app
@@ -17,18 +23,33 @@ pnpm db:seed      # skipped if install ran during create
 pnpm dev
 ```
 
-During scaffolding you can choose **PostgreSQL** or **MySQL**; the CLI fills `DATABASE_URL` for you.
+The scaffold generates a **pnpm** monorepo backed by **PostgreSQL**, **MySQL**, or
+**SQLite**; the CLI fills `DATABASE_URL` for you. For MySQL/SQLite the Prisma schema
+is adapted and the initial migration is created on first `db:migrate`. On SQLite the
+API JSON-encodes `Json` columns into `String` fields at runtime. npm and yarn are
+**not** offered.
 
 ### Configure environment
 
-The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes ready-to-use values into `apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for non-interactive seed).
-`ADMIN_ORIGIN` and `API_PORT` are prefilled with defaults (`http://localhost:3000` and `4000`) and can be changed manually if needed.
-New projects do **not** include a root `.env.example` or root `.env`—use `apps/api/.env` as the source of truth (you can add your own `.env.example` for your team if you want).
+The scaffold wizard asks for database access and writes ready-to-use values into
+`apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for
+non-interactive seed). **JWT secrets are generated with `crypto.randomBytes`** —
+never predictable defaults. `ADMIN_ORIGIN` and `API_PORT` default to
+`http://localhost:3000` and `4000`.
+
+Every new project includes a root **`.gitignore`** (written before `git init`) that
+excludes all `.env` files, plus a tracked **`.env.example`** with placeholders. Real
+secrets live only in `apps/api/.env` and are never printed by the CLI.
 
 Typical `apps/api/.env` keys (after create, edit as needed):
 
+| Provider | `DATABASE_URL` example |
+| --- | --- |
+| PostgreSQL | `postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public` |
+| MySQL | `mysql://USER:PASSWORD@localhost:3306/openadminjs` |
+| SQLite | `file:./dev.db` |
+
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=replace-with-a-long-random-string-at-least-32-chars
 JWT_REFRESH_SECRET=another-long-random-string
@@ -69,23 +90,61 @@ After project creation, migrations and seed are run automatically. Use the super
 ## Programmatic API
 
 ```ts
-import { createProject } from "openadminjs";
+import { createProject, databaseUrl } from "openadminjs";
+import { randomBytes } from "node:crypto";
 
+// PostgreSQL (ships baseline migration)
 createProject({
   projectName: "my-app",
+  packageManager: "pnpm",
   database: "postgresql",
+  databaseUrl: databaseUrl("my-app", "postgresql"),
+  // ...
+});
+
+// MySQL (run db:migrate after install to create the initial migration)
+createProject({
+  projectName: "my-app",
+  packageManager: "pnpm",
+  database: "mysql",
+  databaseUrl: databaseUrl("my-app", "mysql"),
   superadminEmail: "admin@localhost.dev",
-  superadminPassword: "password1234",
-  databaseUrl: "postgresql://localhost:5432/my-app?schema=public",
+  superadminPassword: "a-strong-password",
   redisUrl: "redis://localhost:6379",
-  jwtSecret: "change-me",
-  jwtRefreshSecret: "change-me-too",
+  jwtSecret: randomBytes(48).toString("base64url"),
+  jwtRefreshSecret: randomBytes(48).toString("base64url"),
+  adminOrigin: "http://localhost:3000",
+  apiPort: "4000"
+});
+
+// SQLite (local file — API JSON-encodes Json columns at runtime)
+createProject({
+  projectName: "my-app",
+  packageManager: "pnpm",
+  database: "sqlite",
+  databaseUrl: "file:./dev.db",
+  superadminEmail: "admin@localhost.dev",
+  superadminPassword: "a-strong-password",
+  redisUrl: "redis://localhost:6379",
+  jwtSecret: randomBytes(48).toString("base64url"),
+  jwtRefreshSecret: randomBytes(48).toString("base64url"),
   adminOrigin: "http://localhost:3000",
   apiPort: "4000"
 });
 ```
 
-`templateDir` defaults to the bundled template. **pnpm** is recommended; **npm** and **yarn** are supported and the scaffold is adapted automatically.
+## Health & security checks
+
+```bash
+openadminjs doctor                 # verify the project is ready to run
+openadminjs doctor --json
+openadminjs security check
+openadminjs security check --json
+```
+
+`templateDir` defaults to the bundled template. The interactive wizard offers
+**pnpm** + **PostgreSQL / MySQL / SQLite**; the programmatic API accepts the
+`packageManager`/`database` options for advanced use.
 
 ## MVP scope
 
@@ -93,7 +152,7 @@ createProject({
 - Auth, RBAC contracts, generic CRUD API, audit log and file/settings modules.
 - Next.js admin shell with login, dashboard, resource screens and operational pages.
 - Generated app `apps/web` for public frontend pages and SEO.
-- CLI: `dev`, `build`, `db migrate`, `db seed`, `generate resource`, `doctor`, `security check`.
+- CLI: `create`, `dev`, `build`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
 
 ## Plugin Platform
 
