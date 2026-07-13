@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
-import { isSqliteDatabaseUrl, sqliteJsonCodecExtension } from "./json-field-codec.js";
+import { isSqliteDatabaseUrl, sqliteJsonCodecExtension } from "./json-field-codec";
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {

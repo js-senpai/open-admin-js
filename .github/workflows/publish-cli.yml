@@ -42,6 +42,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN secret is empty. Add an npm Automation token with publish access for 'openadminjs'."
+            exit 1
+          fi
+          # Ensure pnpm's publish uses the token (setup-node's env-substituted .npmrc
+          # is not always honored by `pnpm publish`, which surfaces as a 404 on PUT).
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
           LOCAL=$(node -p "require('./packages/cli/package.json').version")
           REMOTE=$(npm view openadminjs version 2>/dev/null || true)
           if [ -z "${REMOTE:-}" ]; then

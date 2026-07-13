@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isSqliteDatabaseUrl } from "./json-field-codec.js";
+import { isSqliteDatabaseUrl } from "./json-field-codec";
 
 describe("PrismaService SQLite wiring", () => {
   const original = process.env.DATABASE_URL;

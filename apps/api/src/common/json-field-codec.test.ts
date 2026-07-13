@@ -4,7 +4,7 @@ import {
   encodeWriteArgs,
   isSqliteDatabaseUrl,
   SQLITE_JSON_FIELDS
-} from "./json-field-codec.js";
+} from "./json-field-codec";
 
 describe("isSqliteDatabaseUrl", () => {
   it("detects file: URLs", () => {
