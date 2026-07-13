@@ -1,8 +1,40 @@
 # OpenAdminJS
 
-OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with Nest.js, Prisma, PostgreSQL, Next.js, TailwindCSS and shadcn/ui.
+OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL**, **Next.js 15**, **React 19**, TailwindCSS and shadcn/ui.
 
 ![OpenAdminJS logo](https://js-senpai.github.io/open-admin-js/assets/brand/openadminjs-logo-new.png)
+
+## Requirements
+
+| Tool | Version |
+| --- | --- |
+| Node.js | **20 or newer** |
+| Package manager | **pnpm 9+** (required) |
+| Database | **PostgreSQL 14+** |
+| Redis | optional, only for background queues |
+
+The CLI checks for a supported Node.js version and for pnpm before it writes any
+files. If pnpm is missing it prints exact installation instructions and exits
+without creating a partial project.
+
+Install pnpm with either:
+
+```bash
+corepack enable && corepack prepare pnpm@latest --activate
+# or
+npm install -g pnpm
+```
+
+## Supported package managers & databases
+
+The generated project is a pnpm workspace monorepo.
+
+- **Package managers:** only **pnpm** is offered by the CLI, because the scaffold
+  (workspace config, root scripts, lockfile) is pnpm-native. npm and yarn are
+  intentionally **not** exposed to avoid generating a project that does not build.
+- **Databases:** only **PostgreSQL** is offered. The shipped Prisma schema and
+  baseline migration are PostgreSQL-specific; MySQL and SQLite are **not**
+  currently supported.
 
 ## Quick start (for package users)
 
@@ -15,14 +47,26 @@ npx openadminjs create my-app
 cd my-app
 ```
 
-`npx` runs the **`openadminjs` CLI scaffold generator** (not a runtime library) and scaffolds a monorepo. **pnpm is recommended**; npm and yarn are also supported — the CLI adapts workspace config and scripts for your choice.
-During scaffolding, you can choose **PostgreSQL** or **MySQL**, and the CLI fills `DATABASE_URL` for you.
+`npx` runs the **`openadminjs` CLI scaffold generator** (not a runtime library) and
+scaffolds a **pnpm** monorepo backed by **PostgreSQL**. The CLI fills `DATABASE_URL`
+for you and generates cryptographically strong JWT secrets automatically.
 
 ### 2. Configure environment
 
-The scaffold wizard asks for database access and key env values (`DATABASE_URL`, `REDIS_URL`, JWT secrets) and writes ready-to-use values into `apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for non-interactive seed).
-`ADMIN_ORIGIN` and `API_PORT` are prefilled with defaults (`http://localhost:3000` and `4000`) and can be changed manually if needed.
-New projects do **not** include a root `.env.example` or root `.env`—use `apps/api/.env` as the source of truth (you can add your own `.env.example` for your team if you want).
+The scaffold wizard asks for database access and writes ready-to-use values into
+`apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for
+non-interactive seed). **JWT secrets are generated for you with `crypto.randomBytes`
+— they are never predictable placeholders.** `ADMIN_ORIGIN` and `API_PORT` are
+prefilled with defaults (`http://localhost:3000` and `4000`).
+
+### Secret management (important)
+
+- **Real secrets live only in `apps/api/.env`.**
+- Every new project gets a root **`.gitignore`** (written *before* `git init`) that
+  excludes all `.env` files, so a plain `git add .` can never stage secrets.
+- A tracked **`.env.example`** with placeholder values documents the required keys.
+- The CLI never prints secret values to stdout/stderr.
+- Rotate all secrets before deploying to production.
 
 Typical `apps/api/.env` keys (after create, edit as needed):
 
@@ -43,7 +87,27 @@ Optional (elsewhere / advanced):
 OPENADMIN_PLUGIN_PNPM_INSTALL=0
 ```
 
-### 3. Run project
+### 3. Migrate, seed and run
+
+```bash
+pnpm install
+pnpm db:migrate        # prisma migrate dev
+pnpm db:seed           # seed roles + superadmin
+pnpm dev               # start API + admin
+```
+
+You can also drive the database through the CLI (uses the project's package manager):
+
+```bash
+openadminjs db migrate dev       # development migration
+openadminjs db migrate deploy    # production migration
+openadminjs db seed
+openadminjs db studio
+openadminjs db reset --yes       # DESTRUCTIVE, requires --yes
+openadminjs db migrate --dry-run # print the command without running it
+```
+
+To start everything after install:
 
 ```bash
 pnpm dev
@@ -65,13 +129,76 @@ After project creation, migrations and seed are run automatically. Use the super
 - **Email:** your `Superadmin email`
 - **Password:** your `Superadmin password`
 
+## Health & security checks
+
+```bash
+openadminjs doctor                 # verify the project is ready to run
+openadminjs doctor --json          # machine-readable output
+openadminjs security check         # audit secrets & config
+openadminjs security check --json
+```
+
+`doctor` checks Node.js version, pnpm availability, installed dependencies,
+Prisma schema + client, migration/provider consistency, required env vars and
+scripts, `.gitignore` presence, whether `.env` is tracked by Git, weak secrets,
+and (unless `--skip-network`) database/Redis reachability. Any **failed** check
+exits non-zero.
+
+`security check` classifies findings as `info` / `warning` / `critical` and exits
+non-zero on any **critical** issue (weak/identical JWT secrets, weak admin
+password, `.env` not ignored or tracked by Git, unsafe CORS, hardcoded secrets).
+
+## Generators
+
+```bash
+openadminjs generate resource BlogPost          # apps/api/src/resources/blog-post.resource.ts
+openadminjs generate field blog-post title --type text --required
+openadminjs generate plugin com.example.my-plugin
+```
+
+Names are validated and normalized (PascalCase for classes, camelCase for
+variables, kebab-case for files). Unsafe input (path traversal, shell
+metacharacters, reserved names, etc.) is rejected, and existing files are never
+overwritten without `--force`.
+
+## Current limitations
+
+- Only **pnpm** and **PostgreSQL** are supported by the scaffold. MySQL, SQLite,
+  npm and yarn are intentionally not offered.
+- Redis is optional; queue features require a reachable `REDIS_URL`.
+
+## Production deployment (outline)
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+openadminjs db migrate deploy      # apply migrations without dev prompts
+NODE_ENV=production pnpm start
+```
+
+- Rotate `JWT_SECRET`, `JWT_REFRESH_SECRET`, DB and admin credentials.
+- Terminate TLS at a reverse proxy; enable secure cookie flags and `trust proxy`.
+- Set `NODE_ENV=production` (disables the GraphQL landing page & dev tooling).
+- Never commit `apps/api/.env`; provide secrets via your platform's env manager.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `pnpm: command not found` | `corepack enable && corepack prepare pnpm@latest --activate` |
+| Prisma "Environment variable not found: DATABASE_URL" | Ensure `apps/api/.env` exists; the CLI writes it on create |
+| `prisma migrate deploy` fails on a fresh DB | Run `pnpm db:migrate` (dev) once, or check the DB is reachable |
+| `Can't reach database server` | Start PostgreSQL and verify host/port in `DATABASE_URL` |
+| Peer dependency warnings on install | Ensure `@apollo/server@^5` + `@nestjs/apollo@^13.4` + `@as-integrations/express5` (already pinned) |
+| Secrets accidentally committed | Rotate them immediately; `.gitignore` prevents this by default |
+
 ## MVP scope
 
 - Resource-driven admin metadata with safe defaults.
 - Auth, RBAC contracts, generic CRUD API, audit log and file/settings modules.
 - Next.js admin shell with login, dashboard, resource screens and operational pages.
 - Generated app `apps/web` for public frontend pages and SEO.
-- CLI: `dev`, `build`, `db migrate`, `db seed`, `generate resource`, `doctor`, `security check`.
+- CLI: `create`, `dev`, `build`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
 
 ## Plugin Platform
 

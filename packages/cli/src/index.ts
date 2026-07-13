@@ -1,12 +1,23 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 import { cac } from "cac";
 import pc from "picocolors";
 import { createProjectInteractive } from "./create-project.js";
 import { modelNameToResourceSlug } from "./resource-slug.js";
+import {
+  assertInsideDir,
+  toCamelCase,
+  toKebabCase,
+  toPascalCase,
+  validateName,
+  validatePluginId
+} from "./validate-name.js";
+import { buildDbCommand, runInherit, type DbAction } from "./db-commands.js";
+import { detectPackageManager } from "./detect-package-manager.js";
+import { runDoctorChecks, type CheckResult } from "./doctor.js";
+import { runSecurityChecks, type Finding } from "./security.js";
 
 export {
   createProject,
@@ -21,97 +32,49 @@ export {
 } from "./create-project.js";
 export { modelNameToResourceSlug } from "./resource-slug.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function readPackageVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")) as { version?: string };
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 const cli = cac("openadminjs");
 
-function runScript(name: string): void {
-  const commands: Record<string, [string, string[]]> = {
-    dev: ["pnpm", ["--parallel", "--filter", "@openadminjs/api", "--filter", "@openadminjs/admin", "dev"]],
-    build: ["pnpm", ["-r", "build"]],
-    start: ["pnpm", ["--parallel", "--filter", "@openadminjs/api", "--filter", "@openadminjs/admin", "start"]]
-  };
-  const entry = commands[name];
-  if (!entry) {
-    console.error(pc.red(`Unknown script: ${name}`));
-    process.exitCode = 1;
-    return;
-  }
-  const [cmd, args] = entry;
-  const result = spawnSync(cmd, args, { stdio: "inherit", cwd: process.cwd() });
-  if (result.status !== 0 || result.error) {
-    process.exitCode = result.status ?? 1;
-  }
-}
+// ── generators ──────────────────────────────────────────────────────────────
 
-function doctor(): void {
-  const cwd = process.cwd();
-  const required = ["package.json", "pnpm-workspace.yaml", "prisma/schema.prisma"];
-  const missing = required.filter((file) => !existsSync(join(cwd, file)));
-  const hasEnvSample =
-    existsSync(join(cwd, ".env.example")) || existsSync(join(cwd, "apps", "api", ".env"));
-  if (!hasEnvSample) {
-    missing.push("apps/api/.env (or .env.example at repo root)");
-  }
-  if (missing.length) {
-    console.error(pc.red("OpenAdminJS doctor found missing files:"));
-    for (const file of missing) console.error(` - ${file}`);
-    process.exitCode = 1;
-    return;
-  }
-  console.log(pc.green("OpenAdminJS doctor passed."));
-}
-
-function securityCheck(): void {
-  const cwd = process.cwd();
-  const envSample = existsSync(join(cwd, ".env.example"))
-    ? readFileSync(join(cwd, ".env.example"), "utf8")
-    : existsSync(join(cwd, "apps", "api", ".env"))
-      ? readFileSync(join(cwd, "apps", "api", ".env"), "utf8")
-      : "";
-  const findings: string[] = [];
-  if (!envSample) {
-    findings.push("No .env.example or apps/api/.env found for security checklist");
-  } else if (!envSample.includes("JWT_SECRET")) {
-    findings.push("JWT_SECRET is missing from env sample (.env.example or apps/api/.env)");
-  }
-  if (envSample.includes("DATABASE_URL=postgresql://") && !envSample.includes("localhost")) {
-    findings.push("DATABASE_URL example should not point to production");
-  }
-  if (existsSync("apps/admin/app")) {
-    const login = existsSync("apps/admin/app/login/page.tsx");
-    if (!login) findings.push("Admin login route is missing");
-  }
-  if (findings.length) {
-    console.error(pc.red("Security check failed:"));
-    for (const finding of findings) console.error(` - ${finding}`);
-    process.exitCode = 1;
-    return;
-  }
-  console.log(pc.green("Security check passed."));
-}
-
-function generateResource(modelName: string, options: { force?: boolean }): void {
-  const name = modelNameToResourceSlug(modelName);
-  const targetDir = join(process.cwd(), "apps/api/src/resources");
-  const target = join(targetDir, `${name}.resource.ts`);
+function generateResource(rawName: string, options: { force?: boolean }): void {
+  const validated = validateName(rawName, "resource name");
+  const model = toPascalCase(validated);
+  const slug = toKebabCase(validated);
+  const plural = `${slug}s`;
+  const projectRoot = process.cwd();
+  const targetDir = join(projectRoot, "apps/api/src/resources");
+  const target = assertInsideDir(targetDir, `${slug}.resource.ts`);
   if (existsSync(target) && !options.force) {
     console.error(pc.red(`${target} already exists. Use --force to overwrite.`));
     process.exitCode = 1;
     return;
   }
   mkdirSync(targetDir, { recursive: true });
-  const plural = `${name}s`;
   writeFileSync(
     target,
-    `import { defineResource } from '@openadminjs/core';\n\nexport default defineResource({\n  name: '${plural}',\n  label: '${modelName}s',\n  model: '${modelName}',\n  titleField: 'id',\n  icon: 'Database',\n  permissions: {\n    read: '${plural}.read',\n    create: '${plural}.create',\n    update: '${plural}.update',\n    delete: '${plural}.delete',\n  },\n  fields: {\n    id: { type: 'id', label: 'ID', create: false, edit: false },\n  },\n});\n`
+    `import { defineResource } from '@openadminjs/core';\n\nexport default defineResource({\n  name: '${plural}',\n  label: '${model}s',\n  model: '${model}',\n  titleField: 'id',\n  icon: 'Database',\n  permissions: {\n    read: '${plural}.read',\n    create: '${plural}.create',\n    update: '${plural}.update',\n    delete: '${plural}.delete',\n  },\n  fields: {\n    id: { type: 'id', label: 'ID', create: false, edit: false },\n  },\n});\n`
   );
   console.log(pc.green(`Created ${target}`));
 }
 
-function generatePlugin(pluginId: string, options: { force?: boolean }): void {
-  const safeId = pluginId.trim().toLowerCase().replace(/[^a-z0-9.-]+/g, "-");
-  const slug = safeId.replace(/\./g, "-");
-  const targetDir = join(process.cwd(), "apps/api/src/plugins/custom");
-  const target = join(targetDir, `${slug}.plugin.ts`);
+function generatePlugin(rawId: string, options: { force?: boolean }): void {
+  const safeId = validatePluginId(rawId);
+  const slug = safeId.replace(/\./g, "-").toLowerCase();
+  const varName = slug.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+  const projectRoot = process.cwd();
+  const targetDir = join(projectRoot, "apps/api/src/plugins/custom");
+  const target = assertInsideDir(targetDir, `${slug}.plugin.ts`);
   if (existsSync(target) && !options.force) {
     console.error(pc.red(`${target} already exists. Use --force to overwrite.`));
     process.exitCode = 1;
@@ -120,7 +83,7 @@ function generatePlugin(pluginId: string, options: { force?: boolean }): void {
   mkdirSync(targetDir, { recursive: true });
   writeFileSync(
     target,
-    `import type { OpenAdminPlugin } from "@openadminjs/plugin-sdk";\n\nexport const ${slug.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Plugin: OpenAdminPlugin = {\n  id: "${safeId}",\n  version: "0.1.0",\n  register({ registerSurface }) {\n    registerSurface({\n      seo: {\n        metadata({ resourceName, record }) {\n          if (resourceName !== "posts") return {};\n          return { title: record.title ?? "Untitled" };\n        }\n      }\n    });\n  }\n};\n`
+    `import type { OpenAdminPlugin } from "@openadminjs/plugin-sdk";\n\nexport const ${varName}Plugin: OpenAdminPlugin = {\n  id: ${JSON.stringify(safeId)},\n  version: "0.1.0",\n  register({ registerSurface }) {\n    registerSurface({\n      seo: {\n        metadata({ resourceName, record }) {\n          if (resourceName !== "posts") return {};\n          return { title: record.title ?? "Untitled" };\n        }\n      }\n    });\n  }\n};\n`
   );
   console.log(pc.green(`Created ${target}`));
 }
@@ -191,6 +154,8 @@ function generateResourceField(
     label?: string;
   }
 ): void {
+  // resourceArg is only used to resolve an existing file; validate to block traversal.
+  validateName(resourceArg.replace(/\.resource\.ts$/i, ""), "resource");
   const target = resolveResourceFile(resourceArg);
   if (!target) {
     console.error(pc.red(`Could not find *.resource.ts for "${resourceArg}" under apps/api/src/resources`));
@@ -198,7 +163,7 @@ function generateResourceField(
     return;
   }
   if (!/^[a-z][a-zA-Z0-9]*$/.test(fieldName)) {
-    console.error(pc.red("fieldName must be camelCase"));
+    console.error(pc.red("fieldName must be camelCase (e.g. publishedAt)."));
     process.exitCode = 1;
     return;
   }
@@ -211,7 +176,7 @@ function generateResourceField(
   }
   const fieldsBlock = content.match(/fields:\s*\{[\s\S]*?\n\s*\},\n\s*(permissions|actions|i18n|seo|listScope|hooks|})/m);
   if (fieldsBlock?.index == null) {
-    console.error(pc.red('Could not locate fields block (`fields: { ... }`).'));
+    console.error(pc.red("Could not locate fields block (`fields: { ... }`)."));
     process.exitCode = 1;
     return;
   }
@@ -238,11 +203,89 @@ function generateResourceField(
   const snippet = `\n    ${fieldName}: { ${attributes.join(", ")} },`;
   writeFileSync(target, `${head.slice(0, lb + 2)}${snippet}${tail}`);
   console.log(pc.green(`Updated ${target}`));
-  console.log(pc.dim("// Prisma model fragment — merge into schema.prisma, then pnpm db:migrate"));
+  console.log(pc.dim("// Prisma model fragment — merge into schema.prisma, then run: openadminjs db migrate dev"));
   console.log(pc.dim(`//   ${prismaFieldFragment(fieldName, fieldType, Boolean(options.required))}`));
 }
 
-cli.command("dev", "Start API and admin apps").action(() => runScript("dev"));
+// ── doctor / security ─────────────────────────────────────────────────────────
+
+async function doctor(options: { json?: boolean; skipNetwork?: boolean }): Promise<void> {
+  const report = await runDoctorChecks(process.cwd(), { skipNetwork: options.skipNetwork });
+  if (options.json) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(pc.bold("OpenAdminJS doctor"));
+    for (const r of report.results) printCheck(r);
+    console.log(report.ok ? pc.green("\nDoctor: no blocking issues.") : pc.red("\nDoctor: failed checks found."));
+  }
+  if (!report.ok) process.exitCode = 1;
+}
+
+function printCheck(r: CheckResult): void {
+  const icon = r.status === "pass" ? pc.green("PASS") : r.status === "warn" ? pc.yellow("WARN") : pc.red("FAIL");
+  console.log(`  [${icon}] ${r.name}: ${r.message}`);
+}
+
+function securityCheck(options: { json?: boolean; skipNetwork?: boolean }): void {
+  const report = runSecurityChecks(process.cwd(), { skipNetwork: options.skipNetwork });
+  if (options.json) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(pc.bold("OpenAdminJS security check"));
+    for (const f of report.findings) printFinding(f);
+    console.log(report.ok ? pc.green("\nSecurity: no critical issues.") : pc.red("\nSecurity: critical issues found."));
+  }
+  if (!report.ok) process.exitCode = 1;
+}
+
+function printFinding(f: Finding): void {
+  const sev =
+    f.severity === "critical" ? pc.red("CRIT") : f.severity === "warning" ? pc.yellow("WARN") : pc.cyan("INFO");
+  console.log(`  [${sev}] ${f.id}: ${f.message}`);
+}
+
+// ── db commands ────────────────────────────────────────────────────────────
+
+async function dbCommand(
+  action: string | undefined,
+  mode: string | undefined,
+  options: { dryRun?: boolean; yes?: boolean }
+): Promise<void> {
+  if (!action) {
+    console.error(pc.red("Usage: openadminjs db <migrate [dev|deploy]|seed|studio|reset> [--dry-run]"));
+    process.exitCode = 1;
+    return;
+  }
+  const cwd = process.cwd();
+  const pm = detectPackageManager(cwd);
+  let command;
+  try {
+    command = buildDbCommand(action as DbAction, mode, pm);
+  } catch (error) {
+    console.error(pc.red(error instanceof Error ? error.message : "Invalid db command."));
+    process.exitCode = 1;
+    return;
+  }
+
+  if (options.dryRun) {
+    console.log(command.label);
+    return;
+  }
+
+  if (command.destructive && !options.yes) {
+    console.error(
+      pc.red(`"${command.label}" is destructive and will drop data. Re-run with --yes to confirm.`)
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const code = await runInherit(command.cmd, command.args, cwd);
+  if (code !== 0) process.exitCode = code;
+}
+
+// ── command registrations ─────────────────────────────────────────────────────
+
 cli.command("create [projectName]", "Create a new OpenAdminJS project").action(async (projectName?: string) => {
   try {
     await createProjectInteractive({ projectName });
@@ -251,89 +294,151 @@ cli.command("create [projectName]", "Create a new OpenAdminJS project").action(a
     process.exitCode = 1;
   }
 });
-cli.command("build", "Build all workspaces").action(() => runScript("build"));
-cli.command("start", "Start production apps").action(() => runScript("start"));
-cli
-  .command("db <action>", "Run database helper commands")
-  .action((action?: string) => {
-    switch (action) {
-      case "migrate":
-        console.log("Run: pnpm --filter @openadminjs/api prisma migrate dev");
-        return;
-      case "seed":
-        console.log("Run: pnpm --filter @openadminjs/api prisma db seed");
-        return;
-      case "studio":
-        console.log("Run: pnpm --filter @openadminjs/api prisma studio");
-        return;
-      default:
-        console.error(pc.red("Unknown db action. Use: migrate, seed, studio."));
-        process.exitCode = 1;
-    }
-  });
-
-function runGenerateCommand(kind: string | undefined, name: string | undefined, options: { force?: boolean }): void {
-  if (!kind || !name) {
-    console.error(pc.red("Usage: openadminjs generate <resource|plugin> <name> [--force]"));
-    process.exitCode = 1;
-    return;
-  }
-  if (kind === "resource") {
-    generateResource(name, options);
-    return;
-  }
-  if (kind === "plugin") {
-    generatePlugin(name, options);
-    return;
-  }
-  console.error(pc.red(`Unknown generate kind: ${kind}. Use resource or plugin.`));
-  process.exitCode = 1;
-}
 
 cli
-  .command("generate field <resource> <fieldName>", "Append a field to an existing resource and emit Prisma fragment")
-  .option("--type <type>", "Field type (text, number, boolean, date, json)", { default: "text" })
+  .command("db <action> [mode]", "Database commands: migrate [dev|deploy], seed, studio, reset")
+  .option("--dry-run", "Print the command without executing it")
+  .option("--yes", "Confirm destructive commands (e.g. reset)")
+  .action((action: string, mode: string | undefined, options: { dryRun?: boolean; yes?: boolean }) =>
+    dbCommand(action, mode, options)
+  );
+
+cli
+  .command("generate <kind> [name] [fieldName]", "Generate a resource, plugin, or field")
+  .option("--type <type>", "Field type for `generate field` (text, number, boolean, date, json)", { default: "text" })
+  .option("--label <label>", "Field label override (generate field)")
+  .option("--required", "Mark field as required (generate field)")
+  .option("--list", "Show field in list views (generate field)")
+  .option("--sortable", "Mark field as sortable (generate field)")
+  .option("--filterable", "Mark field as filterable (generate field)")
+  .option("--searchable", "Mark field as searchable (generate field)")
+  .option("--force", "Overwrite / append even when the target already exists")
+  .action(runGenerate);
+
+cli
+  .command("make <kind> [name] [fieldName]", "Alias for generate")
+  .option("--type <type>", "Field type for `make field`", { default: "text" })
   .option("--label <label>", "Field label override")
   .option("--required", "Mark field as required")
   .option("--list", "Show field in list views")
   .option("--sortable", "Mark field as sortable")
   .option("--filterable", "Mark field as filterable")
   .option("--searchable", "Mark field as searchable")
-  .option("--force", "Write even when the field key already exists")
-  .action((resource: string, fieldName: string, options: {
-    type?: string;
-    force?: boolean;
-    required?: boolean;
-    list?: boolean;
-    sortable?: boolean;
-    filterable?: boolean;
-    searchable?: boolean;
-    label?: string;
-  }) => {
-    generateResourceField(resource, fieldName, options.type ?? "text", {
-      force: options.force,
-      required: options.required,
-      list: options.list,
-      sortable: options.sortable,
-      filterable: options.filterable,
-      searchable: options.searchable,
-      label: options.label
-    });
-  });
+  .option("--force", "Overwrite existing file")
+  .action(runGenerate);
+
+type GenerateOptions = {
+  type?: string;
+  force?: boolean;
+  required?: boolean;
+  list?: boolean;
+  sortable?: boolean;
+  filterable?: boolean;
+  searchable?: boolean;
+  label?: string;
+};
+
+function runGenerate(
+  kind: string | undefined,
+  name: string | undefined,
+  fieldName: string | undefined,
+  options: GenerateOptions
+): void {
+  try {
+    switch (kind) {
+      case "resource":
+        if (!name) return usageError("openadminjs generate resource <Model> [--force]");
+        generateResource(name, { force: options.force });
+        return;
+      case "plugin":
+        if (!name) return usageError("openadminjs generate plugin <plugin.id> [--force]");
+        generatePlugin(name, { force: options.force });
+        return;
+      case "field":
+        if (!name || !fieldName) {
+          return usageError("openadminjs generate field <resource> <fieldName> [--type <type>] [--required] ...");
+        }
+        generateResourceField(name, fieldName, options.type ?? "text", {
+          force: options.force,
+          required: options.required,
+          list: options.list,
+          sortable: options.sortable,
+          filterable: options.filterable,
+          searchable: options.searchable,
+          label: options.label
+        });
+        return;
+      default:
+        console.error(pc.red(`Unknown generate kind "${kind ?? ""}". Use: resource, plugin, or field.`));
+        process.exitCode = 1;
+    }
+  } catch (error) {
+    console.error(pc.red(error instanceof Error ? error.message : "Generation failed."));
+    process.exitCode = 1;
+  }
+}
+
+function usageError(usage: string): void {
+  console.error(pc.red(`Usage: ${usage}`));
+  process.exitCode = 1;
+}
 
 cli
-  .command("generate <kind> <name>", "Generate resource or plugin starter")
-  .option("--force", "Overwrite existing file")
-  .action(runGenerateCommand);
+  .command("doctor", "Check generated project health")
+  .option("--json", "Output machine-readable JSON")
+  .option("--skip-network", "Skip network-dependent checks (db/redis/pm)")
+  .action((options: { json?: boolean; skipNetwork?: boolean }) => doctor(options));
 
 cli
-  .command("make <kind> <name>", "Alias for generate")
-  .option("--force", "Overwrite existing file")
-  .action(runGenerateCommand);
-cli.command("doctor", "Check generated project health").action(doctor);
-cli.command("security", "Run security checklist").action(securityCheck);
-cli.command("security check", "Run security checklist").action(securityCheck);
+  .command("security [check]", "Run the security checklist")
+  .option("--json", "Output machine-readable JSON")
+  .option("--skip-network", "Skip network-dependent checks (npm audit)")
+  .action((_sub: string | undefined, options: { json?: boolean; skipNetwork?: boolean }) => securityCheck(options));
+
+// NOTE: we intentionally do NOT call cli.version() — cac's built-in prints a
+// "name/version platform node" line. We handle --version/-v manually below to
+// output the exact "openadminjs <version>" format.
 cli.help();
+
+async function main(): Promise<void> {
+  const argv = process.argv;
+  let parsed;
+  try {
+    parsed = cli.parse(argv, { run: false });
+  } catch (error) {
+    console.error(pc.red(error instanceof Error ? error.message : String(error)));
+    console.error(pc.dim("Run `openadminjs --help` for usage."));
+    process.exit(1);
+  }
+
+  if (parsed.options.version || parsed.options.v) {
+    console.log(`openadminjs ${readPackageVersion()}`);
+    process.exit(0);
+  }
+  if (parsed.options.help || parsed.options.h) {
+    cli.outputHelp();
+    process.exit(0);
+  }
+
+  if (!cli.matchedCommand) {
+    const requested = parsed.args[0];
+    if (requested) {
+      console.error(pc.red(`Unknown command: ${requested}`));
+      console.error(pc.dim("Run `openadminjs --help` to see available commands."));
+      process.exit(1);
+    }
+    cli.outputHelp();
+    process.exit(0);
+  }
+
+  try {
+    await cli.runMatchedCommand();
+  } catch (error) {
+    console.error(pc.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+  if (process.exitCode && process.exitCode !== 0) process.exit(process.exitCode);
+}
 
 function isCliEntry(): boolean {
   const entry = process.argv[1];
@@ -347,5 +452,5 @@ function isCliEntry(): boolean {
 }
 
 if (isCliEntry()) {
-  cli.parse();
+  void main();
 }

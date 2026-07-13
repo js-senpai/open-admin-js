@@ -9,8 +9,61 @@ permissions:
   contents: read
 
 jobs:
-  checks:
+  # Unit + CLI e2e tests across every supported Node.js version (Linux).
+  cli:
+    name: CLI tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck CLI
+        run: pnpm --filter openadminjs typecheck
+      - name: Build CLI
+        run: pnpm --filter openadminjs build
+      - name: Unit + CLI e2e tests
+        run: pnpm --filter openadminjs test
+
+  # Full monorepo checks + Prisma integration against a real PostgreSQL.
+  checks:
+    name: Lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: openadminjs
+          POSTGRES_PASSWORD: openadminjs
+          POSTGRES_DB: openadminjs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openadminjs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://openadminjs:openadminjs@localhost:5432/openadminjs?schema=public
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,6 +77,41 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Prisma integration (validate + migrate deploy)
+        run: |
+          pnpm exec prisma validate --schema prisma/schema.prisma
+          pnpm exec prisma migrate deploy --schema prisma/schema.prisma
       - run: pnpm build
       - run: pnpm security:check
       - run: pnpm e2e
+
+  # Verify the published tarball contains only what it should (no secrets).
+  pack:
+    name: npm pack inspection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter openadminjs build
+      - name: npm pack --dry-run
+        working-directory: packages/cli
+        run: npm pack --dry-run 2>&1 | tee pack.txt
+      - name: Assert tarball has no secrets / junk
+        working-directory: packages/cli
+        run: |
+          set -euo pipefail
+          if grep -E "(^|/)\.env($|[^.])" pack.txt | grep -v "\.env\.example"; then
+            echo "::error::real .env file would be published"; exit 1
+          fi
+          for bad in "apps/api/.env" "coverage/" ".tmp" ".sqlite" "node_modules/"; do
+            if grep -q "$bad" pack.txt; then echo "::error::tarball includes $bad"; exit 1; fi
+          done
+          grep -q "dist/index.js" pack.txt || { echo "::error::dist missing from tarball"; exit 1; }
+          echo "Tarball contents look correct."

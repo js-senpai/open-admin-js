@@ -48,9 +48,24 @@ scripts/sync-template.mjs
 
 Binary files (images, fonts) are skipped during placeholder rendering.
 
-## Root env files in new projects
+## Root env files & git safety in new projects
 
-`createProject` **excludes** `template/.env.example` from the copy (filter on path segment `.env.example`) and does **not** write a root `.env`. Only `apps/api/.env` is populated with wizard values.
+`createProject` generates git-safety files **programmatically** (do not rely on the
+template shipping them — npm renames a published `.gitignore`):
+
+- Writes a root **`.gitignore`** (excludes all `.env` files) **before** `git init`.
+- Writes a tracked root **`.env.example`** with placeholders only (real values never appear).
+- Excludes `template/.env.example` from the raw copy and writes its own instead.
+- Real secrets go **only** into `apps/api/.env`. JWT secrets are generated with
+  `crypto.randomBytes` (see `secrets.ts`), never predictable placeholders.
+- The CLI never prints secret values to stdout/stderr.
+
+Generation is atomic: files are written into a sibling staging dir and renamed into
+place only on success; on failure the staging dir is removed and an existing target
+is never touched.
+
+Interactive wizard only offers **pnpm** + **PostgreSQL**; the `createProject` API
+still accepts the legacy `packageManager`/`database` options.
 
 ## apps/api/.env
 
