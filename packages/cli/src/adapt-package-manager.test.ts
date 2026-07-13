@@ -53,7 +53,12 @@ describe("adaptProjectForPackageManager", () => {
       const apiPkg = JSON.parse(readFileSync(join(result.targetDir, "apps", "api", "package.json"), "utf8")) as {
         dependencies: Record<string, string>;
       };
-      expect(apiPkg.dependencies["@openadminjs/core"]).toBe("workspace:*");
+      // npm does not support the `workspace:` protocol (EUNSUPPORTEDPROTOCOL);
+      // it must be rewritten to `*` so npm links the local workspace package.
+      expect(apiPkg.dependencies["@openadminjs/core"]).toBe("*");
+      expect(
+        Object.values(apiPkg.dependencies).some((v) => v.startsWith("workspace:"))
+      ).toBe(false);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }

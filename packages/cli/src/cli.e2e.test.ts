@@ -43,6 +43,64 @@ describe("openadminjs CLI e2e", () => {
     expect(r.stdout).toMatch(/doctor/);
   });
 
+  it("--help output is printed exactly once (no duplicate banner)", () => {
+    const r = run(["--help"]);
+    expect(r.status).toBe(0);
+    const usageCount = (r.stdout.match(/Usage:/g) ?? []).length;
+    expect(usageCount).toBe(1);
+  });
+
+  it("create --help prints once and documents non-interactive flags", () => {
+    const r = run(["create", "--help"]);
+    expect(r.status).toBe(0);
+    expect((r.stdout.match(/Usage:/g) ?? []).length).toBe(1);
+    expect(r.stdout).toMatch(/--package-manager/);
+    expect(r.stdout).toMatch(/--admin-password-env/);
+    expect(r.stdout).toMatch(/--skip-redis/);
+  });
+
+  it("create --non-interactive without a name fails with an actionable error", () => {
+    const r = run(["create", "--non-interactive"]);
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/project name is required/i);
+  });
+
+  it("non-interactive create scaffolds a project without prompting or leaking secrets", () => {
+    const proj = mkdtempSync(join(tmpdir(), "oaj-e2e-create-"));
+    try {
+      const r = run(
+        [
+          "create",
+          "demo",
+          "--database",
+          "sqlite",
+          "--package-manager",
+          "pnpm",
+          "--admin-email",
+          "admin@example.com",
+          "--skip-redis",
+          "--no-install",
+          "--no-git",
+          "--yes"
+        ],
+        proj
+      );
+      expect(r.status).toBe(0);
+      const appDir = join(proj, "demo");
+      expect(existsSync(join(appDir, "package.json"))).toBe(true);
+      const env = readFileSync(join(appDir, "apps", "api", ".env"), "utf8");
+      expect(env).toMatch(/^REDIS_URL=$/m);
+      expect(env).toMatch(/SUPERADMIN_PASSWORD=.+/);
+      // The generated password must never be echoed to stdout/stderr.
+      const pw = env.split(/\r?\n/).find((l) => l.startsWith("SUPERADMIN_PASSWORD="))!.slice("SUPERADMIN_PASSWORD=".length);
+      expect(pw.length).toBeGreaterThan(8);
+      expect(r.stdout).not.toContain(pw);
+      expect(r.stderr).not.toContain(pw);
+    } finally {
+      rmSync(proj, { recursive: true, force: true });
+    }
+  });
+
   it("unknown command errors and exits non-zero", () => {
     const r = run(["definitely-not-a-command"]);
     expect(r.status).not.toBe(0);

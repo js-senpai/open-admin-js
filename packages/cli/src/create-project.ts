@@ -3,11 +3,11 @@ import net from "node:net";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { cancel, confirm, intro, isCancel, note, outro, select, text } from "@clack/prompts";
+import { cancel, confirm, intro, isCancel, note, outro, password, select, text } from "@clack/prompts";
 import fsExtra from "fs-extra";
 import pc from "picocolors";
 import { adaptProjectForPackageManager, type PackageManager } from "./adapt-package-manager.js";
-import { generateSecret } from "./secrets.js";
+import { generateSecret, inspectPassword } from "./secrets.js";
 import { renderSchemaForProvider } from "./render-schema.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,7 +29,10 @@ export type CreateProjectOptions = {
   superadminEmail?: string;
   superadminPassword?: string;
   databaseUrl?: string;
+  /** Empty string disables Redis-backed queues (see `skipRedis`). */
   redisUrl?: string;
+  /** When true, force Redis (and background job queues) off. */
+  skipRedis?: boolean;
   jwtSecret?: string;
   jwtRefreshSecret?: string;
   adminOrigin?: string;
@@ -37,6 +40,12 @@ export type CreateProjectOptions = {
   git?: boolean;
   install?: boolean;
   templateDir?: string;
+  /**
+   * Skip all interactive prompts. Missing optional values fall back to safe
+   * defaults; a missing superadmin password is generated (CSPRNG). Used for
+   * CI / scripting and auto-enabled when stdin is not a TTY.
+   */
+  nonInteractive?: boolean;
 };
 
 export type CreateProjectResult = {
@@ -49,6 +58,10 @@ export type CreateProjectResult = {
   git: boolean;
   install: boolean;
   dbInitialized: boolean;
+  /** True when a REDIS_URL was configured (background job queues enabled). */
+  redisEnabled: boolean;
+  /** True when the superadmin password was generated (non-interactive). */
+  passwordGenerated: boolean;
 };
 
 const placeholderPattern =
@@ -247,6 +260,35 @@ export function validateSuperadminEmailInput(value: string, fallback = DEFAULT_S
   return /^\S+@\S+\.\S+$/.test(finalValue) ? undefined : "Enter a valid email address.";
 }
 
+export const DEFAULT_REDIS_URL = "redis://localhost:6379";
+export const PACKAGE_MANAGERS: readonly PackageManager[] = ["pnpm", "npm", "yarn"];
+
+/** Returns the first package manager that is installed on PATH, or undefined. */
+export function firstAvailablePackageManager(
+  preference: readonly PackageManager[] = PACKAGE_MANAGERS
+): PackageManager | undefined {
+  return preference.find((pm) => isPackageManagerAvailable(pm));
+}
+
+/**
+ * Validates a Redis URL. An empty value is VALID — it disables background job
+ * queues. A non-empty value must be a parseable redis:// (or rediss://) URL so
+ * pressing Enter on the shown default is always accepted.
+ */
+export function validateRedisUrlInput(value: string): string | undefined {
+  const v = value.trim();
+  if (v === "") return undefined;
+  try {
+    const url = new URL(v);
+    if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
+      return "Redis URL must start with redis:// or rediss:// (or be blank to disable queues).";
+    }
+    return undefined;
+  } catch {
+    return "Enter a valid Redis URL (or leave blank to disable queues).";
+  }
+}
+
 export function databaseUrl(packageName: string, database: DatabaseDriver): string {
   if (database === "sqlite") {
     return "file:./dev.db";
@@ -288,6 +330,40 @@ function runPackageManagerScript(packageManager: PackageManager, script: "db:mig
   }
 }
 
+/** Applies schema to the database after install — non-interactive and provider-aware. */
+function runDatabaseSetup(packageManager: PackageManager, database: DatabaseDriver, cwd: string): void {
+  const schemaFlag = ["--schema", "../../prisma/schema.prisma"];
+  const prismaArgs =
+    database === "postgresql"
+      ? ["migrate", "deploy", ...schemaFlag]
+      : ["db", "push", ...schemaFlag, "--accept-data-loss"];
+  const label = database === "postgresql" ? "prisma migrate deploy" : "prisma db push";
+
+  if (packageManager === "npm") {
+    const result = spawnSync("npm", ["exec", "prisma", ...prismaArgs], { cwd: join(cwd, "apps", "api"), stdio: "inherit" });
+    if (result.status !== 0 || result.error) {
+      throw new Error(
+        `Failed to run "${label}" in ${cwd}/apps/api.\n` +
+          "If Prisma engine binaries could not download, check your network/proxy and retry.\n" +
+          `Resume with: cd <project> && npm exec prisma ${prismaArgs.join(" ")} (from apps/api).`
+      );
+    }
+    return;
+  }
+
+  const filterArgs =
+    packageManager === "pnpm"
+      ? ["--filter", "@openadminjs/api", "exec", "prisma", ...prismaArgs]
+      : ["workspace", "@openadminjs/api", "exec", "prisma", ...prismaArgs];
+  const result = spawnSync(packageManager, filterArgs, { cwd, stdio: "inherit" });
+  if (result.status !== 0 || result.error) {
+    throw new Error(
+      `Failed to run "${label}" via ${packageManager}.\n` +
+        "If Prisma engine binaries could not download, check your network/proxy and retry."
+    );
+  }
+}
+
 function runInstall(packageManager: PackageManager, cwd: string): void {
   const args = packageManager === "yarn" ? [] : ["install"];
   const result = spawnSync(packageManager, args, { cwd, stdio: "inherit" });
@@ -313,6 +389,7 @@ function writeEnvExample(targetDir: string, database: DatabaseDriver): void {
     "# Copy this file to apps/api/.env and fill in real values.",
     "# NEVER commit the real .env — it is ignored by .gitignore.",
     `DATABASE_URL=${dbUrl}`,
+    "# REDIS_URL is optional. Leave it blank to disable background job queues.",
     "REDIS_URL=redis://localhost:6379",
     "# Generate strong secrets, e.g. `node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"`",
     "JWT_SECRET=replace-with-a-long-random-secret",
@@ -339,12 +416,15 @@ function resolveCreateProjectOptions(
   if (options.database && !["postgresql", "mysql", "sqlite"].includes(options.database)) {
     throw new Error('database must be "postgresql", "mysql", or "sqlite".');
   }
+  // Redis is optional: an empty REDIS_URL disables background job queues, which
+  // the generated API handles gracefully at runtime.
+  const redisUrl = options.skipRedis ? "" : (options.redisUrl ?? "");
+
   const missing: string[] = [];
   if (!options.database) missing.push("database");
   if (!options.superadminEmail) missing.push("superadminEmail");
   if (!options.superadminPassword) missing.push("superadminPassword");
   if (!options.databaseUrl) missing.push("databaseUrl");
-  if (!options.redisUrl) missing.push("redisUrl");
   if (!options.jwtSecret) missing.push("jwtSecret");
   if (!options.jwtRefreshSecret) missing.push("jwtRefreshSecret");
   if (!options.adminOrigin) missing.push("adminOrigin");
@@ -361,13 +441,15 @@ function resolveCreateProjectOptions(
     superadminEmail: options.superadminEmail!,
     superadminPassword: options.superadminPassword!,
     databaseUrl: options.databaseUrl!,
-    redisUrl: options.redisUrl!,
+    redisUrl,
+    skipRedis: options.skipRedis ?? redisUrl.trim() === "",
     jwtSecret: options.jwtSecret!,
     jwtRefreshSecret: options.jwtRefreshSecret!,
     adminOrigin: options.adminOrigin!,
     apiPort: options.apiPort!,
     git: options.git ?? false,
     install: options.install ?? false,
+    nonInteractive: options.nonInteractive ?? false,
     templateDir: options.templateDir ?? defaultTemplateDir()
   };
 }
@@ -404,10 +486,22 @@ export function createProject(options: CreateProjectOptions & { projectName: str
     }
   }
 
+  let dbInitialized = false;
   if (resolved.install) {
-    runInstall(resolved.packageManager, targetDir);
-    runPackageManagerScript(resolved.packageManager, "db:migrate", targetDir);
-    runPackageManagerScript(resolved.packageManager, "db:seed", targetDir);
+    // The scaffold is fully written at this point. If install / db setup fails
+    // we keep the project directory and surface an exact resume command rather
+    // than deleting the user's freshly generated files.
+    try {
+      runInstall(resolved.packageManager, targetDir);
+      runDatabaseSetup(resolved.packageManager, resolved.database, targetDir);
+      runPackageManagerScript(resolved.packageManager, "db:seed", targetDir);
+      dbInitialized = true;
+    } catch (error) {
+      throw new SetupIncompleteError(
+        error instanceof Error ? error.message : "Setup failed after the project was created.",
+        { targetDir, appName, packageManager: resolved.packageManager }
+      );
+    }
   }
 
   return {
@@ -419,8 +513,33 @@ export function createProject(options: CreateProjectOptions & { projectName: str
     superadminEmail: resolved.superadminEmail,
     git: resolved.git,
     install: resolved.install,
-    dbInitialized: resolved.install
+    dbInitialized,
+    redisEnabled: resolved.redisUrl.trim() !== "",
+    passwordGenerated: false
   };
+}
+
+/**
+ * Thrown when the scaffold was generated successfully but a later step
+ * (install, migrate, seed) failed. Carries the exact command to resume so the
+ * user never has to guess, and signals that the directory was intentionally
+ * preserved (never auto-deleted).
+ */
+export class SetupIncompleteError extends Error {
+  readonly targetDir: string;
+  readonly resumeCommand: string;
+  constructor(
+    message: string,
+    meta: { targetDir: string; appName: string; packageManager: PackageManager }
+  ) {
+    const pm = meta.packageManager;
+    const install = pm === "yarn" ? "yarn" : `${pm} install`;
+    const resume = `cd ${meta.appName} && ${install} && ${pm} run db:migrate && ${pm} run db:seed`;
+    super(`${message}\n\nThe project was created at ${meta.targetDir} and left in place.\nResume setup with:\n  ${resume}`);
+    this.name = "SetupIncompleteError";
+    this.targetDir = meta.targetDir;
+    this.resumeCommand = resume;
+  }
 }
 
 function generateIntoDir(
@@ -481,11 +600,15 @@ function generateIntoDir(
   const apiEnvDir = join(targetDir, "apps", "api");
   if (existsSync(templateApiDir)) {
     mkdirSync(apiEnvDir, { recursive: true });
+    const redisLine =
+      resolved.redisUrl.trim() === ""
+        ? "# REDIS_URL is unset — background job queues are disabled.\n# Set it (e.g. redis://localhost:6379) to enable BullMQ queues.\nREDIS_URL="
+        : `REDIS_URL=${resolved.redisUrl}`;
     writeFileSync(
       join(apiEnvDir, ".env"),
       [
         `DATABASE_URL=${resolved.databaseUrl}`,
-        `REDIS_URL=${resolved.redisUrl}`,
+        redisLine,
         `JWT_SECRET=${resolved.jwtSecret}`,
         `JWT_REFRESH_SECRET=${resolved.jwtRefreshSecret}`,
         `ADMIN_ORIGIN=${resolved.adminOrigin}`,
@@ -497,12 +620,36 @@ function generateIntoDir(
   }
 }
 
+/** Returns the shell form to run a root script with the given package manager. */
+function pmRun(pm: PackageManager, script: string): string {
+  if (pm === "yarn") return `yarn ${script}`;
+  if (pm === "npm") return `npm run ${script}`;
+  return `pnpm ${script}`;
+}
+
 export function printNextSteps(result: CreateProjectResult): void {
   const pm = result.packageManager;
-  const installStep = result.install ? "" : `\n  ${pm} install\n  ${pm} db:migrate\n  ${pm} db:seed`;
-  const dbStepNote = result.dbInitialized ? "\nDatabase initialized: migrations + seed completed automatically." : "";
+  const install = pm === "yarn" ? "yarn" : `${pm} install`;
+  const installStep = result.install
+    ? ""
+    : `\n  ${install}\n  ${pmRun(pm, "db:migrate")}\n  ${pmRun(pm, "db:seed")}`;
+  const dbStepNote = result.dbInitialized
+    ? "\nDatabase initialized: migrations + seed completed automatically."
+    : "";
+  // `dev` starts ONLY the admin UI and the API (see root "dev" script). The
+  // public web app is optional and started separately, so we do not advertise
+  // a URL the default command never serves.
+  const password = result.passwordGenerated
+    ? "a generated password (see apps/api/.env)"
+    : "<the password you entered>";
+  const webNote = `\n\nOptional public web app (not started by "${pmRun(pm, "dev")}"):\n  ${
+    pm === "yarn" ? "yarn workspace @openadminjs/web dev" : pm === "npm" ? "npm run dev --workspace=@openadminjs/web" : "pnpm --filter @openadminjs/web dev"
+  }  →  http://localhost:3001`;
+  const redisNote = result.redisEnabled
+    ? ""
+    : "\n\nBackground job queues are disabled (no REDIS_URL). Set REDIS_URL in apps/api/.env to enable them.";
   outro(
-    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  ${pm} dev${dbStepNote}\n\nAdmin:  http://localhost:3000\nAPI:    http://localhost:4000\nSwagger: http://localhost:4000/api/docs\nWeb:    http://localhost:3001\n\nSuperadmin: ${result.superadminEmail} / <the password you entered>`
+    `${pc.green("Project created.")}\n\nNext steps:\n  cd ${result.appName}${installStep}\n  ${pmRun(pm, "dev")}${dbStepNote}\n\nAdmin:   http://localhost:3000\nAPI:     http://localhost:4000\nSwagger: http://localhost:4000/api/docs${webNote}${redisNote}\n\nSuperadmin: ${result.superadminEmail} / ${password}`
   );
 }
 
@@ -519,161 +666,248 @@ export function printSecurityNotice(result: CreateProjectResult): void {
   );
 }
 
-export async function createProjectInteractive(options: CreateProjectOptions = {}): Promise<CreateProjectResult | undefined> {
-  intro(pc.green("Create OpenAdminJS"));
+/** Cancellation sentinel used to unwind prompts without throwing. */
+const CANCELLED = Symbol("cancelled");
 
+/** Generates a strong, human-usable password (used in non-interactive mode). */
+export function generatePassword(): string {
+  return generateSecret(18);
+}
+
+/**
+ * Resolves the package manager, honoring an explicit choice, detecting what is
+ * actually installed, and offering a recovery path when the desired manager is
+ * missing (issue: pnpm-unavailable should not hard-exit).
+ */
+async function resolvePackageManager(
+  options: CreateProjectOptions,
+  interactive: boolean
+): Promise<PackageManager | typeof CANCELLED> {
+  const available = PACKAGE_MANAGERS.filter(isPackageManagerAvailable);
+
+  let desired = options.packageManager;
+  if (!desired) {
+    if (interactive) {
+      const pool = available.length ? available : PACKAGE_MANAGERS;
+      const answer = await select<PackageManager>({
+        message: "Package manager",
+        options: pool.map((pm) => ({
+          value: pm,
+          label: pm === "pnpm" ? "pnpm (recommended)" : pm
+        })),
+        initialValue: pool.includes("pnpm") ? "pnpm" : pool[0]
+      });
+      if (isCancel(answer)) return CANCELLED;
+      desired = answer;
+    } else {
+      desired = firstAvailablePackageManager() ?? "npm";
+    }
+  }
+
+  if (isPackageManagerAvailable(desired)) return desired;
+
+  const fallback = firstAvailablePackageManager();
+  const corepackHint =
+    desired === "pnpm" ? " Enable it with `corepack enable && corepack prepare pnpm@latest --activate`." : "";
+
+  if (!interactive) {
+    if (options.packageManager) {
+      throw new Error(
+        `${desired} was requested but is not installed.${corepackHint}` +
+          (fallback ? ` Or re-run with --package-manager ${fallback}.` : "")
+      );
+    }
+    if (!fallback) {
+      throw new Error("No supported package manager (pnpm, npm, or yarn) was found on PATH.");
+    }
+    return fallback;
+  }
+
+  if (available.length) {
+    const answer = await select<PackageManager>({
+      message: `${desired} is not installed. Choose an available package manager`,
+      options: available.map((pm) => ({ value: pm, label: pm })),
+      initialValue: available[0]
+    });
+    if (isCancel(answer)) return CANCELLED;
+    return answer;
+  }
+
+  throw new Error(
+    `${desired} is not installed and no supported package manager was found on PATH.${corepackHint}`
+  );
+}
+
+/** Prints a plain (non-clack) summary suitable for non-interactive / CI output. */
+function printSummaryPlain(result: CreateProjectResult): void {
+  const pm = result.packageManager;
+  const lines = [
+    "",
+    `Project created at ${result.targetDir}`,
+    `Package manager: ${pm}   Database: ${result.database}`,
+    result.dbInitialized ? "Database initialized (migrate + seed)." : "Run migrate + seed before starting.",
+    result.redisEnabled ? "Redis queues: enabled." : "Redis queues: disabled (no REDIS_URL).",
+    "Secrets written to apps/api/.env (git-ignored). Never commit it.",
+    result.passwordGenerated
+      ? "Superadmin password was generated — read it from apps/api/.env (SUPERADMIN_PASSWORD)."
+      : `Superadmin: ${result.superadminEmail}`,
+    ""
+  ];
+  console.log(lines.join("\n"));
+}
+
+export async function createProjectInteractive(
+  options: CreateProjectOptions = {}
+): Promise<CreateProjectResult | undefined> {
   // Preflight checks that don't require project files run before anything is written.
   assertSupportedNode();
 
-  const projectName =
-    options.projectName ??
-    (await text({
-      message: "Project name",
-      defaultValue: "my-app",
-      placeholder: "my-app"
-    }));
-  if (isCancel(projectName)) {
-    cancel("Cancelled");
-    return undefined;
+  // Interactive only when stdin is a TTY and the caller did not opt out. This
+  // avoids `uv_tty_init EINVAL` crashes in CI / piped environments.
+  const interactive = !options.nonInteractive && Boolean(process.stdin.isTTY);
+
+  if (!interactive && !options.projectName) {
+    throw new Error(
+      "A project name is required in non-interactive mode.\n" +
+        "  Example: openadminjs create my-app --yes --database sqlite\n" +
+        "(stdin is not a TTY, or --yes / --non-interactive was passed.)"
+    );
   }
 
-  const packageManager =
-    options.packageManager ??
-    (await select<PackageManager>({
-      message: "Package manager",
-      options: [
-        { value: "pnpm", label: "pnpm (recommended)" },
-        { value: "npm", label: "npm" },
-        { value: "yarn", label: "yarn" }
-      ],
-      initialValue: "pnpm"
-    }));
-  if (isCancel(packageManager)) {
-    cancel("Cancelled");
-    return undefined;
-  }
-  if (!isPackageManagerAvailable(packageManager)) {
-    throw new Error(`${packageManager} is required but was not found on your PATH.`);
+  if (interactive) intro(pc.green("Create OpenAdminJS"));
+
+  // ── project name ──
+  let projectName = options.projectName;
+  if (!projectName) {
+    const answer = await text({ message: "Project name", defaultValue: "my-app", placeholder: "my-app" });
+    if (isCancel(answer)) return cancelledUndefined();
+    projectName = String(answer);
   }
 
-  const database: DatabaseDriver =
-    options.database ??
-    ((await select<DatabaseDriver>({
-      message: "Database",
-      options: [
-        { value: "postgresql", label: "PostgreSQL" },
-        { value: "mysql", label: "MySQL" },
-        { value: "sqlite", label: "SQLite (local file, zero-setup)" }
-      ],
-      initialValue: "postgresql"
-    })) as DatabaseDriver);
-  if (isCancel(database)) {
-    cancel("Cancelled");
-    return undefined;
-  }
+  // ── package manager (with availability fallback) ──
+  const packageManager = await resolvePackageManager(options, interactive);
+  if (packageManager === CANCELLED) return cancelledUndefined();
 
-  const superadminEmail =
-    options.superadminEmail ??
-    (await text({
-      message: "Superadmin email",
-      defaultValue: DEFAULT_SUPERADMIN_EMAIL,
-      placeholder: DEFAULT_SUPERADMIN_EMAIL,
-      validate: (value) => validateSuperadminEmailInput(value)
-    }));
-  if (isCancel(superadminEmail)) {
-    cancel("Cancelled");
-    return undefined;
-  }
-  const resolvedEmail = resolveSuperadminEmail(String(superadminEmail));
-
-  const superadminPassword =
-    options.superadminPassword ??
-    (await text({
-      message: "Superadmin password",
-      placeholder: "At least 8 characters",
-      validate(value) {
-        return value.length >= 8 ? undefined : "Password must be at least 8 characters.";
-      }
-    }));
-  if (isCancel(superadminPassword)) {
-    cancel("Cancelled");
-    return undefined;
-  }
-
-  const selectedDatabaseUrl =
-    options.databaseUrl ??
-    (await text({
-      message: "Database URL",
-      defaultValue: databaseUrl(toPackageName(String(projectName)), database)
-    }));
-  if (isCancel(selectedDatabaseUrl)) {
-    cancel("Cancelled");
-    return undefined;
-  }
-
-  let checkedDatabaseUrl = String(selectedDatabaseUrl).trim() || databaseUrl(toPackageName(String(projectName)), database);
-  while (true) {
-    const dbError = await validateDbConnectivity(database, checkedDatabaseUrl);
-    if (!dbError) break;
-    const retry = await confirm({
-      message: `${dbError} Retry entering DATABASE_URL?`,
-      initialValue: true
-    });
-    if (isCancel(retry)) {
-      cancel("Cancelled");
-      return undefined;
+  // ── database ──
+  let database = options.database;
+  if (!database) {
+    if (interactive) {
+      const answer = await select<DatabaseDriver>({
+        message: "Database",
+        options: [
+          { value: "postgresql", label: "PostgreSQL" },
+          { value: "mysql", label: "MySQL" },
+          { value: "sqlite", label: "SQLite (local file, zero-setup)" }
+        ],
+        initialValue: "postgresql"
+      });
+      if (isCancel(answer)) return cancelledUndefined();
+      database = answer;
+    } else {
+      database = "sqlite";
     }
-    if (!retry) break;
-    const next = await text({
-      message: "Database URL",
-      defaultValue: checkedDatabaseUrl
-    });
-    if (isCancel(next)) {
-      cancel("Cancelled");
-      return undefined;
-    }
-    checkedDatabaseUrl = String(next).trim();
   }
 
-  let checkedRedisUrl = (options.redisUrl ?? "").trim();
-  while (!checkedRedisUrl) {
-    const entered =
-      options.redisUrl ??
-      (await text({
-        message: "Redis URL",
-        defaultValue: "redis://localhost:6379",
+  // ── superadmin email ──
+  let email = options.superadminEmail;
+  if (!email) {
+    if (interactive) {
+      const answer = await text({
+        message: "Superadmin email",
+        defaultValue: DEFAULT_SUPERADMIN_EMAIL,
+        placeholder: DEFAULT_SUPERADMIN_EMAIL,
+        validate: (value) => validateSuperadminEmailInput(value)
+      });
+      if (isCancel(answer)) return cancelledUndefined();
+      email = String(answer);
+    } else {
+      email = DEFAULT_SUPERADMIN_EMAIL;
+    }
+  }
+  const resolvedEmail = resolveSuperadminEmail(String(email));
+
+  // ── superadmin password (masked in interactive mode; generated otherwise) ──
+  let passwordGenerated = false;
+  let superadminPassword = options.superadminPassword;
+  if (!superadminPassword) {
+    if (interactive) {
+      const answer = await password({
+        message: "Superadmin password (input hidden, min 8 chars)",
         validate(value) {
-          return value.trim().length > 0 ? undefined : "Redis URL is required.";
+          const { weak, reason } = inspectPassword(value);
+          return weak ? capitalize(reason ?? "Password is too weak.") : undefined;
         }
-      }));
-    if (isCancel(entered)) {
-      cancel("Cancelled");
-      return undefined;
+      });
+      if (isCancel(answer)) return cancelledUndefined();
+      superadminPassword = String(answer);
+    } else {
+      superadminPassword = generatePassword();
+      passwordGenerated = true;
     }
-    checkedRedisUrl = String(entered).trim();
   }
 
-  while (true) {
-    const redisError = await validateRedisConnectivity(checkedRedisUrl);
-    if (!redisError) break;
-    const retry = await confirm({
-      message: `${redisError} Retry entering REDIS_URL?`,
-      initialValue: true
-    });
-    if (isCancel(retry)) {
-      cancel("Cancelled");
-      return undefined;
+  // ── database URL (Enter accepts the shown default) ──
+  const defaultDbUrl = databaseUrl(toPackageName(String(projectName)), database);
+  let checkedDatabaseUrl = (options.databaseUrl ?? "").trim();
+  if (!checkedDatabaseUrl) {
+    if (interactive) {
+      const answer = await text({
+        message: "Database URL",
+        defaultValue: defaultDbUrl,
+        placeholder: defaultDbUrl,
+        validate: (value) => validateDatabaseUrlInput(database!, value, defaultDbUrl)
+      });
+      if (isCancel(answer)) return cancelledUndefined();
+      checkedDatabaseUrl = String(answer).trim() || defaultDbUrl;
+    } else {
+      checkedDatabaseUrl = defaultDbUrl;
     }
-    if (!retry) break;
-    const next = await text({
-      message: "Redis URL",
-      defaultValue: checkedRedisUrl
+  }
+
+  // Connectivity is checked only interactively and never blocks: the user can
+  // decline to retry and continue (e.g. DB not started yet).
+  if (interactive) {
+    const outcome = await confirmConnectivityLoop(
+      () => validateDbConnectivity(database!, checkedDatabaseUrl),
+      "DATABASE_URL",
+      () => text({ message: "Database URL", defaultValue: checkedDatabaseUrl, placeholder: checkedDatabaseUrl }),
+      (next) => {
+        checkedDatabaseUrl = next.trim() || checkedDatabaseUrl;
+      }
+    );
+    if (outcome === CANCELLED) return cancelledUndefined();
+  }
+
+  // ── Redis (optional; blank disables background job queues) ──
+  let checkedRedisUrl: string;
+  if (options.skipRedis) {
+    checkedRedisUrl = "";
+  } else if (options.redisUrl !== undefined) {
+    checkedRedisUrl = options.redisUrl.trim();
+  } else if (interactive) {
+    const def = database === "sqlite" ? "" : DEFAULT_REDIS_URL;
+    const answer = await text({
+      message: "Redis URL (blank to disable background job queues)",
+      defaultValue: def,
+      placeholder: def || "blank = queues disabled",
+      validate: (value) => validateRedisUrlInput(value)
     });
-    if (isCancel(next)) {
-      cancel("Cancelled");
-      return undefined;
-    }
-    checkedRedisUrl = String(next).trim();
+    if (isCancel(answer)) return cancelledUndefined();
+    checkedRedisUrl = String(answer).trim();
+  } else {
+    checkedRedisUrl = "";
+  }
+
+  if (interactive && checkedRedisUrl) {
+    const outcome = await confirmConnectivityLoop(
+      () => validateRedisConnectivity(checkedRedisUrl),
+      "REDIS_URL",
+      () => text({ message: "Redis URL (blank to disable)", defaultValue: checkedRedisUrl }),
+      (next) => {
+        checkedRedisUrl = next.trim();
+      }
+    );
+    if (outcome === CANCELLED) return cancelledUndefined();
   }
 
   // JWT secrets are generated with a CSPRNG — never prompted with predictable defaults.
@@ -683,10 +917,15 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
   const adminOrigin = options.adminOrigin ?? "http://localhost:3000";
   const apiPort = options.apiPort ?? "4000";
 
-  const git = options.git ?? (await confirm({ message: "Initialize git?", initialValue: true }));
-  if (isCancel(git)) {
-    cancel("Cancelled");
-    return undefined;
+  let git = options.git;
+  if (git === undefined) {
+    if (interactive) {
+      const answer = await confirm({ message: "Initialize git?", initialValue: true });
+      if (isCancel(answer)) return cancelledUndefined();
+      git = answer;
+    } else {
+      git = true;
+    }
   }
 
   const install = options.install ?? true;
@@ -706,9 +945,70 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     apiPort: String(apiPort),
     git,
     install,
+    nonInteractive: !interactive,
     templateDir: options.templateDir
   });
-  printSecurityNotice(result);
-  printNextSteps(result);
+  result.passwordGenerated = passwordGenerated;
+
+  if (interactive) {
+    printSecurityNotice(result);
+    printNextSteps(result);
+  } else {
+    printSummaryPlain(result);
+  }
   return result;
+}
+
+function cancelledUndefined(): undefined {
+  cancel("Cancelled");
+  return undefined;
+}
+
+function capitalize(s: string): string {
+  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
+}
+
+/**
+ * Validates a DATABASE_URL against the FINAL resolved value so pressing Enter to
+ * accept the shown default is always valid.
+ */
+export function validateDatabaseUrlInput(
+  database: DatabaseDriver,
+  value: string,
+  fallback: string
+): string | undefined {
+  const v = value.trim() || fallback;
+  if (database === "sqlite") {
+    return /^file:/.test(v) ? undefined : 'SQLite DATABASE_URL must start with "file:".';
+  }
+  try {
+    // eslint-disable-next-line no-new
+    new URL(v);
+    return undefined;
+  } catch {
+    return "Enter a valid database URL.";
+  }
+}
+
+/**
+ * Runs a non-blocking connectivity check with an interactive retry loop. Returns
+ * CANCELLED if the user cancels; otherwise resolves once the check passes or the
+ * user declines to retry.
+ */
+async function confirmConnectivityLoop(
+  check: () => Promise<string | undefined>,
+  label: string,
+  reprompt: () => Promise<string | symbol>,
+  apply: (next: string) => void
+): Promise<typeof CANCELLED | void> {
+  for (;;) {
+    const error = await check();
+    if (!error) return;
+    const retry = await confirm({ message: `${error} Retry entering ${label}?`, initialValue: true });
+    if (isCancel(retry)) return CANCELLED;
+    if (!retry) return;
+    const next = await reprompt();
+    if (isCancel(next)) return CANCELLED;
+    apply(String(next));
+  }
 }

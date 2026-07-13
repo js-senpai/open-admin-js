@@ -24,6 +24,8 @@ async function bootstrap() {
     credentials: true
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  // Flush DB connections / queues on SIGTERM/SIGINT so restarts are clean.
+  app.enableShutdownHooks();
 
   const config = new DocumentBuilder()
     .setTitle("OpenAdminJS API")

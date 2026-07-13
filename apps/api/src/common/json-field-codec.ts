@@ -7,18 +7,18 @@
  * On PostgreSQL and MySQL this module is a no-op (isSqliteDatabaseUrl is false).
  */
 
-/** Prisma model name → fields stored as JSON text on SQLite. */
+/** Prisma Client delegate name (camelCase) → fields stored as JSON text on SQLite. */
 export const SQLITE_JSON_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  AuditLog: ["before", "after"],
-  Setting: ["value"],
-  ApiToken: ["scopes"],
-  JobLog: ["payload"],
-  Product: ["metadata"],
-  Order: ["metadata"],
-  Transaction: ["metadata"],
-  WebhookLog: ["payload"],
-  AiMessage: ["meta"],
-  AiArtifact: ["meta"]
+  auditLog: ["before", "after"],
+  setting: ["value"],
+  apiToken: ["scopes"],
+  jobLog: ["payload"],
+  product: ["metadata"],
+  order: ["metadata"],
+  transaction: ["metadata"],
+  webhookLog: ["payload"],
+  aiMessage: ["meta"],
+  aiArtifact: ["meta"]
 };
 
 export function isSqliteDatabaseUrl(url: string | undefined): boolean {

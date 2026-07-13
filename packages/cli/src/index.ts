@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cac } from "cac";
 import pc from "picocolors";
-import { createProjectInteractive } from "./create-project.js";
+import { createProjectInteractive, type DatabaseDriver, type PackageManager } from "./create-project.js";
 import { modelNameToResourceSlug } from "./resource-slug.js";
 import {
   assertInsideDir,
@@ -288,14 +288,105 @@ async function dbCommand(
 
 // ── command registrations ─────────────────────────────────────────────────────
 
-cli.command("create [projectName]", "Create a new OpenAdminJS project").action(async (projectName?: string) => {
-  try {
-    await createProjectInteractive({ projectName });
-  } catch (error) {
-    console.error(pc.red(error instanceof Error ? error.message : "Failed to create project."));
-    process.exitCode = 1;
+type CreateFlags = {
+  packageManager?: string;
+  pm?: string;
+  database?: string;
+  db?: string;
+  adminEmail?: string;
+  adminPassword?: string;
+  adminPasswordEnv?: string;
+  dbUrl?: string;
+  redisUrl?: string;
+  skipRedis?: boolean;
+  apiPort?: string;
+  adminOrigin?: string;
+  install?: boolean;
+  git?: boolean;
+  yes?: boolean;
+  nonInteractive?: boolean;
+};
+
+function normalizeDatabase(value: string | undefined): DatabaseDriver | undefined {
+  if (!value) return undefined;
+  const v = value.trim().toLowerCase();
+  if (v === "postgres" || v === "postgresql" || v === "pg") return "postgresql";
+  if (v === "mysql" || v === "mariadb") return "mysql";
+  if (v === "sqlite" || v === "sqlite3") return "sqlite";
+  throw new Error(`Unknown database "${value}". Use postgresql, mysql, or sqlite.`);
+}
+
+function normalizePackageManager(value: string | undefined): PackageManager | undefined {
+  if (!value) return undefined;
+  const v = value.trim().toLowerCase();
+  if (v === "pnpm" || v === "npm" || v === "yarn") return v;
+  throw new Error(`Unknown package manager "${value}". Use pnpm, npm, or yarn.`);
+}
+
+/** Resolves the admin password from flags/env WITHOUT exposing it in argv where avoidable. */
+function resolveAdminPassword(flags: CreateFlags): string | undefined {
+  if (flags.adminPasswordEnv) {
+    const value = process.env[flags.adminPasswordEnv];
+    if (!value) {
+      throw new Error(
+        `--admin-password-env ${flags.adminPasswordEnv} is set but the environment variable is empty or unset.`
+      );
+    }
+    return value;
   }
-});
+  if (flags.adminPassword) {
+    console.error(
+      pc.yellow(
+        "Warning: --admin-password exposes the password in your shell history. Prefer --admin-password-env <VAR>."
+      )
+    );
+    return flags.adminPassword;
+  }
+  if (process.env.OPENADMIN_ADMIN_PASSWORD) return process.env.OPENADMIN_ADMIN_PASSWORD;
+  return undefined;
+}
+
+cli
+  .command("create [projectName]", "Create a new OpenAdminJS project")
+  .option("--package-manager <pm>", "Package manager: pnpm, npm, or yarn")
+  .option("--pm <pm>", "Alias for --package-manager")
+  .option("--database <db>", "Database: postgresql, mysql, or sqlite")
+  .option("--db <db>", "Alias for --database")
+  .option("--admin-email <email>", "Superadmin email")
+  .option("--admin-password <password>", "Superadmin password (discouraged — prefer --admin-password-env)")
+  .option("--admin-password-env <var>", "Read the superadmin password from this environment variable")
+  .option("--db-url <url>", "DATABASE_URL override")
+  .option("--redis-url <url>", "REDIS_URL (blank/omit disables background job queues)")
+  .option("--skip-redis", "Disable Redis-backed queues")
+  .option("--api-port <port>", "API port (default 4000)")
+  .option("--admin-origin <origin>", "Admin origin for CORS (default http://localhost:3000)")
+  .option("--no-install", "Skip dependency install and DB setup")
+  .option("--no-git", "Skip git initialization")
+  .option("--non-interactive", "Do not prompt; use flags and safe defaults")
+  .option("-y, --yes", "Accept defaults without prompting (implies --non-interactive)")
+  .action(async (projectName: string | undefined, flags: CreateFlags) => {
+    try {
+      const nonInteractive = Boolean(flags.yes || flags.nonInteractive) || !process.stdin.isTTY;
+      await createProjectInteractive({
+        projectName,
+        packageManager: normalizePackageManager(flags.packageManager ?? flags.pm),
+        database: normalizeDatabase(flags.database ?? flags.db),
+        superadminEmail: flags.adminEmail,
+        superadminPassword: resolveAdminPassword(flags),
+        databaseUrl: flags.dbUrl,
+        redisUrl: flags.skipRedis ? undefined : flags.redisUrl,
+        skipRedis: flags.skipRedis,
+        apiPort: flags.apiPort,
+        adminOrigin: flags.adminOrigin,
+        install: flags.install,
+        git: flags.git,
+        nonInteractive
+      });
+    } catch (error) {
+      console.error(pc.red(error instanceof Error ? error.message : "Failed to create project."));
+      process.exitCode = 1;
+    }
+  });
 
 cli
   .command("db <action> [mode]", "Database commands: migrate [dev|deploy], seed, studio, reset")
@@ -417,8 +508,9 @@ async function main(): Promise<void> {
     console.log(`openadminjs ${readPackageVersion()}`);
     process.exit(0);
   }
+  // NOTE: cac's parse() already prints help once when --help/-h is present
+  // (showHelpOnExit). Do NOT call outputHelp() again here or it prints twice.
   if (parsed.options.help || parsed.options.h) {
-    cli.outputHelp();
     process.exit(0);
   }
 

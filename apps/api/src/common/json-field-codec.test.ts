@@ -18,7 +18,7 @@ describe("isSqliteDatabaseUrl", () => {
 describe("encodeWriteArgs / decodeReadResult", () => {
   it("round-trips Json-like fields for AuditLog", () => {
     const payload = { title: "Hello", count: 2 };
-    const encoded = encodeWriteArgs("AuditLog", {
+    const encoded = encodeWriteArgs("auditLog", {
       data: { action: "update", before: payload, after: { ...payload, count: 3 } }
     });
     expect(encoded.data).toMatchObject({
@@ -27,7 +27,7 @@ describe("encodeWriteArgs / decodeReadResult", () => {
       after: JSON.stringify({ ...payload, count: 3 })
     });
 
-    const decoded = decodeReadResult("AuditLog", {
+    const decoded = decodeReadResult("auditLog", {
       id: "1",
       action: "update",
       before: JSON.stringify(payload),
@@ -39,10 +39,10 @@ describe("encodeWriteArgs / decodeReadResult", () => {
 
   it("round-trips scopes array for ApiToken", () => {
     const scopes = ["posts.read", "users.read"];
-    const encoded = encodeWriteArgs("ApiToken", { data: { name: "t", scopes } });
+    const encoded = encodeWriteArgs("apiToken", { data: { name: "t", scopes } });
     expect((encoded.data as Record<string, unknown>).scopes).toBe(JSON.stringify(scopes));
 
-    const decoded = decodeReadResult("ApiToken", {
+    const decoded = decodeReadResult("apiToken", {
       id: "1",
       name: "t",
       scopes: JSON.stringify(scopes)
@@ -52,8 +52,8 @@ describe("encodeWriteArgs / decodeReadResult", () => {
 
   it("leaves non-codec models unchanged", () => {
     const data = { email: "a@b.dev", passwordHash: "x" };
-    expect(encodeWriteArgs("User", { data }).data).toEqual(data);
-    expect(decodeReadResult("User", data)).toEqual(data);
+    expect(encodeWriteArgs("user", { data }).data).toEqual(data);
+    expect(decodeReadResult("user", data)).toEqual(data);
   });
 
   it("covers every model listed in SQLITE_JSON_FIELDS", () => {
