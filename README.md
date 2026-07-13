@@ -10,7 +10,7 @@ OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ec
 | --- | --- |
 | Node.js | **20 or newer** |
 | Package manager | **pnpm 9+** (required) |
-| Database | **PostgreSQL 14+** |
+| Database | **PostgreSQL 14+** or **MySQL 8+** |
 | Redis | optional, only for background queues |
 
 The CLI checks for a supported Node.js version and for pnpm before it writes any
@@ -32,9 +32,11 @@ The generated project is a pnpm workspace monorepo.
 - **Package managers:** only **pnpm** is offered by the CLI, because the scaffold
   (workspace config, root scripts, lockfile) is pnpm-native. npm and yarn are
   intentionally **not** exposed to avoid generating a project that does not build.
-- **Databases:** only **PostgreSQL** is offered. The shipped Prisma schema and
-  baseline migration are PostgreSQL-specific; MySQL and SQLite are **not**
-  currently supported.
+- **Databases:** **PostgreSQL** and **MySQL** are supported. For MySQL the CLI
+  adapts the Prisma schema (scalar-list columns become `Json` arrays, since MySQL
+  has no scalar lists) and creates a MySQL-specific initial migration on first
+  `db:migrate`. **SQLite is not supported** — the schema relies on `Json` columns
+  that SQLite cannot represent without app-level changes.
 
 ## Quick start (for package users)
 
@@ -48,8 +50,14 @@ cd my-app
 ```
 
 `npx` runs the **`openadminjs` CLI scaffold generator** (not a runtime library) and
-scaffolds a **pnpm** monorepo backed by **PostgreSQL**. The CLI fills `DATABASE_URL`
-for you and generates cryptographically strong JWT secrets automatically.
+scaffolds a **pnpm** monorepo backed by **PostgreSQL** or **MySQL**. The CLI fills
+`DATABASE_URL` for you and generates cryptographically strong JWT secrets
+automatically.
+
+> **MySQL note:** because MySQL has no PostgreSQL-style scalar lists, the shipped
+> PostgreSQL baseline migration is not reused. Run `pnpm db:migrate` (or
+> `openadminjs db migrate dev`) once after install to create the MySQL migration,
+> then `pnpm db:seed`.
 
 ### 2. Configure environment
 
@@ -163,8 +171,10 @@ overwritten without `--force`.
 
 ## Current limitations
 
-- Only **pnpm** and **PostgreSQL** are supported by the scaffold. MySQL, SQLite,
-  npm and yarn are intentionally not offered.
+- The scaffold supports **pnpm** only (npm/yarn are not offered) and **PostgreSQL
+  or MySQL** only. **SQLite is not supported** (schema uses `Json` columns).
+- On **MySQL**, PostgreSQL scalar lists are stored as `Json` arrays; the initial
+  migration is created on first `db:migrate` rather than shipped.
 - Redis is optional; queue features require a reachable `REDIS_URL`.
 
 ## Production deployment (outline)

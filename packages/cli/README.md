@@ -8,7 +8,7 @@ Full documentation: [https://js-senpai.github.io/open-admin-js/docs.html](https:
 
 - **Node.js 20+**
 - **pnpm 9+** (the only supported package manager)
-- **PostgreSQL 14+** (the only supported database)
+- **PostgreSQL 14+** or **MySQL 8+** (SQLite is not supported)
 
 The CLI verifies Node.js and pnpm before writing any files.
 
@@ -23,9 +23,11 @@ pnpm db:seed      # skipped if install ran during create
 pnpm dev
 ```
 
-The scaffold generates a **pnpm** monorepo backed by **PostgreSQL**; the CLI fills
-`DATABASE_URL` for you. npm, yarn, MySQL and SQLite are **not** offered because the
-generated project would not build/run with them.
+The scaffold generates a **pnpm** monorepo backed by **PostgreSQL** or **MySQL**;
+the CLI fills `DATABASE_URL` for you. For MySQL the Prisma schema is adapted
+(scalar lists → `Json`) and the initial migration is created on first
+`db:migrate`. npm, yarn and SQLite are **not** offered because the generated
+project would not build/run with them.
 
 ### Configure environment
 
@@ -102,8 +104,8 @@ createProject({
 });
 ```
 
-`templateDir` defaults to the bundled template. The interactive wizard only offers
-**pnpm** + **PostgreSQL**; the programmatic API still accepts the legacy
+`templateDir` defaults to the bundled template. The interactive wizard offers
+**pnpm** + **PostgreSQL/MySQL**; the programmatic API still accepts the
 `packageManager`/`database` options for advanced use.
 
 ## MVP scope

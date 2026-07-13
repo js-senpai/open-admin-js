@@ -85,6 +85,82 @@ jobs:
       - run: pnpm security:check
       - run: pnpm e2e
 
+  # Database matrix: verify a generated project's schema + migrations for every
+  # advertised database (PostgreSQL + MySQL) against a real container.
+  database-matrix:
+    name: DB integration (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: postgresql
+            image: postgres:16
+            port: 5432
+            url: postgresql://openadminjs:openadminjs@localhost:5432/openadminjs?schema=public
+          - db: mysql
+            image: mysql:8
+            port: 3306
+            url: mysql://openadminjs:openadminjs@localhost:3306/openadminjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Start ${{ matrix.db }}
+        run: |
+          if [ "${{ matrix.db }}" = "postgresql" ]; then
+            docker run -d --name db -p ${{ matrix.port }}:5432 \
+              -e POSTGRES_USER=openadminjs -e POSTGRES_PASSWORD=openadminjs -e POSTGRES_DB=openadminjs \
+              ${{ matrix.image }}
+          else
+            docker run -d --name db -p ${{ matrix.port }}:3306 \
+              -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=openadminjs -e MYSQL_PASSWORD=openadminjs -e MYSQL_DATABASE=openadminjs \
+              ${{ matrix.image }}
+          fi
+      - run: pnpm install --frozen-lockfile
+      - name: Build CLI
+        run: pnpm --filter openadminjs build
+      - name: Scaffold a project for ${{ matrix.db }}
+        run: |
+          node --input-type=module -e "
+          import { createProject } from './packages/cli/dist/create-project.js';
+          import { randomBytes } from 'node:crypto';
+          createProject({
+            projectName: 'it-app', cwd: process.env.RUNNER_TEMP, packageManager: 'pnpm',
+            database: '${{ matrix.db }}',
+            superadminEmail: 'admin@localhost.dev', superadminPassword: 'a-strong-passphrase',
+            databaseUrl: '${{ matrix.url }}', redisUrl: 'redis://localhost:6379',
+            jwtSecret: randomBytes(48).toString('base64url'), jwtRefreshSecret: randomBytes(48).toString('base64url'),
+            adminOrigin: 'http://localhost:3000', apiPort: '4000', git: false, install: false
+          });
+          console.log('scaffolded', process.env.RUNNER_TEMP + '/it-app');
+          "
+      - name: Wait for DB
+        run: |
+          for i in $(seq 1 30); do
+            if [ "${{ matrix.db }}" = "postgresql" ]; then
+              docker exec db pg_isready -U openadminjs && break
+            else
+              docker exec db mysqladmin ping -uopenadminjs -popenadminjs --silent && break
+            fi
+            sleep 2
+          done
+      - name: prisma validate + migrate + generate
+        working-directory: ${{ runner.temp }}/it-app
+        env:
+          DATABASE_URL: ${{ matrix.url }}
+        run: |
+          pnpm install
+          pnpm exec prisma validate --schema prisma/schema.prisma
+          pnpm exec prisma migrate dev --name init --schema prisma/schema.prisma --skip-generate
+          pnpm exec prisma generate --schema prisma/schema.prisma
+          pnpm db:seed
+
   # Verify the published tarball contains only what it should (no secrets).
   pack:
     name: npm pack inspection

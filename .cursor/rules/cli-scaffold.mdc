@@ -64,8 +64,11 @@ Generation is atomic: files are written into a sibling staging dir and renamed i
 place only on success; on failure the staging dir is removed and an existing target
 is never touched.
 
-Interactive wizard only offers **pnpm** + **PostgreSQL**; the `createProject` API
-still accepts the legacy `packageManager`/`database` options.
+Interactive wizard offers **pnpm** + **PostgreSQL/MySQL**; the `createProject` API
+still accepts the `packageManager`/`database` options. For MySQL the schema is
+transformed via `render-schema.ts` (scalar lists → `Json`) and the PostgreSQL
+baseline migration is dropped so the user creates a MySQL migration on first
+`db:migrate`. SQLite is not supported (schema uses `Json` columns).
 
 ## apps/api/.env
 

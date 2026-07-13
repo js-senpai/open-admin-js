@@ -189,6 +189,44 @@ describe("create project", () => {
     }
   });
 
+  it("generates a MySQL project: correct provider, Json scopes, no postgres migrations", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
+    try {
+      const result = createProject({
+        ...BASE_OPTIONS,
+        database: "mysql",
+        projectName: "mysql-app",
+        cwd,
+        databaseUrl: "mysql://openadminjs:openadminjs@localhost:3306/mysql-app",
+        templateDir: defaultTemplateDir()
+      });
+      const schema = readFileSync(join(result.targetDir, "prisma", "schema.prisma"), "utf8");
+      expect(schema).toMatch(/datasource\s+\w+\s*\{[\s\S]*?provider\s*=\s*"mysql"/);
+      // Scalar lists are unsupported on MySQL — must be converted to Json.
+      expect(schema).not.toContain("String[]");
+      expect(schema).toMatch(/scopes\s+Json/);
+      // PostgreSQL baseline migration must not be reused for MySQL.
+      expect(existsSync(join(result.targetDir, "prisma", "migrations"))).toBe(false);
+      // apps/api/.env gets the MySQL URL.
+      const apiEnv = readFileSync(join(result.targetDir, "apps", "api", ".env"), "utf8");
+      expect(apiEnv).toContain("DATABASE_URL=mysql://openadminjs:openadminjs@localhost:3306/mysql-app");
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the PostgreSQL baseline migration for postgresql projects", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
+    try {
+      const result = createProject({ ...BASE_OPTIONS, projectName: "pg-app", cwd, templateDir: defaultTemplateDir() });
+      expect(existsSync(join(result.targetDir, "prisma", "migrations", "migration_lock.toml"))).toBe(true);
+      const schema = readFileSync(join(result.targetDir, "prisma", "schema.prisma"), "utf8");
+      expect(schema).toContain("String[]");
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("fails fast when template package.json is missing", () => {
     const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
     const badTemplate = mkdtempSync(join(tmpdir(), "openadminjs-cli-template-"));

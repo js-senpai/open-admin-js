@@ -8,6 +8,7 @@ import fsExtra from "fs-extra";
 import pc from "picocolors";
 import { adaptProjectForPackageManager, type PackageManager } from "./adapt-package-manager.js";
 import { generateSecret } from "./secrets.js";
+import { renderSchemaForProvider } from "./render-schema.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const { copySync, ensureDirSync, readFileSync, writeFileSync } = fsExtra;
@@ -448,8 +449,15 @@ function generateIntoDir(
   // The shipped baseline migration + migration_lock.toml are PostgreSQL-specific.
   // For any other provider they would make `prisma migrate deploy` fail, so drop
   // them and let the user create a provider-correct migration via `prisma migrate dev`.
+  // The schema itself is also transformed to remove provider-incompatible types
+  // (e.g. MySQL has no scalar lists, so `String[]` becomes a `Json` array).
   if (resolved.database !== "postgresql") {
     rmSync(join(targetDir, "prisma", "migrations"), { recursive: true, force: true });
+    const schemaPath = join(targetDir, "prisma", "schema.prisma");
+    if (existsSync(schemaPath)) {
+      const schema = readFileSync(schemaPath, "utf8");
+      writeFileSync(schemaPath, renderSchemaForProvider(schema, resolved.database));
+    }
   }
 
   adaptProjectForPackageManager(targetDir, resolved.packageManager);
@@ -526,7 +534,10 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
     options.database ??
     ((await select<DatabaseDriver>({
       message: "Database",
-      options: [{ value: "postgresql", label: "PostgreSQL" }],
+      options: [
+        { value: "postgresql", label: "PostgreSQL" },
+        { value: "mysql", label: "MySQL" }
+      ],
       initialValue: "postgresql"
     })) as DatabaseDriver);
   if (isCancel(database)) {
