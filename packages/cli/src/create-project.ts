@@ -524,8 +524,6 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
 
   // Preflight checks that don't require project files run before anything is written.
   assertSupportedNode();
-  const packageManager: PackageManager = options.packageManager ?? "pnpm";
-  if (packageManager === "pnpm") assertPnpmAvailable();
 
   const projectName =
     options.projectName ??
@@ -537,6 +535,25 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
   if (isCancel(projectName)) {
     cancel("Cancelled");
     return undefined;
+  }
+
+  const packageManager =
+    options.packageManager ??
+    (await select<PackageManager>({
+      message: "Package manager",
+      options: [
+        { value: "pnpm", label: "pnpm (recommended)" },
+        { value: "npm", label: "npm" },
+        { value: "yarn", label: "yarn" }
+      ],
+      initialValue: "pnpm"
+    }));
+  if (isCancel(packageManager)) {
+    cancel("Cancelled");
+    return undefined;
+  }
+  if (!isPackageManagerAvailable(packageManager)) {
+    throw new Error(`${packageManager} is required but was not found on your PATH.`);
   }
 
   const database: DatabaseDriver =
