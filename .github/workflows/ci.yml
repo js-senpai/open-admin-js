@@ -102,6 +102,10 @@ jobs:
             image: mysql:8
             port: 3306
             url: mysql://openadminjs:openadminjs@localhost:3306/openadminjs
+          - db: sqlite
+            image: ""
+            port: 0
+            url: file:./dev.db
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -112,6 +116,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Start ${{ matrix.db }}
+        if: matrix.db != 'sqlite'
         run: |
           if [ "${{ matrix.db }}" = "postgresql" ]; then
             docker run -d --name db -p ${{ matrix.port }}:5432 \
@@ -141,6 +146,7 @@ jobs:
           console.log('scaffolded', process.env.RUNNER_TEMP + '/it-app');
           "
       - name: Wait for DB
+        if: matrix.db != 'sqlite'
         run: |
           for i in $(seq 1 30); do
             if [ "${{ matrix.db }}" = "postgresql" ]; then

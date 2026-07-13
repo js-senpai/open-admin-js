@@ -17,6 +17,12 @@ model ApiToken {
   tags   String[]
 }
 
+model AuditLog {
+  id     String @id @default(cuid())
+  before Json?
+  after  Json?
+}
+
 model Post {
   id String @id @default(cuid())
 }
@@ -33,6 +39,17 @@ describe("renderSchemaForProvider", () => {
     expect(out).toMatch(/scopes\s+Json/);
     expect(out).toMatch(/tags\s+Json/);
     // relation lists reference models, not scalars — must be preserved
+    expect(out).toContain("posts Post[]");
+  });
+
+  it("converts scalar lists and Json to String for sqlite", () => {
+    const out = renderSchemaForProvider(SAMPLE, "sqlite");
+    expect(out).not.toContain("String[]");
+    expect(out).not.toMatch(/\bJson\b/);
+    expect(out).toMatch(/scopes\s+String/);
+    expect(out).toMatch(/tags\s+String/);
+    expect(out).toMatch(/before\s+String\?/);
+    expect(out).toMatch(/after\s+String\?/);
     expect(out).toContain("posts Post[]");
   });
 });

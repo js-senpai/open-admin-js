@@ -10,7 +10,7 @@ OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ec
 | --- | --- |
 | Node.js | **20 or newer** |
 | Package manager | **pnpm 9+** (required) |
-| Database | **PostgreSQL 14+** or **MySQL 8+** |
+| Database | **PostgreSQL 14+**, **MySQL 8+**, or **SQLite 3** (local file) |
 | Redis | optional, only for background queues |
 
 The CLI checks for a supported Node.js version and for pnpm before it writes any
@@ -32,11 +32,14 @@ The generated project is a pnpm workspace monorepo.
 - **Package managers:** only **pnpm** is offered by the CLI, because the scaffold
   (workspace config, root scripts, lockfile) is pnpm-native. npm and yarn are
   intentionally **not** exposed to avoid generating a project that does not build.
-- **Databases:** **PostgreSQL** and **MySQL** are supported. For MySQL the CLI
-  adapts the Prisma schema (scalar-list columns become `Json` arrays, since MySQL
-  has no scalar lists) and creates a MySQL-specific initial migration on first
-  `db:migrate`. **SQLite is not supported** — the schema relies on `Json` columns
-  that SQLite cannot represent without app-level changes.
+- **Databases:** **PostgreSQL**, **MySQL**, and **SQLite** are supported.
+  - **PostgreSQL** ships with a baseline migration out of the box.
+  - **MySQL:** scalar lists (`String[]`) are stored as `Json` arrays; run `db:migrate`
+    once after install to create the MySQL migration.
+  - **SQLite:** `Json` columns and scalar lists are stored as `String` (JSON text).
+    The API transparently JSON-encodes/decodes them at runtime via a Prisma extension
+    (`apps/api/src/common/json-field-codec.ts`), so admin JSON fields and audit logs
+    keep working. Run `db:migrate` once after install to create the SQLite database file.
 
 ## Quick start (for package users)
 
@@ -50,14 +53,13 @@ cd my-app
 ```
 
 `npx` runs the **`openadminjs` CLI scaffold generator** (not a runtime library) and
-scaffolds a **pnpm** monorepo backed by **PostgreSQL** or **MySQL**. The CLI fills
+scaffolds a **pnpm** monorepo backed by **PostgreSQL**, **MySQL**, or **SQLite**. The CLI fills
 `DATABASE_URL` for you and generates cryptographically strong JWT secrets
 automatically.
 
-> **MySQL note:** because MySQL has no PostgreSQL-style scalar lists, the shipped
-> PostgreSQL baseline migration is not reused. Run `pnpm db:migrate` (or
-> `openadminjs db migrate dev`) once after install to create the MySQL migration,
-> then `pnpm db:seed`.
+> **MySQL / SQLite note:** the shipped PostgreSQL baseline migration is not reused.
+> Run `pnpm db:migrate` (or `openadminjs db migrate dev`) once after install to
+> create the provider-specific migration, then `pnpm db:seed`.
 
 ### 2. Configure environment
 
@@ -171,10 +173,11 @@ overwritten without `--force`.
 
 ## Current limitations
 
-- The scaffold supports **pnpm** only (npm/yarn are not offered) and **PostgreSQL
-  or MySQL** only. **SQLite is not supported** (schema uses `Json` columns).
-- On **MySQL**, PostgreSQL scalar lists are stored as `Json` arrays; the initial
-  migration is created on first `db:migrate` rather than shipped.
+- The scaffold supports **pnpm** only (npm/yarn are not offered).
+- **PostgreSQL** ships a baseline migration; **MySQL** and **SQLite** create their
+  initial migration on first `db:migrate`.
+- On **SQLite**, `Json` fields are JSON-encoded in `String` columns at runtime
+  (transparent to the admin UI).
 - Redis is optional; queue features require a reachable `REDIS_URL`.
 
 ## Production deployment (outline)

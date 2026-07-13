@@ -183,8 +183,8 @@ export async function runDoctorChecks(cwd: string, opts: { skipNetwork?: boolean
     }
   }
 
-  // database connectivity
-  if (env.DATABASE_URL && !opts.skipNetwork) {
+  // database connectivity (skip for SQLite file URLs — no server to ping)
+  if (env.DATABASE_URL && !opts.skipNetwork && !env.DATABASE_URL.trim().toLowerCase().startsWith("file:")) {
     try {
       const url = new URL(env.DATABASE_URL);
       const port = Number(url.port) || (schemaProvider === "mysql" ? 3306 : 5432);

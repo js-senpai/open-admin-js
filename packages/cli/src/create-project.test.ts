@@ -189,6 +189,30 @@ describe("create project", () => {
     }
   });
 
+  it("generates a SQLite project: String columns for Json/scopes, no postgres migrations", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
+    try {
+      const result = createProject({
+        ...BASE_OPTIONS,
+        database: "sqlite",
+        projectName: "sqlite-app",
+        cwd,
+        databaseUrl: "file:./dev.db",
+        templateDir: defaultTemplateDir()
+      });
+      const schema = readFileSync(join(result.targetDir, "prisma", "schema.prisma"), "utf8");
+      expect(schema).toMatch(/datasource\s+\w+\s*\{[\s\S]*?provider\s*=\s*"sqlite"/);
+      expect(schema).not.toContain("String[]");
+      expect(schema).not.toMatch(/\bJson\b/);
+      expect(schema).toMatch(/scopes\s+String/);
+      expect(existsSync(join(result.targetDir, "prisma", "migrations"))).toBe(false);
+      const apiEnv = readFileSync(join(result.targetDir, "apps", "api", ".env"), "utf8");
+      expect(apiEnv).toContain("DATABASE_URL=file:./dev.db");
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("generates a MySQL project: correct provider, Json scopes, no postgres migrations", () => {
     const cwd = mkdtempSync(join(tmpdir(), "openadminjs-cli-test-"));
     try {

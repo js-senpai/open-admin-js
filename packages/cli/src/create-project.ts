@@ -19,7 +19,7 @@ const BINARY_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".s
 export const MIN_NODE_MAJOR = 20;
 
 export type { PackageManager } from "./adapt-package-manager.js";
-export type DatabaseDriver = "postgresql" | "mysql";
+export type DatabaseDriver = "postgresql" | "mysql" | "sqlite";
 
 export type CreateProjectOptions = {
   projectName?: string;
@@ -203,6 +203,10 @@ async function pingRedis(urlInput: string, timeoutMs = 1500): Promise<void> {
 }
 
 async function validateDbConnectivity(database: DatabaseDriver, databaseUrlInput: string): Promise<string | undefined> {
+  // SQLite is a local file — there is no server to reach.
+  if (database === "sqlite") {
+    return /^file:/.test(databaseUrlInput.trim()) ? undefined : 'SQLite DATABASE_URL must start with "file:".';
+  }
   const parsed = parseUrlHostPort(databaseUrlInput);
   if (!parsed) return "Invalid database URL.";
 
@@ -244,6 +248,9 @@ export function validateSuperadminEmailInput(value: string, fallback = DEFAULT_S
 }
 
 function databaseUrl(packageName: string, database: DatabaseDriver): string {
+  if (database === "sqlite") {
+    return "file:./dev.db";
+  }
   if (database === "mysql") {
     return `mysql://openadminjs:openadminjs@localhost:3306/${packageName}`;
   }
@@ -297,9 +304,11 @@ function writeGitignore(targetDir: string): void {
 /** Writes a root .env.example with variable names and safe placeholders only. */
 function writeEnvExample(targetDir: string, database: DatabaseDriver): void {
   const dbUrl =
-    database === "mysql"
-      ? "mysql://user:password@localhost:3306/openadminjs"
-      : "postgresql://user:password@localhost:5432/openadminjs?schema=public";
+    database === "sqlite"
+      ? "file:./dev.db"
+      : database === "mysql"
+        ? "mysql://user:password@localhost:3306/openadminjs"
+        : "postgresql://user:password@localhost:5432/openadminjs?schema=public";
   const lines = [
     "# Copy this file to apps/api/.env and fill in real values.",
     "# NEVER commit the real .env — it is ignored by .gitignore.",
@@ -327,8 +336,8 @@ function resolveCreateProjectOptions(
   if (options.packageManager && !["pnpm", "npm", "yarn"].includes(options.packageManager)) {
     throw new Error('packageManager must be "pnpm", "npm", or "yarn".');
   }
-  if (options.database && !["postgresql", "mysql"].includes(options.database)) {
-    throw new Error('database must be "postgresql" or "mysql".');
+  if (options.database && !["postgresql", "mysql", "sqlite"].includes(options.database)) {
+    throw new Error('database must be "postgresql", "mysql", or "sqlite".');
   }
   const missing: string[] = [];
   if (!options.database) missing.push("database");
@@ -536,7 +545,8 @@ export async function createProjectInteractive(options: CreateProjectOptions = {
       message: "Database",
       options: [
         { value: "postgresql", label: "PostgreSQL" },
-        { value: "mysql", label: "MySQL" }
+        { value: "mysql", label: "MySQL" },
+        { value: "sqlite", label: "SQLite (local file, zero-setup)" }
       ],
       initialValue: "postgresql"
     })) as DatabaseDriver);
