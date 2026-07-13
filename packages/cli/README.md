@@ -1,208 +1,163 @@
 # OpenAdminJS CLI
 
-**`openadminjs` is a CLI scaffold generator**, not a runtime library you import into React/Next/Nest apps. It creates a full pnpm monorepo (NestJS API, Next.js admin/web, shared packages).
+**`openadminjs` is a CLI scaffold generator**, not a runtime library you import into React/Next/Nest apps. It creates a full monorepo (NestJS API, Next.js admin/web, shared packages).
 
 Full documentation: [https://js-senpai.github.io/open-admin-js/docs.html](https://js-senpai.github.io/open-admin-js/docs.html)
 
 ## Requirements
 
 - **Node.js 20+**
-- **pnpm 9+** (the only supported package manager)
-- **PostgreSQL 14+**, **MySQL 8+**, or **SQLite 3** (local file)
+- **One of:** pnpm 9+ (recommended), npm 9+, or yarn 1.x / Berry
+- **Database:** PostgreSQL 14+, MySQL 8+, or **SQLite 3** (local file, zero external DB)
+- **Redis:** optional — background job queues are disabled when `REDIS_URL` is blank
+- **Network:** Prisma downloads engine binaries on first install/generate (corporate proxies may need configuration)
 
-The CLI verifies Node.js and pnpm before writing any files.
+The CLI verifies Node.js before writing files and detects which package managers are installed.
 
-## Quick start
+## Quick start (interactive)
 
 ```bash
 npx openadminjs create my-app
 cd my-app
-pnpm install      # skipped if you chose install during create
-pnpm db:migrate   # skipped if install ran during create
-pnpm db:seed      # skipped if install ran during create
-pnpm dev
+pnpm dev    # or: npm run dev / yarn dev
 ```
 
-The scaffold generates a **pnpm** monorepo backed by **PostgreSQL**, **MySQL**, or
-**SQLite**; the CLI fills `DATABASE_URL` for you. For MySQL/SQLite the Prisma schema
-is adapted and the initial migration is created on first `db:migrate`. On SQLite the
-API JSON-encodes `Json` columns into `String` fields at runtime. npm and yarn are
-**not** offered.
-
-### Configure environment
-
-The scaffold wizard asks for database access and writes ready-to-use values into
-`apps/api/.env` (including `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` for
-non-interactive seed). **JWT secrets are generated with `crypto.randomBytes`** —
-never predictable defaults. `ADMIN_ORIGIN` and `API_PORT` default to
-`http://localhost:3000` and `4000`.
-
-Every new project includes a root **`.gitignore`** (written before `git init`) that
-excludes all `.env` files, plus a tracked **`.env.example`** with placeholders. Real
-secrets live only in `apps/api/.env` and are never printed by the CLI.
-
-Typical `apps/api/.env` keys (after create, edit as needed):
-
-| Provider | `DATABASE_URL` example |
-| --- | --- |
-| PostgreSQL | `postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public` |
-| MySQL | `mysql://USER:PASSWORD@localhost:3306/openadminjs` |
-| SQLite | `file:./dev.db` |
-
-```env
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=replace-with-a-long-random-string-at-least-32-chars
-JWT_REFRESH_SECRET=another-long-random-string
-ADMIN_ORIGIN=http://localhost:3000
-API_PORT=4000
-SUPERADMIN_EMAIL=admin@localhost.dev
-SUPERADMIN_PASSWORD=your-secure-password
-```
-
-Optional (elsewhere / advanced):
-
-```env
-OPENADMIN_PLUGIN_PNPM_INSTALL=0
-```
-
-### Run project
+If you skipped install during create:
 
 ```bash
-pnpm dev
+pnpm install && pnpm db:migrate && pnpm db:seed
 ```
 
-Typical URLs:
+During create, choosing **install** runs dependency install, schema apply, and seed automatically.
 
-| App         | URL                            |
+### What `dev` starts
+
+The root **`dev` script starts the admin UI and the API only** (not the public web app):
+
+| Service     | URL                            |
 | ----------- | ------------------------------ |
 | Admin       | http://localhost:3000          |
 | API         | http://localhost:4000          |
 | API Swagger | http://localhost:4000/api/docs |
-| Web (demo)  | http://localhost:3001          |
 
-### Sign in
+Optional public web app (port 3001):
 
-After project creation, migrations and seed are run automatically. Use the superadmin credentials you entered in the scaffold wizard:
+```bash
+pnpm --filter @openadminjs/web dev    # npm: npm run dev --workspace=@openadminjs/web
+```
 
-- **Email:** your `Superadmin email`
-- **Password:** your `Superadmin password`
+## Non-interactive / CI
+
+When stdin is not a TTY (or you pass `--yes` / `--non-interactive`), the CLI uses flags and safe defaults — no prompts.
+
+```bash
+export OPENADMIN_ADMIN_PASSWORD="$(openssl rand -base64 24)"
+
+npx openadminjs create my-app \
+  --yes \
+  --package-manager npm \
+  --database sqlite \
+  --admin-email admin@example.com \
+  --admin-password-env OPENADMIN_ADMIN_PASSWORD \
+  --skip-redis
+
+cd my-app && npm run dev
+```
+
+Prefer **`--admin-password-env`** over `--admin-password` so secrets are not stored in shell history.
+
+| Flag | Description |
+| --- | --- |
+| `--package-manager`, `--pm` | `pnpm`, `npm`, or `yarn` |
+| `--database`, `--db` | `postgresql`, `mysql`, or `sqlite` |
+| `--admin-email` | Superadmin email |
+| `--admin-password-env <VAR>` | Read password from environment (recommended) |
+| `--admin-password <value>` | Password on CLI (discouraged) |
+| `--db-url <url>` | Override `DATABASE_URL` |
+| `--redis-url <url>` | Redis URL (blank disables queues) |
+| `--skip-redis` | Disable background job queues |
+| `--no-install` | Skip install / DB setup |
+| `--no-git` | Skip `git init` |
+| `-y`, `--yes` | Non-interactive with defaults |
+
+## Package managers
+
+| Manager | Notes |
+| --- | --- |
+| **pnpm** | Default; ships `pnpm-workspace.yaml` and `workspace:*` deps |
+| **npm** | Adds npm `workspaces`; rewrites `workspace:*` → `*` for local linking |
+| **yarn** | Adds `workspaces`; rewrites `workspace:*` → `*` |
+
+If your preferred manager is missing, the interactive wizard offers installed alternatives or Corepack hints for pnpm.
+
+## SQLite zero-setup
+
+SQLite uses a local `file:./dev.db` — no PostgreSQL/MySQL server required. **Redis is optional** for SQLite: leave the Redis prompt blank or pass `--skip-redis`. The API starts without Redis; queue endpoints return a clear `503` until `REDIS_URL` is set.
+
+Prisma Client is generated automatically before `dev`, `build`, and `db:seed` via lifecycle scripts.
+
+## Environment
+
+Secrets are written to **`apps/api/.env`** (git-ignored). JWT keys are generated with `crypto.randomBytes`. A tracked **`.env.example`** contains placeholders only — the CLI never prints secret values.
+
+```env
+DATABASE_URL=file:./dev.db          # or postgres/mysql URL
+REDIS_URL=                          # blank = queues disabled
+JWT_SECRET=<generated>
+JWT_REFRESH_SECRET=<generated>
+ADMIN_ORIGIN=http://localhost:3000
+API_PORT=4000
+SUPERADMIN_EMAIL=admin@localhost.dev
+SUPERADMIN_PASSWORD=<your password>
+```
+
+## Sign in
+
+After create (with install), use the superadmin email and password from the wizard or `apps/api/.env`.
+
+## Health & troubleshooting
+
+```bash
+openadminjs doctor                 # verify install, env, Prisma client, scripts
+openadminjs doctor --skip-network  # offline-friendly
+openadminjs security check
+```
+
+**Prisma Client not initialized:** run `pnpm db:migrate` (or `npm run db:migrate`) from the project root, or `prisma generate` from `apps/api`.
+
+**Prisma engine download failed:** check network/proxy; retry install from the project root.
+
+**Setup failed mid-create:** the project directory is preserved with a resume command in the error message.
+
+**npm `EUNSUPPORTEDPROTOCOL workspace:*`:** upgrade to the latest `openadminjs` CLI — npm projects must use `*` not `workspace:*`.
+
+## Commands
+
+```bash
+openadminjs create [name] [options]
+openadminjs db migrate [dev|deploy] | seed | studio | reset
+openadminjs generate resource <Model> | field <resource> <field> | plugin <id>
+openadminjs doctor [--json] [--skip-network]
+openadminjs security check [--json]
+```
 
 ## Programmatic API
 
 ```ts
-import { createProject, databaseUrl } from "openadminjs";
-import { randomBytes } from "node:crypto";
+import { createProject, databaseUrl, generateSecret } from "openadminjs";
 
-// PostgreSQL (ships baseline migration)
 createProject({
   projectName: "my-app",
-  packageManager: "pnpm",
-  database: "postgresql",
-  databaseUrl: databaseUrl("my-app", "postgresql"),
-  // ...
-});
-
-// MySQL (run db:migrate after install to create the initial migration)
-createProject({
-  projectName: "my-app",
-  packageManager: "pnpm",
-  database: "mysql",
-  databaseUrl: databaseUrl("my-app", "mysql"),
-  superadminEmail: "admin@localhost.dev",
-  superadminPassword: "a-strong-password",
-  redisUrl: "redis://localhost:6379",
-  jwtSecret: randomBytes(48).toString("base64url"),
-  jwtRefreshSecret: randomBytes(48).toString("base64url"),
-  adminOrigin: "http://localhost:3000",
-  apiPort: "4000"
-});
-
-// SQLite (local file — API JSON-encodes Json columns at runtime)
-createProject({
-  projectName: "my-app",
-  packageManager: "pnpm",
+  packageManager: "npm",
   database: "sqlite",
   databaseUrl: "file:./dev.db",
+  redisUrl: "", // optional — blank disables queues
   superadminEmail: "admin@localhost.dev",
-  superadminPassword: "a-strong-password",
-  redisUrl: "redis://localhost:6379",
-  jwtSecret: randomBytes(48).toString("base64url"),
-  jwtRefreshSecret: randomBytes(48).toString("base64url"),
+  superadminPassword: process.env.ADMIN_PASSWORD!,
+  jwtSecret: generateSecret(),
+  jwtRefreshSecret: generateSecret(),
   adminOrigin: "http://localhost:3000",
-  apiPort: "4000"
+  apiPort: "4000",
+  install: true
 });
 ```
-
-## Health & security checks
-
-```bash
-openadminjs doctor                 # verify the project is ready to run
-openadminjs doctor --json
-openadminjs security check
-openadminjs security check --json
-```
-
-`templateDir` defaults to the bundled template. The interactive wizard offers
-**pnpm** + **PostgreSQL / MySQL / SQLite**; the programmatic API accepts the
-`packageManager`/`database` options for advanced use.
-
-## MVP scope
-
-- Resource-driven admin metadata with safe defaults.
-- Auth, RBAC contracts, generic CRUD API, audit log and file/settings modules.
-- Next.js admin shell with login, dashboard, resource screens and operational pages.
-- Generated app `apps/web` for public frontend pages and SEO.
-- CLI: `create`, `dev`, `build`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
-
-## Plugin Platform
-
-OpenAdminJS now uses a broad extension model (no legacy compatibility layer). Plugins can register multiple surfaces through `@openadminjs/plugin-sdk`:
-
-- `resource` hooks (CRUD lifecycle)
-- `api` hooks/routes
-- `media` pipeline (upload transforms)
-- `seo` metadata/sitemap contributors
-- `jobs` handlers
-- `adminUi` extensions (menus/pages/widgets/actions)
-
-Plugins are controlled by manifest capabilities and trust mode (`trusted` / `sandboxed`) in `apps/api/plugins.manifest.json`.
-
-### Capability matrix
-
-- `resource.hooks` — CRUD lifecycle hooks per resource.
-- `api.hooks` / `api.routes` — request lifecycle hooks and custom API endpoints.
-- `media.pipeline` — file/image transform pipeline.
-- `seo.extend` — metadata + sitemap contributors.
-- `jobs.run` — background job handlers.
-- `admin.ui.extend` — admin menu/page/widget/action extensions.
-
-`trusted` mode may run with broad access; `sandboxed` mode should explicitly declare only required capabilities.
-
-Generate a starter plugin:
-
-```bash
-pnpm exec openadminjs generate plugin com.example.my-plugin
-```
-
-### Queue setup
-
-Set `REDIS_URL` in your environment to run queue processing (example: `redis://localhost:6379`).
-
-## Partners
-
-OpenAdminJS is community-powered and stays free thanks to partner support.
-
-Want to become a partner and place your logo in the project materials?  
-Email us at `openadminjs@proton.me`.
-
-## Financial support
-
-If you want to support development, hosting and community tooling:
-
-- Open a sponsorship discussion in GitHub issues/discussions.
-- Contribute with code, examples or QA.
-- Contact maintainers for direct support options: `openadminjs@proton.me`.
-- Crypto wallets:
-  - BTC (SegWit): `bc1qpcc4hd7w82jjvsdhvx6hgu2kfuz8jgfuvxurd7`
-  - ETH / USDC (ERC-20): `0xe5ac19c6f1f5070a7c713973fd25ee02eaf9eb48`
-  - USDT (TRC-20): `TWyzMehesWqJS7qs5LYL4QGmgTpohNy3gf`

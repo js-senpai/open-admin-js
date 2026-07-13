@@ -124,7 +124,10 @@ export function adaptProjectForPackageManager(targetDir: string, packageManager:
     rmSync(pnpmWorkspaceFile);
   }
 
-  const workspaceReplacement = packageManager === "yarn" ? "*" : "workspace:*";
+  // Neither npm nor Yarn Classic understand pnpm's `workspace:` protocol
+  // (npm throws EUNSUPPORTEDPROTOCOL). Both resolve `"*"` to the local
+  // workspace package by name, so rewrite every `workspace:<range>` to `"*"`.
+  const workspaceReplacement = "*";
   for (const file of findPackageJsonFiles(targetDir)) {
     const pkg = readPackageJson(file);
     replaceWorkspaceProtocol(pkg, workspaceReplacement);

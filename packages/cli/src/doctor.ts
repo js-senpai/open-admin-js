@@ -52,6 +52,47 @@ async function tcpReachable(host: string, port: number, timeoutMs = 1200): Promi
   });
 }
 
+/**
+ * Verifies the Prisma Client is genuinely usable — not just that the
+ * `@prisma/client` package exists on disk. The un-generated package ships a
+ * stub that throws "did not initialize yet" at require time, so we actually
+ * load it in a child process. This distinguishes:
+ *   - fail: package missing (deps not installed)
+ *   - warn: package present but not generated (recoverable: run prisma generate)
+ *   - pass: generated client loads and exposes PrismaClient
+ */
+export function checkPrismaClientUsable(
+  cwd: string,
+  pm: string
+): { status: CheckStatus; message: string } {
+  const pkgDir = join(cwd, "node_modules", "@prisma", "client");
+  if (!existsSync(pkgDir)) {
+    // Recoverable and already surfaced by the node-modules check; keep as warn.
+    return { status: "warn", message: `@prisma/client is not installed — run "${pm} install".` };
+  }
+  const probe = spawnSync(
+    process.execPath,
+    ["-e", "const m=require('@prisma/client'); if(typeof m.PrismaClient!=='function'){process.exit(3);}"],
+    { cwd, encoding: "utf8", timeout: 20000 }
+  );
+  if (probe.status === 0) {
+    return { status: "pass", message: "Prisma Client is generated and loads successfully." };
+  }
+  const stderr = (probe.stderr || "").trim();
+  const notGenerated = /did not initialize yet|prisma generate/i.test(stderr) || probe.status === 3;
+  if (notGenerated) {
+    return {
+      status: "warn",
+      message: `Prisma Client is not generated — run "${pm} db:migrate" or "prisma generate".`
+    };
+  }
+  // Present, generated, but genuinely fails to load — a blocking error.
+  return {
+    status: "fail",
+    message: `Prisma Client failed to load: ${stderr.split("\n").pop() ?? "unknown error"}`
+  };
+}
+
 export async function runDoctorChecks(cwd: string, opts: { skipNetwork?: boolean } = {}): Promise<DoctorReport> {
   const results: CheckResult[] = [];
   const add = (name: string, status: CheckStatus, message: string) => results.push({ name, status, message });
@@ -91,11 +132,8 @@ export async function runDoctorChecks(cwd: string, opts: { skipNetwork?: boolean
     else add("env-vars", "fail", `Missing env vars: ${missingEnv.join(", ")}.`);
   }
 
-  const prismaClient =
-    existsSync(join(cwd, "node_modules", ".prisma", "client")) ||
-    existsSync(join(cwd, "node_modules", "@prisma", "client"));
-  if (prismaClient) add("prisma-client", "pass", "Prisma Client is available.");
-  else add("prisma-client", "warn", `Prisma Client not generated — run "${pm} db:migrate" or prisma generate.`);
+  const clientCheck = checkPrismaClientUsable(cwd, pm);
+  add("prisma-client", clientCheck.status, clientCheck.message);
 
   // prisma validate (best-effort; only when deps + a local prisma binary exist)
   const prismaBin = join(cwd, "node_modules", ".bin", process.platform === "win32" ? "prisma.cmd" : "prisma");
