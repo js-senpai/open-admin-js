@@ -96,4 +96,46 @@ describe("runDoctorChecks", () => {
     expect(status(results, "secrets")).toBe("fail");
     expect(ok).toBe(false);
   });
+
+  it("passes doctor for a healthy SQLite project (no migration lock, file URL)", async () => {
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify(
+        {
+          name: "sqlite-demo",
+          packageManager: "pnpm@9.15.0",
+          scripts: { dev: "x", build: "x", test: "x", "db:migrate": "x", "db:seed": "x" }
+        },
+        null,
+        2
+      )
+    );
+    writeFileSync(join(dir, ".gitignore"), "node_modules\n.env\n.env.*\n!.env.example\n*.db\n");
+    writeFileSync(join(dir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    mkdirSync(join(dir, "prisma"), { recursive: true });
+    writeFileSync(
+      join(dir, "prisma", "schema.prisma"),
+      'datasource db {\n  provider = "sqlite"\n  url      = env("DATABASE_URL")\n}\n'
+    );
+    mkdirSync(join(dir, "apps", "api"), { recursive: true });
+    writeFileSync(
+      join(dir, "apps", "api", ".env"),
+      [
+        "DATABASE_URL=file:./dev.db",
+        "REDIS_URL=redis://localhost:6379",
+        `JWT_SECRET=${generateSecret()}`,
+        `JWT_REFRESH_SECRET=${generateSecret()}`,
+        "SUPERADMIN_PASSWORD=a-strong-enough-password"
+      ].join("\n") + "\n"
+    );
+    mkdirSync(join(dir, "node_modules"), { recursive: true });
+
+    const { results, ok } = await runDoctorChecks(dir, { skipNetwork: true });
+    expect(status(results, "prisma-schema")).toBe("pass");
+    expect(status(results, "env-file")).toBe("pass");
+    expect(status(results, "secrets")).toBe("pass");
+    // No migration_lock.toml for fresh SQLite projects — check is skipped, not failed
+    expect(status(results, "migration-provider")).toBeUndefined();
+    expect(ok).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 # OpenAdminJS
 
-OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL**, **Next.js 15**, **React 19**, TailwindCSS and shadcn/ui.
+OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL / MySQL / SQLite**, **Next.js 15**, **React 19**, TailwindCSS and shadcn/ui.
 
 ![OpenAdminJS logo](https://js-senpai.github.io/open-admin-js/assets/brand/openadminjs-logo-new.png)
 
@@ -80,8 +80,27 @@ prefilled with defaults (`http://localhost:3000` and `4000`).
 
 Typical `apps/api/.env` keys (after create, edit as needed):
 
+**PostgreSQL**
+
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public
+```
+
+**MySQL**
+
+```env
+DATABASE_URL=mysql://USER:PASSWORD@localhost:3306/openadminjs
+```
+
+**SQLite** (local file — no server required)
+
+```env
+DATABASE_URL=file:./dev.db
+```
+
+**All providers** (other keys are the same):
+
+```env
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=replace-with-a-long-random-string-at-least-32-chars
 JWT_REFRESH_SECRET=another-long-random-string
@@ -201,7 +220,9 @@ NODE_ENV=production pnpm start
 | `pnpm: command not found` | `corepack enable && corepack prepare pnpm@latest --activate` |
 | Prisma "Environment variable not found: DATABASE_URL" | Ensure `apps/api/.env` exists; the CLI writes it on create |
 | `prisma migrate deploy` fails on a fresh DB | Run `pnpm db:migrate` (dev) once, or check the DB is reachable |
-| `Can't reach database server` | Start PostgreSQL and verify host/port in `DATABASE_URL` |
+| `Can't reach database server` (PostgreSQL/MySQL) | Start the database server and verify host/port in `DATABASE_URL` |
+| MySQL/SQLite: no tables after create | Run `pnpm db:migrate` then `pnpm db:seed` — non-PostgreSQL providers do not ship the baseline migration |
+| SQLite: `Json` fields look like strings in Prisma Studio | Expected at rest; the API decodes them at runtime via `json-field-codec.ts` |
 | Peer dependency warnings on install | Ensure `@apollo/server@^5` + `@nestjs/apollo@^13.4` + `@as-integrations/express5` (already pinned) |
 | Secrets accidentally committed | Rotate them immediately; `.gitignore` prevents this by default |
 

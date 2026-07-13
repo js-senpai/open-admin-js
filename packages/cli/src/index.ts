@@ -22,8 +22,10 @@ import { runSecurityChecks, type Finding } from "./security.js";
 export {
   createProject,
   createProjectInteractive,
+  databaseUrl,
   defaultTemplateDir,
   printNextSteps,
+  printSecurityNotice,
   toPackageName,
   type CreateProjectOptions,
   type CreateProjectResult,

@@ -247,7 +247,7 @@ export function validateSuperadminEmailInput(value: string, fallback = DEFAULT_S
   return /^\S+@\S+\.\S+$/.test(finalValue) ? undefined : "Enter a valid email address.";
 }
 
-function databaseUrl(packageName: string, database: DatabaseDriver): string {
+export function databaseUrl(packageName: string, database: DatabaseDriver): string {
   if (database === "sqlite") {
     return "file:./dev.db";
   }

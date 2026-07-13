@@ -43,8 +43,13 @@ secrets live only in `apps/api/.env` and are never printed by the CLI.
 
 Typical `apps/api/.env` keys (after create, edit as needed):
 
+| Provider | `DATABASE_URL` example |
+| --- | --- |
+| PostgreSQL | `postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public` |
+| MySQL | `mysql://USER:PASSWORD@localhost:3306/openadminjs` |
+| SQLite | `file:./dev.db` |
+
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/openadminjs?schema=public
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=replace-with-a-long-random-string-at-least-32-chars
 JWT_REFRESH_SECRET=another-long-random-string
@@ -85,23 +90,56 @@ After project creation, migrations and seed are run automatically. Use the super
 ## Programmatic API
 
 ```ts
-import { createProject } from "openadminjs";
-
+import { createProject, databaseUrl } from "openadminjs";
 import { randomBytes } from "node:crypto";
 
+// PostgreSQL (ships baseline migration)
 createProject({
   projectName: "my-app",
   packageManager: "pnpm",
   database: "postgresql",
+  databaseUrl: databaseUrl("my-app", "postgresql"),
+  // ...
+});
+
+// MySQL (run db:migrate after install to create the initial migration)
+createProject({
+  projectName: "my-app",
+  packageManager: "pnpm",
+  database: "mysql",
+  databaseUrl: databaseUrl("my-app", "mysql"),
   superadminEmail: "admin@localhost.dev",
   superadminPassword: "a-strong-password",
-  databaseUrl: "postgresql://localhost:5432/my-app?schema=public",
   redisUrl: "redis://localhost:6379",
   jwtSecret: randomBytes(48).toString("base64url"),
   jwtRefreshSecret: randomBytes(48).toString("base64url"),
   adminOrigin: "http://localhost:3000",
   apiPort: "4000"
 });
+
+// SQLite (local file — API JSON-encodes Json columns at runtime)
+createProject({
+  projectName: "my-app",
+  packageManager: "pnpm",
+  database: "sqlite",
+  databaseUrl: "file:./dev.db",
+  superadminEmail: "admin@localhost.dev",
+  superadminPassword: "a-strong-password",
+  redisUrl: "redis://localhost:6379",
+  jwtSecret: randomBytes(48).toString("base64url"),
+  jwtRefreshSecret: randomBytes(48).toString("base64url"),
+  adminOrigin: "http://localhost:3000",
+  apiPort: "4000"
+});
+```
+
+## Health & security checks
+
+```bash
+openadminjs doctor                 # verify the project is ready to run
+openadminjs doctor --json
+openadminjs security check
+openadminjs security check --json
 ```
 
 `templateDir` defaults to the bundled template. The interactive wizard offers
