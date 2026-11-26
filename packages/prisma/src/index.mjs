@@ -69,3 +69,47 @@ export const legacySqliteJsonFields=Object.freeze({AuditLog:["before","after"],S
 export function legacySqliteNormalizationSql(){
  return Object.entries(legacySqliteJsonFields).flatMap(([table,fields])=>fields.map(field=>'UPDATE "'+table+'" SET "'+field+'" = json_quote("'+field+'") WHERE "'+field+'" IS NOT NULL AND NOT json_valid("'+field+'");')).join("\n")+"\n";
 }
+
+/** Prepare an upgrade target from the existing schema, keeping custom models/fields.
+ * Only known type changes are applied. Incompatible customizations fail closed.
+ * No database connection or filesystem mutation occurs here.
+ */
+export function mergeLegacySchema(schema,provider){
+ const actual=schema.match(/datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/)?.[1];
+ if(actual!==provider||!providers.includes(provider))throw Error("Provider mismatch; cross-provider migration is not supported");
+ const canonical=composeSchema({provider});
+ const models=text=>[...text.matchAll(/^model\s+(\w+)\s*\{[\s\S]*?^}/gm)];
+ const before=new Map(models(schema).map(m=>[m[1],m[0]]));
+ const after=new Map(models(canonical).map(m=>[m[1],m[0]]));
+ const changes=[],normalizations=[];
+ const fieldMap=block=>new Map(block.split("\n").flatMap(line=>{const m=line.match(/^\s+(\w+)\s+([A-Za-z][\w]*(?:\[\]|\?)?)(?=\s|$)/);return m?[[m[1],{type:m[2],line}]]:[];}));
+ let result=schema;
+ for(const [model,target] of after){
+  const old=before.get(model);
+  if(!old){result=result.trimEnd()+"\n\n"+target+"\n";changes.push("Add model "+model);continue;}
+  let next=old;const existing=fieldMap(old),fields=fieldMap(target),additions=[];
+  for(const [name,field] of fields){
+   const prior=existing.get(name);
+   if(!prior){additions.push(field.line);changes.push("Add "+model+"."+name);continue;}
+   if(prior.type!==field.type){
+    if(provider==="sqlite"&&legacySqliteJsonFields[model]?.includes(name)&&prior.type.replace("?","")==="String"&&field.type.replace("?","")==="Json"&&prior.type.endsWith("?")===field.type.endsWith("?")){
+     next=next.replace(prior.line,prior.line.replace(/^(\s+\w+\s+)String(\??)/,(_,prefix,suffix)=>prefix+"Json"+suffix));
+     normalizations.push({table:model,field:name});changes.push("Convert "+model+"."+name+" from legacy JSON text");
+    }else throw Error("Incompatible customized field "+model+"."+name+": "+prior.type+" vs "+field.type);
+   }
+   if(model==="ApiToken"&&name==="tokenHash"&&!/\s@unique\b/.test(prior.line)){
+    if(/\s\/\//.test(prior.line))throw Error("Review custom ApiToken.tokenHash declaration manually");
+    next=next.replace(prior.line,prior.line+" @unique");changes.push("Add ApiToken.tokenHash unique constraint");
+   }
+  }
+  const attrs=target.split("\n").filter(l=>/^\s*@@/.test(l));
+  const normalize=l=>l.replace(/\s+/g,"");
+  for(const attr of attrs)if(!old.split("\n").some(l=>normalize(l)===normalize(attr))){additions.push(attr);changes.push("Add "+model+" "+attr.trim());}
+  if(additions.length)next=next.slice(0,next.lastIndexOf("}")).trimEnd()+"\n\n"+additions.join("\n")+"\n}";
+  result=result.replace(old,()=>next);
+ }
+ // Unformatted built-in definitions must not accidentally be added twice.
+ const duplicates=new Set();
+ for(const m of result.matchAll(/^\s*(?:model|enum|type|view)\s+(\w+)\s*\{/gm)){if(duplicates.has(m[1]))throw Error("Duplicate declaration; format original schema before merging: "+m[1]);duplicates.add(m[1]);}
+ return {schema:result,changes,normalizations,clearLegacyRefresh:!before.has("Session"),revokeLegacyKeys:!(/\s@unique\b/.test(fieldMap(before.get("ApiToken")||"").get("tokenHash")?.line||""))};
+}

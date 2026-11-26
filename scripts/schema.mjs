@@ -1,7 +1,7 @@
 import {existsSync,readFileSync,writeFileSync,mkdirSync,readdirSync,lstatSync,renameSync} from "node:fs";
 import {join,resolve} from "node:path";
 import {createHash} from "node:crypto";
-import {composeSchema,splitSchema,moduleNames,providers} from "../packages/prisma/src/index.mjs";
+const {composeSchema,splitSchema,moduleNames,providers}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
 const root=process.cwd(),schema=join(root,"prisma/schema.prisma"),dir=join(root,"prisma/modules"),manifest=join(dir,"manifest.json");
 const [command,...args]=process.argv.slice(2);
 const hash=text=>createHash("sha256").update(text).digest("hex");

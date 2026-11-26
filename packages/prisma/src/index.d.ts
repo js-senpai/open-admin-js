@@ -8,3 +8,4 @@ export function composeSchema(options?:{provider?:Provider;modules?:readonly Sch
 export function splitSchema(schema:string):{name:string;content:string}[];
 export const legacySqliteJsonFields:Readonly<Record<string,readonly string[]>>;
 export function legacySqliteNormalizationSql():string;
+export function mergeLegacySchema(schema:string,provider:Provider):{schema:string;changes:string[];normalizations:{table:string;field:string}[];clearLegacyRefresh:boolean;revokeLegacyKeys:boolean};

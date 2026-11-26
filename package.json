@@ -21,7 +21,8 @@
     "runtime:pack": "node scripts/pack-runtime.mjs",
     "schema:check": "node scripts/schema.mjs check",
     "schema:compose": "node scripts/schema.mjs compose",
-    "schema:adopt": "node scripts/schema.mjs adopt"
+    "schema:adopt": "node scripts/schema.mjs adopt",
+    "schema:upgrade-plan": "node scripts/migrate-existing.mjs"
   },
   "devDependencies": {
     "@prisma/client": "^6.1.0",
