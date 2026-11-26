@@ -24,9 +24,9 @@ import { AdminResourcesResolver } from "./admin-resources.resolver";
       // plugin, which carries a non-optional @apollo/server@4 peer dependency
       // and causes peer conflicts on a clean install.
       playground: false,
-      introspection: process.env.NODE_ENV !== "production",
+      introspection: process.env.NODE_ENV !== "production" && process.env.OPENADMIN_GRAPHQL_INTROSPECTION !== "0",
       plugins: [
-        process.env.NODE_ENV === "production"
+        (process.env.NODE_ENV === "production" || process.env.OPENADMIN_GRAPHQL_INTROSPECTION === "0")
           ? ApolloServerPluginLandingPageDisabled()
           : ApolloServerPluginLandingPageLocalDefault({ embed: true })
       ]

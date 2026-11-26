@@ -31,30 +31,29 @@ function withAdminLocale(path: string): string {
 }
 
 // ──────────────────────────────────────────────
-// Refresh flow (server-side BFF or direct fallback)
-// ──────────────────────────────────────────────
-
-let refreshInFlight: Promise<boolean> | undefined;
+// Same-origin BFF refresh; per-tab single flight and cross-tab Web Locks.
+type RefreshOutcome = "ready" | "denied" | "unavailable";
+let refreshInFlight: Promise<RefreshOutcome> | undefined;
 let authGeneration = 0;
-function tryRefreshToken(): Promise<boolean> {
-  if (typeof window === "undefined") return Promise.resolve(false);
+function tryRefreshToken(): Promise<RefreshOutcome> {
+  if (typeof window === "undefined") return Promise.resolve("denied");
   if (!refreshInFlight) {
-    const refresh = async () => {
-      // Another tab may already have refreshed the shared cookies. Check after obtaining a browser-wide lock.
-      const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
-      if (response.ok) authGeneration++;
-      return response.ok;
+    const ready = (): RefreshOutcome => { authGeneration++; return "ready"; };
+    const refresh = async (): Promise<RefreshOutcome> => {
+      const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin", cache: "no-store" });
+      return response.ok ? ready() : response.status === 401 ? "denied" : "unavailable";
     };
     const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
-    const run = async (): Promise<boolean> => {
+    const run = async (): Promise<RefreshOutcome> => {
       if (!locks) return refresh();
-      return await locks.request("openadminjs-refresh", async () => {
-      const check = await fetch("/api/backend/auth/me", { credentials: "same-origin", cache: "no-store" });
-      if(check.ok) { authGeneration++; return true; }
-      return refresh();
-    });
+      return locks.request("openadminjs-refresh", async () => {
+        const check = await fetch("/api/backend/auth/me", { credentials: "same-origin", cache: "no-store" });
+        if (check.ok) return ready();
+        if (check.status !== 401) return "unavailable";
+        return refresh();
+      });
     };
-    refreshInFlight = run().catch(() => false).finally(() => { refreshInFlight = undefined; });
+    refreshInFlight = run().catch((): RefreshOutcome => "unavailable").finally(() => { refreshInFlight = undefined; });
   }
   return refreshInFlight;
 }
@@ -103,7 +102,14 @@ async function requestWithAuthRetry(url: string, options: RequestInit): Promise<
   const generation = authGeneration;
   const res = await makeRequest();
   if (res.status === 401 && typeof window !== "undefined") {
-    if (authGeneration !== generation || await tryRefreshToken()) return makeRequest();
+    const outcome = authGeneration !== generation ? "ready" : await tryRefreshToken();
+    if (outcome === "unavailable") {
+      return new Response(JSON.stringify({ message: "Session refresh temporarily unavailable. Please retry." }), { status: 503, headers: { "content-type": "application/json" } });
+    }
+    if (outcome === "ready") {
+      const retry = await makeRequest();
+      if (retry.status !== 401) return retry;
+    }
     if (!window.location.pathname.startsWith("/login")) window.location.assign("/login");
   }
   return res;
