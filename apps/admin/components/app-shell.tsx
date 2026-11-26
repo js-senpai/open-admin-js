@@ -11,7 +11,6 @@ import {
   Gauge,
   History,
   Image,
-  KeyRound,
   Menu,
   Moon,
   Puzzle,
@@ -22,7 +21,6 @@ import {
   Users,
   X
 } from "lucide-react";
-import { AiAssistantWidget } from "./ai-assistant-widget";
 import { api } from "../lib/api";
 import { Logo } from "./logo";
 
@@ -50,7 +48,6 @@ const navGroups = [
       { href: "/system-logs", label: "System Logs", icon: FileText },
       { href: "/plugins", label: "Plugins", icon: Puzzle },
       { href: "/notifications", label: "Notifications", icon: Bell },
-      { href: "/api-tokens", label: "API Tokens", icon: KeyRound },
       { href: "/settings", label: "Settings", icon: Settings }
     ]
   }
@@ -327,7 +324,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      <AiAssistantWidget />
 
       {searchOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/45 p-4 pt-20 backdrop-blur-sm">

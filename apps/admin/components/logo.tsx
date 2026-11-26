@@ -1,30 +1,6 @@
-"use client";
-
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-import { BRAND } from "../lib/brand";
-
 export function Logo({ compact = false }: { compact?: boolean }) {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const sizeClass = compact
-    ? "h-7 w-auto max-w-[min(11rem,42vw)] shrink-0 object-contain object-left"
-    : "h-8 w-auto max-w-[min(16rem,85vw)] object-contain object-left";
-
-  // Before hydration, render a placeholder so there's no layout shift
-  if (!mounted) {
-    return <span className={compact ? "inline-block h-7 w-32" : "inline-block h-8 w-40"} />;
-  }
-
-  const isDark = resolvedTheme === "dark";
-  return (
-    <img
-      src={isDark ? BRAND.logoMonochromePng : BRAND.logoNew}
-      alt="OpenAdminJS"
-      className={sizeClass}
-      draggable={false}
-    />
-  );
+  return <span className="inline-flex items-center gap-2 font-semibold tracking-tight text-slate-900 dark:text-white" aria-label="OpenAdminJS">
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={compact ? "h-7 w-7 shrink-0" : "h-8 w-8 shrink-0"}><rect width="64" height="64" rx="13" fill="#101820"/><path fill="#B9F56D" d="M29 13a19 19 0 1 0 0 38h9l11-23 7 15H45l-4 8h18L42 13h-8L21 42a11 11 0 1 1 8-21l3-7z"/></svg>
+    <span className={compact ? "text-sm" : "text-lg"}>OpenAdmin<span className="text-[#537b20] dark:text-[#B9F56D]">JS</span></span>
+  </span>;
 }

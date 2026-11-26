@@ -50,7 +50,7 @@ export class AdminResourceService {
           icon: view.icon,
           titleField: view.titleField,
           permissions: view.permissions,
-          fields: Object.fromEntries(Object.entries(view.fields).filter(([name]) => this.canReadField(resource, name, user))),
+          fields: Object.fromEntries(Object.entries(view.fields).filter(([name]) => this.canReadField(resource, name, user)).map(([name, field]) => [name, { ...field, create: field.create !== false && (!field.permissions?.create || this.has(user, field.permissions.create)), edit: field.edit !== false && (!field.permissions?.update || this.has(user, field.permissions.update)) }])),
           actions: view.actions,
           i18n: view.i18n,
           seo: view.seo
@@ -80,7 +80,7 @@ export class AdminResourceService {
       const scope = shouldApplyListScope(resource, user.permissions) ? listScopeWhereClause(resource, user.id) : undefined;
       const where = mergeWhereClauses(
         {
-          OR: searchable.map((field) => ({ [field]: { contains: q, mode: "insensitive" } }))
+          OR: searchable.map((field) => ({ [field]: { contains: q, ...(/^(postgres|postgresql):/.test(process.env.DATABASE_URL ?? "postgresql:") ? { mode: "insensitive" } : {}) } }))
         },
         mergeWhereClauses(scope, this.systemScope(resource))
       );
@@ -492,7 +492,7 @@ export class AdminResourceService {
     const clauses: Record<string, unknown>[] = [];
     if (query.search) {
       const searchable = Object.entries(resource.fields).filter(([name, field]) => field.searchable && this.canReadField(resource, name, user));
-      clauses.push({ OR: searchable.map(([field]) => ({ [field]: { contains: String(query.search), mode: "insensitive" } })) });
+      clauses.push({ OR: searchable.map(([field]) => ({ [field]: { contains: String(query.search), ...(/^(postgres|postgresql):/.test(process.env.DATABASE_URL ?? "postgresql:") ? { mode: "insensitive" } : {}) } })) });
     }
     for (const [key, value] of Object.entries(query)) {
       const opMatch = key.match(/^filter\[([^\]]+)]\[(\w+)]$/);
@@ -541,7 +541,7 @@ export class AdminResourceService {
         if (!this.isStringFilterField(field)) {
           throw new BadRequestException({ message: `Operator "contains" is only for string-like fields`, code: "FILTER_OP_INVALID" });
         }
-        return { [fieldName]: { contains: str, mode: "insensitive" } };
+        return { [fieldName]: { contains: str, ...(/^(postgres|postgresql):/.test(process.env.DATABASE_URL ?? "postgresql:") ? { mode: "insensitive" } : {}) } };
       }
       default:
         throw new BadRequestException({ message: `Unknown filter operator "${op}"`, code: "FILTER_OP_UNKNOWN" });
