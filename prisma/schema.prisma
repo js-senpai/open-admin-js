@@ -211,6 +211,10 @@ model Order {
   /** Total in smallest currency unit */
   total        Int
   notes        String?
+  checkoutKey String? @unique
+  checkoutRequestHash String?
+  checkoutSessionId String? @unique
+  paymentIntentId String? @unique
   metadata     Json?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -252,6 +256,7 @@ model WebhookLog {
   id        String   @id @default(cuid())
   provider  String
   eventType String
+  providerEventId String? @unique
   payload   Json
   /** pending | processed | failed */
   status    String   @default("pending")

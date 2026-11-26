@@ -1,97 +1,22 @@
-import {
-  Body,
-  Controller,
-  Get,
-  ForbiddenException,
-  Headers,
-  Inject,
-  Param,
-  Post,
-  Query,
-  Req,
-  UseGuards
-} from "@nestjs/common";
+import { Body,Controller,Get,Post,Param,Query,Headers,Inject,Req,UseGuards,ForbiddenException,BadRequestException } from "@nestjs/common";
 import type { RawBodyRequest } from "@nestjs/common";
+import type { Request } from "express";
 import { AuthGuard } from "../../common/auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
+import { RequireAuthRealm } from "../../common/auth-realm.decorator";
 import { PaymentService } from "./payment.service";
-import type { CreateOrderInput } from "./payment.service";
-
-type UserContext = { id: string; email?: string; permissions: string[] };
-type RequestLike = { user?: UserContext; rawBody?: Buffer };
-
+type User={id:string;email?:string;permissions:string[]};
+const requirePermission=(u:User,p:string)=>{if(!u.permissions.includes(p)&&!u.permissions.includes("*"))throw new ForbiddenException("Missing permission");};
 @Controller("store")
 export class PaymentController {
-  constructor(@Inject(PaymentService) private readonly paymentService: PaymentService) {}
-
-  // ──────────────────────────────────────────────
-  // Public endpoints — no JWT required
-  // ──────────────────────────────────────────────
-
-  /**
-   * GET /store/products
-   * List all active products (public storefront).
-   */
-  @Get("products")
-  products() {
-    return this.paymentService.listProducts(true);
-  }
-
-  /**
-   * POST /store/checkout
-   * Create an order + payment session.
-   * Works for guests (no auth) and authenticated users.
-   */
-  @Post("checkout")
-  checkout(
-    @Body() body: CreateOrderInput & { guestEmail?: string },
-    @Req() req: RequestLike
-  ) {
-    void body; void req;
-    throw new ForbiddenException({ message: "Checkout is disabled pending payment validation", code: "COMMERCE_DISABLED" });
-  }
-
-  /**
-   * GET /store/orders/:id/status
-   * Public order status check (e.g. success page after redirect).
-   */
-  @Get("orders/:id/status")
-  orderStatus(@Param("id") id: string) {
-    void id;
-    throw new ForbiddenException({ message: "Public order status is disabled pending ownership validation", code: "COMMERCE_DISABLED" });
-  }
-
-  /**
-   * POST /store/webhook/:provider
-   * Receive payment events from the provider.
-   * Authentication is signature-based (handled in PaymentService).
-   */
-  @Post("webhook/:provider")
-  webhook(
-    @Param("provider") provider: string,
-    @Headers("stripe-signature") stripeSignature: string | undefined,
-    @Headers("x-webhook-signature") genericSignature: string | undefined,
-    @Req() req: RawBodyRequest<RequestLike>
-  ) {
-    void provider; void stripeSignature; void genericSignature; void req;
-    throw new ForbiddenException({ message: "Webhooks are disabled pending signature and idempotency validation", code: "COMMERCE_DISABLED" });
-  }
-
-  // ──────────────────────────────────────────────
-  // Authenticated user endpoints
-  // ──────────────────────────────────────────────
-
-  /**
-   * GET /store/orders
-   * List orders belonging to the current user.
-   */
-  @UseGuards(AuthGuard)
-  @Get("orders")
-  myOrders(
-    @CurrentUser() user: UserContext,
-    @Query("page") page?: string,
-    @Query("limit") limit?: string
-  ) {
-    return this.paymentService.getUserOrders(user.id, Number(page ?? 1), Number(limit ?? 20));
-  }
+ constructor(@Inject(PaymentService) private readonly payments:PaymentService){}
+ @Get("products") products(){return this.payments.listProducts();}
+ @UseGuards(AuthGuard) @RequireAuthRealm("public") @Post("checkout")
+ checkout(@Body() body:unknown,@CurrentUser() user:User){requirePermission(user,"public.orders.create");return this.payments.createCheckout(body,user);}
+ @UseGuards(AuthGuard) @RequireAuthRealm("public") @Get("orders/:id/status")
+ status(@Param("id") id:string,@CurrentUser() user:User){requirePermission(user,"public.orders.read_own");return this.payments.getOrderStatus(id,user.id);}
+ @Post("webhook/:provider")
+ webhook(@Param("provider") provider:string,@Headers("stripe-signature") signature:string|undefined,@Req() req:RawBodyRequest<Request>){if(!req.rawBody||!signature)throw new BadRequestException("Missing signature or raw body");return this.payments.handleWebhook(provider,req.rawBody,signature);}
+ @UseGuards(AuthGuard) @RequireAuthRealm("public") @Get("orders")
+ orders(@CurrentUser() user:User,@Query("page") page?:string,@Query("limit") limit?:string){requirePermission(user,"public.orders.read_own");return this.payments.getUserOrders(user.id,Number(page??1),Number(limit??20));}
 }

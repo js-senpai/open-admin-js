@@ -57,7 +57,7 @@ export const ordersResource = defineResource({
     status: {
       type: "badge",
       label: { en: "Status", ru: "Статус" },
-      options: ["pending", "paid", "failed", "refunded", "cancelled"],
+      options: ["pending", "paid", "failed", "refund_pending", "refunded", "cancelled"],
       edit: false,
       create: false,
       filterable: true,

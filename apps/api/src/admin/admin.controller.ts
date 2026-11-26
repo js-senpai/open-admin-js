@@ -90,10 +90,9 @@ export class AdminController {
 
   @Post("orders/:id/refund")
   refundOrder(@Param("id") id: string, @CurrentUser() user: UserContext) {
-    void id;
     if (!user.permissions.includes("orders.refund") && !user.permissions.includes("*")) throw new ForbiddenException("Missing permission");
     if (!this.payments) throw new ForbiddenException("Payments unavailable");
-    throw new ForbiddenException({ message: "Refunds are disabled pending idempotency validation", code: "COMMERCE_DISABLED" });
+    return this.payments.refundOrder(id,user.id);
   }
 
   @Post(":resource/:id/actions/:action")
