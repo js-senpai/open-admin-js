@@ -21,22 +21,23 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
       - uses: actions/download-artifact@v4
         with:
           name: openadminjs-candidate
           path: candidate
       - name: Publish the exact tested archive
         working-directory: candidate
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
+          unset NODE_AUTH_TOKEN NPM_TOKEN
+          npm --version
           sha256sum -c SHA256SUMS
           version=$(tar -xOzf ./*.tgz package/package.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>console.log(JSON.parse(s).version))')
           tag=latest
           if [[ "$version" == *-* ]]; then tag=next; fi
-          npm publish ./*.tgz --tag "$tag" --access public --provenance --ignore-scripts
+          npm publish ./*.tgz --tag "$tag" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org

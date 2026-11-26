@@ -62,4 +62,4 @@ CI creates a pre-V2 schema with a custom table and custom User column, inserts r
 
 ## Release gate
 
-The manual `Publish independently versioned runtime packages` workflow is main-only, requires explicit approval, successful CI and the `npm-runtime-release` environment. It checks archive checksums, checks published dependency versions, publishes in dependency order, and permits selecting individual packages. Configure npm namespace ownership, environment protection and publishing credentials before using it. Prereleases can only use the `next` dist-tag. No release is triggered by a push or PR.
+The manual `Publish independently versioned runtime packages` workflow is main-only, requires explicit approval, successful CI and the `npm-runtime-release` environment. It checks archive checksums, checks published dependency versions, publishes in dependency order, and permits selecting individual packages. Configure npm namespace ownership, environment protection and per-package trusted publishers before using it. See [npm trusted publishing](npm-trusted-publishing.md). Prereleases can only use the `next` dist-tag. No release is triggered by a push or PR.
