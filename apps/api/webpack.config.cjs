@@ -6,7 +6,7 @@ module.exports = function configureWebpack(options) {
     ...options,
     externals: [
       nodeExternals({
-        allowlist: [/^@openadminjs\//],
+        allowlist: [/^@openadminjs\//, /^openid-client(?:\/|$)/, /^oauth4webapi(?:\/|$)/, /^jose(?:\/|$)/],
       }),
     ],
   };

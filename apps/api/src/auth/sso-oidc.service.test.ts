@@ -1,84 +1,16 @@
-import { BadRequestException, UnauthorizedException } from "@nestjs/common";
-import { describe, expect, it, vi } from "vitest";
-import { SsoOidcService } from "./sso-oidc.service";
-
-function configMock(values: Record<string, string | undefined>) {
-  return {
-    get: vi.fn((key: string) => values[key])
-  };
+import {describe,it,expect,vi} from "vitest";
+import {SsoOidcService} from "./sso-oidc.service";
+const values={OPENADMIN_OIDC_ENABLED:"1",OIDC_ISSUER:"https://issuer.example.test",OIDC_CLIENT_ID:"client",OIDC_CLIENT_SECRET:"secret",OIDC_REDIRECT_URI:"https://admin.example.test/api/auth/oidc/callback",ADMIN_ORIGIN:"https://admin.example.test",JWT_SECRET:"test-only-secret"};
+function service(extra:Record<string,string>={}){
+ const auth={loginWithOidcProfile:vi.fn()};
+ const config={get:(name:string)=>({...values,...extra} as Record<string,string>)[name]};
+ return {auth,service:new SsoOidcService(config as never,auth as never)};
 }
-
-describe("SsoOidcService", () => {
-  it("isEnabled uses provider preset issuer", () => {
-    const cfg = configMock({
-      OIDC_PROVIDER: "google",
-      OIDC_CLIENT_ID: "cid",
-      OIDC_CLIENT_SECRET: "sec",
-      OIDC_REDIRECT_URI: "http://localhost:4000/auth/sso/oidc/callback"
-    });
-    const auth = { loginWithOidcProfile: vi.fn() };
-    const service = new SsoOidcService(cfg as never, auth as never);
-    expect(service.isEnabled()).toBe(true);
-  });
-
-  it("startLogin fails without issuer or known preset", async () => {
-    const cfg = configMock({
-      OIDC_PROVIDER: "custom",
-      OIDC_CLIENT_ID: "cid",
-      OIDC_CLIENT_SECRET: "sec",
-      OIDC_REDIRECT_URI: "http://localhost:4000/auth/sso/oidc/callback",
-      JWT_SECRET: "jwt-secret"
-    });
-    const auth = { loginWithOidcProfile: vi.fn() };
-    const service = new SsoOidcService(cfg as never, auth as never);
-    await expect(service.startLogin("admin")).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it("handleCallback rejects malformed state", async () => {
-    const cfg = configMock({
-      OIDC_ISSUER: "https://accounts.google.com",
-      OIDC_CLIENT_ID: "cid",
-      OIDC_CLIENT_SECRET: "sec",
-      OIDC_REDIRECT_URI: "http://localhost:4000/auth/sso/oidc/callback",
-      JWT_SECRET: "jwt-secret"
-    });
-    const auth = { loginWithOidcProfile: vi.fn() };
-    const service = new SsoOidcService(cfg as never, auth as never);
-    const req = { cookies: { oajs_oidc: "x.y" }, headers: {}, ip: "127.0.0.1", path: "/auth/sso/oidc/callback" };
-    await expect(service.handleCallback(req as never, "code", "bad")).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it("handleCallback rejects callback host mismatch", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          authorization_endpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-          token_endpoint: "https://oauth2.googleapis.com/token",
-          userinfo_endpoint: "https://openidconnect.googleapis.com/v1/userinfo"
-        })
-      })
-    );
-    const cfg = configMock({
-      OIDC_ISSUER: "https://accounts.google.com",
-      OIDC_CLIENT_ID: "cid",
-      OIDC_CLIENT_SECRET: "sec",
-      OIDC_REDIRECT_URI: "http://localhost:4000/auth/sso/oidc/callback",
-      JWT_SECRET: "jwt-secret"
-    });
-    const auth = { loginWithOidcProfile: vi.fn() };
-    const service = new SsoOidcService(cfg as never, auth as never);
-    const started = await service.startLogin("admin");
-    const state = new URL(started.authorizeUrl).searchParams.get("state") ?? "";
-    const req = {
-      cookies: { oajs_oidc: started.setCookie.value },
-      headers: { host: "evil.example.com" },
-      ip: "127.0.0.1",
-      path: "/auth/sso/oidc/callback"
-    };
-    await expect(service.handleCallback(req as never, "code", state)).rejects.toBeInstanceOf(UnauthorizedException);
-    vi.unstubAllGlobals();
-  });
+describe("OIDC fail-closed",()=>{
+ it("requires explicit opt-in",()=>expect(service({OPENADMIN_OIDC_ENABLED:"0"}).service.isEnabled()).toBe(false));
+ it("rejects non-TLS issuer",async()=>await expect(service({OIDC_ISSUER:"http://issuer.example.test"}).service.startLogin()).rejects.toThrow("Invalid OIDC configuration"));
+ it("rejects callback on foreign origin",async()=>await expect(service({OIDC_REDIRECT_URI:"https://foreign.example.test/api/auth/oidc/callback"}).service.startLogin()).rejects.toThrow("OIDC redirect origin not allowed"));
+ it("rejects forged or missing transaction before provider exchange",async()=>{
+  const s=service();await expect(s.service.handleCallback("code","state","fake.sig")).rejects.toThrow("OIDC authentication failed");expect(s.auth.loginWithOidcProfile).not.toHaveBeenCalled();
+ });
 });
-

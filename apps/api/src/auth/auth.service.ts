@@ -73,43 +73,8 @@ export class AuthService {
       include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
     });
 
-    if (!user) {
-      const existing = await this.prisma.user.findUnique({ where: { email: emailNorm } });
-      if (existing) throw new UnauthorizedException({ message: "Explicit account linking required", code: "OIDC_LINK_REQUIRED" });
-      const randomPass = randomBytes(48).toString("hex");
-      const created = await this.prisma.user.create({
-        data: {
-          email: emailNorm,
-          name: profile.name ?? null,
-          avatarUrl: profile.picture ?? null,
-          passwordHash: await bcrypt.hash(randomPass, 12),
-          oidcKey
-        }
-      });
-      const roleName = this.config.get<string>("OIDC_DEFAULT_ROLE")?.trim() ?? "viewer";
-      const role = await this.prisma.role.findUnique({
-        where: { name_realm: { name: roleName, realm } }
-      });
-      if (role) {
-        await this.prisma.userRole.create({ data: { userId: created.id, roleId: role.id } });
-      }
-      user = await this.prisma.user.findUniqueOrThrow({
-        where: { id: created.id },
-        include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
-      });
-    } else {
-      if (user.status !== "active") throw new UnauthorizedException({ message: "Invalid account", code: "AUTH_INVALID" });
-      const updates: { oidcKey?: string; avatarUrl?: string | null; name?: string | null } = {};
-      if (!user.oidcKey) updates.oidcKey = oidcKey;
-      if (profile.picture && !user.avatarUrl) updates.avatarUrl = profile.picture;
-      if (profile.name && !user.name) updates.name = profile.name;
-      if (Object.keys(updates).length) {
-        await this.prisma.user.update({ where: { id: user.id }, data: updates });
-        user = await this.prisma.user.findUniqueOrThrow({
-          where: { id: user.id },
-          include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
-        });
-      }
+    if (!user || user.status !== "active" || user.email.toLowerCase().trim() !== emailNorm) {
+      throw new UnauthorizedException({message:"A verified, pre-linked account is required",code:"OIDC_LINK_REQUIRED"});
     }
 
     const assignments = user.roles.filter((ur) => ur.role.realm === realm);

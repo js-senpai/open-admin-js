@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Lock, Loader2, Mail } from "lucide-react";
 import { Logo } from "../../components/logo";
@@ -10,6 +10,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oidcEnabled,setOidcEnabled]=useState(false);
+  useEffect(()=>{fetch("/api/auth/oidc/status").then(r=>r.json()).then(x=>setOidcEnabled(x.enabled===true)).catch(()=>undefined);if(new URLSearchParams(window.location.search).has("sso_error"))setError("Single sign-on could not be completed.");},[]);
   async function submit(formData: FormData) {
     setError("");
     setLoading(true);
@@ -59,6 +61,7 @@ export default function LoginPage() {
       <label className="block space-y-2"><span className="text-sm font-semibold">Password</span><div className="oc-login-input"><Lock size={17}/><input required name="password" type="password" placeholder="Enter your password" autoComplete="current-password" className="input-base"/></div></label>
       {error && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       <button type="submit" disabled={loading} className="btn-primary w-full py-3">{loading ? <><Loader2 className="h-4 w-4 animate-spin"/>Signing in...</> : <>Sign in<ArrowRight size={17}/></>}</button></form>
+      {oidcEnabled&&<a href="/api/auth/oidc/start" className="btn-secondary mt-3 block w-full text-center">Sign in with SSO</a>}
       <p className="oc-login-meta"><Lock size={13}/> Session protected by HttpOnly cookies</p></div></section>
   </main>;
 }
