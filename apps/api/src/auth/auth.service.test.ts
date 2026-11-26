@@ -20,6 +20,8 @@ function createPrismaMock() {
       findMany: vi.fn(),
       update: vi.fn()
     },
+    session: { create: vi.fn().mockResolvedValue({ id: "s1" }) },
+    sessionToken: { findUnique: vi.fn() },
     auditLog: {
       create: vi.fn()
     }
@@ -45,6 +47,7 @@ describe("AuthService", () => {
     const result = await service.login("admin@example.test", "password", {}, "admin");
 
     expect(result.accessToken).toBe("jwt");
+    expect(jwt.signAsync).toHaveBeenCalledWith({ sub: "u1", realm: "admin", sid: "s1" });
     expect(result.user.email).toBe("admin@example.test");
     expect(prisma.auditLog.create).toHaveBeenCalled();
   });
@@ -79,11 +82,13 @@ describe("AuthService", () => {
   it("refresh fails when token does not match any user", async () => {
     const prisma = createPrismaMock();
     const jwt = { signAsync: vi.fn().mockResolvedValue("jwt") };
-    prisma.user.findMany.mockResolvedValue([{ id: "u1", refreshTokenHash: "hash-1" }]);
+    prisma.sessionToken.findUnique.mockResolvedValue(null);
     bcryptCompareMock.mockResolvedValue(false);
 
     const config = { get: vi.fn().mockReturnValue(undefined) };
     const service = new AuthService(prisma as never, jwt as never, config as never);
-    await expect(service.refresh("bad-token", "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh("a".repeat(64), "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.sessionToken.findUnique).toHaveBeenCalledOnce();
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
   });
 });

@@ -146,34 +146,61 @@ export class AuthService {
 
   async issueSession(userId: string, realm: string = DEFAULT_AUTH_REALM) {
     const refreshToken = randomBytes(48).toString("base64url");
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshTokenHash: await bcrypt.hash(refreshToken, 12) }
+    const session = await this.prisma.session.create({
+      data: {
+        userId, realm,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        tokens: { create: { tokenHash: this.hashToken(refreshToken) } }
+      }
     });
+    return this.sessionResponse(userId, realm, session.id, refreshToken);
+  }
+
+  private async sessionResponse(userId: string, realm: string, sessionId: string, refreshToken: string) {
     return {
-      accessToken: await this.jwt.signAsync({ sub: userId, realm }),
+      accessToken: await this.jwt.signAsync({ sub: userId, realm, sid: sessionId }),
       refreshToken,
       expiresIn: 900
     };
   }
 
   async refresh(refreshToken: string, realm: string = DEFAULT_AUTH_REALM) {
-    const users = await this.prisma.user.findMany({ where: { refreshTokenHash: { not: null } } });
-    const user = await users.reduce<Promise<(typeof users)[number] | undefined>>(async (match, candidate) => {
-      const found = await match;
-      if (found) return found;
-      return candidate.refreshTokenHash && (await bcrypt.compare(refreshToken, candidate.refreshTokenHash)) ? candidate : undefined;
-    }, Promise.resolve(undefined));
-    if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid refresh token", code: "REFRESH_INVALID" });
-    const assignment = await this.prisma.userRole.findFirst({ where: { userId: user.id, role: { realm } } });
-    if (!assignment) throw new UnauthorizedException({ message: "Invalid refresh token", code: "REFRESH_INVALID" });
-    return this.issueSession(user.id, realm);
+    const denied = () => new UnauthorizedException({ message: "Invalid refresh token", code: "REFRESH_INVALID" });
+    if (!/^[A-Za-z0-9_-]{64}$/.test(refreshToken)) throw denied();
+    const token = await this.prisma.sessionToken.findUnique({
+      where: { tokenHash: this.hashToken(refreshToken) },
+      include: { session: { include: { user: { include: { roles: { include: { role: true } } } } } } }
+    });
+    if (!token || token.session.realm !== realm || token.session.revokedAt || token.session.expiresAt <= new Date()) throw denied();
+    if (token.session.user.status !== "active" || !token.session.user.roles.some(r => r.role.realm === realm)) throw denied();
+    const nextToken = randomBytes(48).toString("base64url");
+    const rotated = await this.prisma.$transaction(async tx => {
+      // Lock/claim the family row first so refresh/logout/reuse are serialized.
+      const locked = await tx.session.updateMany({
+        where: { id: token.sessionId, realm, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { lastUsedAt: new Date() }
+      });
+      if (locked.count !== 1) return false;
+      const claimed = await tx.sessionToken.updateMany({
+        where: { id: token.id, usedAt: null },
+        data: { usedAt: new Date() }
+      });
+      if (claimed.count !== 1) {
+        // Commit revocation even when a rotated token is replayed.
+        await tx.session.update({ where: { id: token.sessionId }, data: { revokedAt: new Date() } });
+        return false;
+      }
+      await tx.sessionToken.create({ data: { sessionId: token.sessionId, tokenHash: this.hashToken(nextToken) } });
+      return true;
+    });
+    if (!rotated) throw denied();
+    return this.sessionResponse(token.session.userId, realm, token.sessionId, nextToken);
   }
 
-  async logout(userId: string, meta: { ipAddress?: string; userAgent?: string }) {
-    await this.prisma.user.update({ where: { id: userId }, data: { refreshTokenHash: null } });
-    await this.prisma.auditLog.create({
-      data: { userId, action: "logout", ipAddress: meta.ipAddress, userAgent: meta.userAgent }
+  async logout(userId: string, sessionId: string, meta: { ipAddress?: string; userAgent?: string }) {
+    await this.prisma.$transaction(async tx => {
+      await tx.session.updateMany({ where: { id: sessionId, userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.auditLog.create({ data: { userId, action: "logout", ipAddress: meta.ipAddress, userAgent: meta.userAgent } });
     });
     return { ok: true };
   }
@@ -226,6 +253,7 @@ export class AuthService {
       const claimed = await tx.passwordResetToken.updateMany({ where: { id: resetToken.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
       if (claimed.count !== 1) throw new BadRequestException({ message: "Invalid or expired reset token", code: "RESET_TOKEN_INVALID" });
       await tx.user.update({ where: { id: resetToken.userId }, data: { passwordHash: nextPasswordHash, refreshTokenHash: null } });
+      await tx.session.updateMany({ where: { userId: resetToken.userId, revokedAt: null }, data: { revokedAt: new Date() } });
       await tx.passwordResetToken.updateMany({ where: { userId: resetToken.userId, usedAt: null }, data: { usedAt: new Date() } });
       await tx.auditLog.create({ data: { userId: resetToken.userId, action: "password.reset.completed", resource: "auth" } });
     });

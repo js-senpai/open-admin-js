@@ -16,6 +16,7 @@ import { AUTH_REALM_KEY } from "./auth-realm.decorator";
 
 export type RequestUser = {
   id: string;
+  sessionId: string;
   email?: string;
   name?: string | null;
   realm: string;
@@ -39,7 +40,7 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException({ message: "Missing access token", code: "AUTH_REQUIRED" });
     try {
       const jwtSecret = this.config.get<string>("JWT_SECRET")?.trim() ?? process.env.JWT_SECRET?.trim();
-      const payload = await this.jwt.verifyAsync<{ sub: string; realm?: string }>(token, { secret: jwtSecret });
+      const payload = await this.jwt.verifyAsync<{ sub: string; realm?: string; sid?: string }>(token, { secret: jwtSecret });
       const realm = payload.realm ?? DEFAULT_AUTH_REALM;
 
       const requiredRealm = this.reflector.getAllAndOverride<string | undefined>(AUTH_REALM_KEY, [
@@ -60,6 +61,10 @@ export class AuthGuard implements CanActivate {
       });
       if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
 
+      if (!payload.sid) throw new UnauthorizedException("Session required");
+      const session = await this.prisma.session.findFirst({ where: { id: payload.sid, userId: user.id, realm, revokedAt: null, expiresAt: { gt: new Date() } } });
+      if (!session) throw new UnauthorizedException("Session revoked or expired");
+
       const assignments = user.roles.filter((ur) => ur.role.realm === realm);
       if (assignments.length === 0) {
         throw new ForbiddenException({
@@ -71,6 +76,7 @@ export class AuthGuard implements CanActivate {
 
       request.user = {
         id: user.id,
+        sessionId: session.id,
         email: user.email,
         name: user.name,
         realm,
