@@ -9,7 +9,7 @@ The source of truth is apps/api/src/access/catalog.ts and public-catalog.ts. The
 | Read/upload/delete files | no | yes | yes | no | no |
 | Read users, audit logs | no | yes | yes | no | no |
 | Settings read/update (non-reserved) | no | yes | yes | no | no |
-| Personal API keys read/create/revoke/delete | no | own | own | no | no |
+| Personal API keys read/create/revoke/delete | no | own | all (wildcard bypass) | no | no |
 | Notifications read | own | own | all | no | no |
 | Notifications create/update/delete | no | scoped | yes | no | no |
 | Jobs read | yes | yes | yes | no | no |

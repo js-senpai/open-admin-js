@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  if (!upstream.ok || typeof data.accessToken !== "string" || !data.accessToken || typeof data.refreshToken !== "string" || !data.refreshToken) {
+  if (!upstream.ok || typeof data?.accessToken !== "string" || !data.accessToken || typeof data.refreshToken !== "string" || !data.refreshToken) {
     const headers = new Headers(noStore);
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers.set("retry-after", retryAfter);

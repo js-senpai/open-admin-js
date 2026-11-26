@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(TOKEN_COOKIE_AT, data.accessToken, COOKIE_OPTS);
+  const res = NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
+  res.cookies.set(TOKEN_COOKIE_AT, data.accessToken, { ...COOKIE_OPTS, maxAge: 900 });
   res.cookies.set(TOKEN_COOKIE_RT, data.refreshToken, COOKIE_OPTS);
   return res;
 }

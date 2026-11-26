@@ -17,7 +17,7 @@ const admin = "http://localhost:3000";
 const out = join(process.env.RUNNER_TEMP || cwd, "smoke-results");
 await mkdir(out, { recursive: true });
 const log = await open(join(out, "runtime.log"), "w");
-const child = spawn("pnpm", ["start"], { cwd, detached: true, stdio: ["ignore", log.fd, log.fd], env: {...process.env,NODE_ENV:"production",OPENADMIN_SWAGGER:"0",OPENADMIN_GRAPHQL_INTROSPECTION:"0",OPENADMIN_COMMERCE_ENABLED:"1",STRIPE_SECRET_KEY:"sk_test_ci_placeholder",STRIPE_WEBHOOK_SECRET:"whsec_ci_placeholder",CHECKOUT_SUCCESS_URL:"https://example.test/success",CHECKOUT_CANCEL_URL:"https://example.test/cancel"} });
+const child = spawn("pnpm", ["start"], { cwd, detached: true, stdio: ["ignore", log.fd, log.fd], env: {...process.env,NODE_ENV:"production",OPENADMIN_SWAGGER:"0",OPENADMIN_GRAPHQL_INTROSPECTION:"1",OPENADMIN_COMMERCE_ENABLED:"1",STRIPE_SECRET_KEY:"sk_test_ci_placeholder",STRIPE_WEBHOOK_SECRET:"whsec_ci_placeholder",CHECKOUT_SUCCESS_URL:"https://example.test/success",CHECKOUT_CANCEL_URL:"https://example.test/cancel"} });
 let browser;
 async function waitFor(url) {
   for (let i = 0; i < 120; i++) {
@@ -42,7 +42,6 @@ try {
   assert(accessToken && refreshToken);
   // These fixtures belong only to the disposable generated test database.
   assert.equal((await request("/auth/login","POST",{email:"viewer@example.com",password:"password",realm:"admin"})).status,401);
-  assert.equal((await request("/auth/login","POST",{email:"shopper@example.com",password:"password",realm:"public"})).status,401);
   const appRequire=createRequire(join(cwd,"apps/api/package.json"));
   const rootRequire=createRequire(join(cwd,"package.json"));
   const env=appRequire("dotenv").parse(await (await import("node:fs/promises")).readFile(join(cwd,"apps/api/.env")));
@@ -51,6 +50,7 @@ try {
   const viewerEmail="audit-"+randomBytes(8).toString("hex")+"@example.test";
   const viewerPassword=randomBytes(24).toString("base64url");
   try {
+    assert.equal(await db.user.count({where:{email:{in:["viewer@example.com","shopper@example.com"]}}}),0,"Legacy demo accounts must not exist on fresh install");
     const role=await db.role.findUniqueOrThrow({where:{name_realm:{name:"viewer",realm:"admin"}}});
     await db.user.create({data:{email:viewerEmail,passwordHash:await appRequire("bcryptjs").hash(viewerPassword,12),roles:{create:{roleId:role.id}}}});
   } finally {await db.$disconnect();}

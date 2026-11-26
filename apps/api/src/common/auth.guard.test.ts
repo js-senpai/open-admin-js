@@ -45,6 +45,17 @@ describe("AuthGuard", () => {
     await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it("does not turn database unavailability into an authentication failure", async () => {
+    const { ctx, reflector } = createContext("Bearer token", "admin");
+    const outage = new Error("DB temporarily unavailable");
+    const guard = new AuthGuard(
+      { verifyAsync: vi.fn().mockResolvedValue({sub:"u1",realm:"admin",sid:"s1"}) } as never,
+      { user: { findUnique: vi.fn().mockRejectedValue(outage) } } as never,
+      reflector as never, mockConfig as never
+    );
+    await expect(guard.canActivate(ctx as never)).rejects.toBe(outage);
+  });
+
   it("attaches request.user for valid token", async () => {
     const { ctx, reflector, request } = createContext("Bearer token", "admin");
     const guard = new AuthGuard(

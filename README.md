@@ -71,8 +71,7 @@ scaffolds a **pnpm** monorepo backed by **PostgreSQL**, **MySQL**, or **SQLite**
 automatically.
 
 > **MySQL / SQLite note:** the shipped PostgreSQL baseline migration is not reused.
-> Run `pnpm db:migrate` (or `openadminjs db migrate dev`) once after install to
-> create the provider-specific migration, then `pnpm db:seed`.
+> Run `pnpm db:init` after install, then `pnpm db:seed`. MySQL/SQLite start with a safe development schema push; create and review provider-specific migration history before production.
 
 ### 2. Configure environment
 
@@ -189,6 +188,7 @@ exits non-zero.
 `security check` classifies findings as `info` / `warning` / `critical` and exits
 non-zero on any **critical** issue (weak/identical JWT secrets, weak admin
 password, `.env` not ignored or tracked by Git, unsafe CORS, hardcoded secrets).
+This is a configuration check, not a vulnerability scanner or security certification; the installed-package regression suite covers HTTP authorization boundaries.
 
 ## Generators
 
@@ -206,8 +206,7 @@ overwritten without `--force`.
 ## Current limitations
 
 - pnpm is the reference tested profile; npm/yarn are available but not fully integration-tested.
-- **PostgreSQL** ships a baseline migration; **MySQL** and **SQLite** create their
-  initial migration on first `db:migrate`.
+- **PostgreSQL** ships reviewed migrations; **MySQL** and **SQLite** use safe development schema push until a reviewed provider-specific migration history is created.
 - New SQLite projects use native Prisma JSON. Legacy text JSON is supported only for existing schemas until migrated.
 - Redis is optional; queue features require a reachable `REDIS_URL`.
 
@@ -233,7 +232,7 @@ NODE_ENV=production pnpm start
 | Prisma "Environment variable not found: DATABASE_URL" | Ensure `apps/api/.env` exists; the CLI writes it on create |
 | `prisma migrate deploy` fails on a fresh DB | Run `pnpm db:migrate` (dev) once, or check the DB is reachable |
 | `Can't reach database server` (PostgreSQL/MySQL) | Start the database server and verify host/port in `DATABASE_URL` |
-| MySQL/SQLite: no tables after create | Run `pnpm db:migrate` then `pnpm db:seed` — non-PostgreSQL providers do not ship the baseline migration |
+| MySQL/SQLite: no tables after create | Run `pnpm db:init` then `pnpm db:seed` — non-PostgreSQL providers do not ship the PostgreSQL migration history |
 | SQLite: `Json` fields look like strings in Prisma Studio | Legacy projects only; use the reviewed schema upgrade planner to migrate to native JSON |
 | Peer dependency warnings on install | Ensure `@apollo/server@^5` + `@nestjs/apollo@^13.4` + `@as-integrations/express5` (already pinned) |
 | Secrets accidentally committed | Rotate them immediately; `.gitignore` prevents this by default |

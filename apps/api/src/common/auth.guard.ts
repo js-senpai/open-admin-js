@@ -40,56 +40,58 @@ export class AuthGuard implements CanActivate {
     const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException({ message: "Missing access token", code: "AUTH_REQUIRED" });
     if (token.startsWith("oajs_")) return this.authenticateApiToken(context,request,token);
+    const jwtSecret = this.config.get<string>("JWT_SECRET")?.trim() ?? process.env.JWT_SECRET?.trim();
+    let payload: { sub: string; realm?: string; sid?: string };
     try {
-      const jwtSecret = this.config.get<string>("JWT_SECRET")?.trim() ?? process.env.JWT_SECRET?.trim();
-      const payload = await this.jwt.verifyAsync<{ sub: string; realm?: string; sid?: string }>(token, { secret: jwtSecret });
-      const realm = payload.realm ?? DEFAULT_AUTH_REALM;
-
-      const requiredRealm = this.reflector.getAllAndOverride<string | undefined>(AUTH_REALM_KEY, [
-        context.getHandler(),
-        context.getClass()
-      ]);
-      if (requiredRealm !== undefined && requiredRealm !== realm) {
-        throw new ForbiddenException({
-          message: "Token was issued for a different application area",
-          code: "AUTH_REALM_MISMATCH",
-          details: { expected: requiredRealm, tokenRealm: realm }
-        });
-      }
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
-      });
-      if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
-
-      if (!payload.sid) throw new UnauthorizedException("Session required");
-      const session = await this.prisma.session.findFirst({ where: { id: payload.sid, userId: user.id, realm, revokedAt: null, expiresAt: { gt: new Date() } } });
-      if (!session) throw new UnauthorizedException("Session revoked or expired");
-
-      const assignments = user.roles.filter((ur) => ur.role.realm === realm);
-      if (assignments.length === 0) {
-        throw new ForbiddenException({
-          message: "No roles for this application area",
-          code: "AUTH_REALM_EMPTY",
-          details: { realm }
-        });
-      }
-
-      request.user = {
-        id: user.id,
-        sessionId: session.id,
-        email: user.email,
-        name: user.name,
-        realm,
-        roles: assignments.map((item) => item.role.name),
-        permissions: assignments.flatMap((item) => item.role.permissions.map((p) => p.permission.name))
-      } satisfies RequestUser;
-      return true;
-    } catch (e) {
-      if (e instanceof ForbiddenException) throw e;
+      payload = await this.jwt.verifyAsync<{ sub: string; realm?: string; sid?: string }>(token, { secret: jwtSecret });
+    } catch {
       throw new UnauthorizedException({ message: "Invalid access token", code: "AUTH_INVALID" });
     }
+    // Database/transport failures must propagate as server failures, not invalid credentials.
+    // Otherwise the BFF could revoke a valid browser session during a DB outage.
+    const realm = payload.realm ?? DEFAULT_AUTH_REALM;
+
+    const requiredRealm = this.reflector.getAllAndOverride<string | undefined>(AUTH_REALM_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
+    if (requiredRealm !== undefined && requiredRealm !== realm) {
+      throw new ForbiddenException({
+        message: "Token was issued for a different application area",
+        code: "AUTH_REALM_MISMATCH",
+        details: { expected: requiredRealm, tokenRealm: realm }
+      });
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
+    });
+    if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
+
+    if (!payload.sid) throw new UnauthorizedException("Session required");
+    const session = await this.prisma.session.findFirst({ where: { id: payload.sid, userId: user.id, realm, revokedAt: null, expiresAt: { gt: new Date() } } });
+    if (!session) throw new UnauthorizedException("Session revoked or expired");
+
+    const assignments = user.roles.filter((ur) => ur.role.realm === realm);
+    if (assignments.length === 0) {
+      throw new ForbiddenException({
+        message: "No roles for this application area",
+        code: "AUTH_REALM_EMPTY",
+        details: { realm }
+      });
+    }
+
+    request.user = {
+      id: user.id,
+      sessionId: session.id,
+      email: user.email,
+      name: user.name,
+      realm,
+      roles: assignments.map((item) => item.role.name),
+      permissions: assignments.flatMap((item) => item.role.permissions.map((p) => p.permission.name))
+    } satisfies RequestUser;
+    return true;
   }
 
   private async authenticateApiToken(context: ExecutionContext, request: {user?:RequestUser}, token:string) {
