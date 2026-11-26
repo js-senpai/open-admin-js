@@ -1,6 +1,7 @@
-import {readFileSync,writeFileSync,existsSync,mkdirSync,rmSync} from "node:fs";
+import {readFileSync,writeFileSync,existsSync,mkdirSync,rmSync,readdirSync} from "node:fs";
 import {resolve,join} from "node:path";
 import {fileURLToPath} from "node:url";
+import {createHash} from "node:crypto";
 const root=process.cwd();
 const example=fileURLToPath(new URL("../examples/crm-admin/",import.meta.url));
 const schemaPath=join(root,"prisma/schema.prisma");
@@ -19,12 +20,31 @@ for(const name of names)if(registry.includes("crm/"+name+".resource"))throw Erro
 const source=names.map(name=>[name,readFileSync(join(example,"src/resources/"+name+".resource.ts"),"utf8")]);
 const imports=names.map(name=>"import crm_"+name+" from \"./crm/"+name+".resource\";").join("\n");
 const nextRegistry=imports+"\n"+registry.replace(marker,marker+"\n  "+names.map(n=>"crm_"+n).join(",\n  ")+",");
-console.log("Plan: append 4 models; add 4 resource modules; register 4 resources. No database commands.");
+console.log("Plan: add a CRM schema module, add 4 resource modules, register 4 resources. No database commands.");
 if(args[0]==="--dry-run")process.exit(0);
+const moduleDir=join(root,"prisma/modules"),manifestPath=join(moduleDir,"manifest.json"),moduleFile=join(moduleDir,"crm.prisma");
+const originalManifest=existsSync(manifestPath)?readFileSync(manifestPath,"utf8"):undefined;
+const manifest=originalManifest?JSON.parse(originalManifest):null;
+const sha=s=>createHash("sha256").update(s).digest("hex");
+if(existsSync(moduleFile))throw Error("CRM schema module already exists");
+const {composeSchema}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
+const provider=schema.match(/datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/)?.[1];
+let nextSchema;
+if(manifest){
+ if(manifest.lastSchemaHash!==sha(schema))throw Error("Adopted schema has drift; reconcile first");
+ nextSchema=schema+"\n"+fragment+"\n";
+}else{
+ const custom=existsSync(moduleDir)?readdirSync(moduleDir).filter(n=>n.endsWith(".prisma")).sort().map(n=>[n,readFileSync(join(moduleDir,n),"utf8")]):[];
+ if(composeSchema({provider,customFragments:custom.map(x=>x[1])})!==schema)throw Error("Schema has local edits; run schema adopt before installing CRM");
+ nextSchema=composeSchema({provider,customFragments:[...custom,["crm.prisma",fragment]].sort((a,b)=>a[0].localeCompare(b[0])).map(x=>x[1])});
+}
 try{
  mkdirSync(resourceDir);
  for(const [name,body] of source)writeFileSync(join(resourceDir,name+".resource.ts"),body,{flag:"wx"});
- writeFileSync(schemaPath,schema+"\n"+fragment+"\n");
+ mkdirSync(moduleDir,{recursive:true});
+ writeFileSync(moduleFile,manifest?"\n"+fragment+"\n":fragment,{flag:"wx"});
+ writeFileSync(schemaPath,nextSchema);
+ if(manifest){manifest.files.push("crm.prisma");manifest.lastSchemaHash=sha(nextSchema);writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+"\n");}
  writeFileSync(registryPath,nextRegistry);
-}catch(error){writeFileSync(schemaPath,schema);writeFileSync(registryPath,registry);rmSync(resourceDir,{recursive:true,force:true});throw error;}
+}catch(error){rmSync(moduleFile,{force:true});if(originalManifest)writeFileSync(manifestPath,originalManifest);writeFileSync(schemaPath,schema);writeFileSync(registryPath,registry);rmSync(resourceDir,{recursive:true,force:true});throw error;}
 console.log("CRM installed. Review schema, create a migration and seed permissions before starting.");

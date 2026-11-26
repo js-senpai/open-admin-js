@@ -284,3 +284,7 @@ If you want to support development, hosting and community tooling:
 ### Open Core V2 development candidate
 
 The current development branch includes the redesigned admin and additional security, storage, optional integrations and deployment changes. Read [V2 migration notes](docs/v2-migration.md) and the [PostgreSQL deployment guide](docs/deployment.md) before testing. The published package and main branch remain unchanged. Stripe integration is test-mode only; OIDC is opt-in and requires provider acceptance and pre-linked accounts.
+
+### Versioned runtime and modular database schema
+
+See [Runtime packages and modular Prisma](docs/runtime-and-schema.md). Runtime release candidates can be packed and installed independently; existing projects can plan a source-to-package conversion and a provider-aware database upgrade without dropping custom models. The registry release remains gated by acceptance.

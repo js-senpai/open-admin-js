@@ -34,8 +34,8 @@ This branch is **not a stable release**. The published npm package and main bran
 | R05 | Unit regressions and installed-tarball HTTP/Playwright test | Actual green results, negative-role and concurrency matrix |
 | R06 | Tarball content checks, checksum, manual release gate | Actual CI acceptance and release approval |
 | A01 | Resource policy/query extraction, stable HTTP error contract and request ID | Complete service decomposition, durable hooks/outbox and shared client contracts |
-| A02 | Standalone scaffold plus checksum-based managed-source patch plan, apply and rollback CLI | Independent versioned runtime packages and dependency/schema-aware major upgrades |
-| A03 | Unsafe optional modules disabled | Separate profiles, schema fragments, validated indexes |
+| A02 | 13 independently versioned compiled runtime archives, external consumer and source-to-package conversion | npm namespace ownership, publication, and full application package acceptance |
+| A03 | Ten schema modules, provider-aware profiles, lossless adoption and legacy migration planning | Conditional loading of complete standalone API features; independently verified data migration per customer |
 | A04 | Docker/Compose candidate, health/readiness, private storage and deployment/backup guide | Actual container/staging deployment, restore drill and observability |
 | U01 | Open Core login, dashboard, shared shell, dynamic navigation, command search, mobile drawer and resource components | Browser screenshots reviewed; production visual acceptance, full i18n and accessibility |
 | U02 | CRM installer included in scaffold (dry run + explicit apply), migration instructions | Full CRM CRUD acceptance and complete snippet/doc verification |
@@ -60,3 +60,7 @@ Set OPENADMIN_OIDC_ENABLED=1 only after staging acceptance. Configure OIDC_ISSUE
 ## Conservative source patches
 
 New scaffolds record checksums in .openadminjs-managed.json. Run openadminjs upgrade for a dry-run against the CLI's bundled template. --apply updates only files that exactly match their baseline; conflicts or new/deleted files require manual review. --rollback restores the last patch only if all applied files remain unchanged. The mechanism deliberately excludes .env, Prisma schema/migrations, custom resource registry, lockfiles and package manifests. It is not a general major-version updater; check package compatibility and run tests before deployment. Existing projects without a baseline must use a manual upgrade. Keep the patch backup private, and use Git/DB backups for full project rollback.
+
+## Runtime packages and modular Prisma
+
+See [runtime and schema architecture](runtime-and-schema.md) for the source/package transition, schema module composition and reviewed existing-database migration. The source-to-package converter does not change your database or automatically publish packages.

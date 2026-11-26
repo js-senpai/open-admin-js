@@ -204,7 +204,7 @@ export default function ApiTokensPage() {
                   <tr key={token.id} className="border-t border-[#dce2d9]">
                     <td className="px-3 py-2 font-semibold text-[#101820]">{token.name}</td>
                     <td className="px-3 py-2 text-[#53615b]">{maskTokenId(token.id)}</td>
-                    <td className="px-3 py-2 text-[#53615b]">{token.scopes.join(", ") || "None"}</td>
+                    <td className="px-3 py-2 text-[#53615b]">{(Array.isArray(token.scopes) ? token.scopes.join(", ") : "Legacy scope") || "None"}</td>
                     <td className="px-3 py-2">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${token.revokedAt ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
                         {token.revokedAt ? "Revoked" : "Active"}
