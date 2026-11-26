@@ -132,6 +132,11 @@ export class AdminResourceService {
   }
 
   async create(name: string, data: Record<string, unknown>, user: UserContext) {
+    if (name === "files") throw new ForbiddenException("Use the dedicated upload endpoint");
+    return this.createRecord(name, data, user);
+  }
+
+  private async createRecord(name: string, data: Record<string, unknown>, user: UserContext) {
     const resource = this.authorizedResource(name, user, "create");
 
     if (name === "api-tokens") throw new ForbiddenException("API token issuance is disabled until authentication is supported");
@@ -380,7 +385,7 @@ export class AdminResourceService {
     await writeFile(absPath, fileBuffer, { flag: "wx", mode: 0o600 });
     let record: unknown;
     try {
-      record = await this.create("files", { filename, path: relPath, mimeType, size: fileBuffer.byteLength }, user);
+      record = await this.createRecord("files", { filename, path: relPath, mimeType, size: fileBuffer.byteLength }, user);
     } catch (error) {
       await unlink(absPath).catch(() => undefined);
       throw error;

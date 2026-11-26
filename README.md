@@ -1,15 +1,17 @@
 # OpenAdminJS
 
-OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL / MySQL / SQLite**, **Next.js 15**, **React 19**, TailwindCSS and shadcn/ui.
+OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL / MySQL / SQLite**, **Next.js 15**, **React 19**, and TailwindCSS.
 
-![OpenAdminJS logo](https://js-senpai.github.io/open-admin-js/assets/brand/openadminjs-logo-new.png)
+![OpenAdminJS Open Core mark](site/assets/brand/favicon.svg)
+
+> **V2 development candidate:** do not deploy or publish until the [migration notes and release gates](docs/v2-migration.md) have been reviewed and CI has passed. The published npm version does not yet contain these changes.
 
 ## Requirements
 
 | Tool | Version |
 | --- | --- |
 | Node.js | **20 or newer** |
-| Package manager | **pnpm 9+** (required) |
+| Package manager | **pnpm 9+** (reference profile) |
 | Database | **PostgreSQL 14+**, **MySQL 8+**, or **SQLite 3** (local file) |
 | Redis | optional, only for background queues |
 
@@ -27,19 +29,11 @@ npm install -g pnpm
 
 ## Supported package managers & databases
 
-The generated project is a pnpm workspace monorepo.
+The reference workspace uses pnpm. The CLI also exposes npm and yarn profiles; their compatibility requires separate validation.
 
-- **Package managers:** only **pnpm** is offered by the CLI, because the scaffold
-  (workspace config, root scripts, lockfile) is pnpm-native. npm and yarn are
-  intentionally **not** exposed to avoid generating a project that does not build.
-- **Databases:** **PostgreSQL**, **MySQL**, and **SQLite** are supported.
-  - **PostgreSQL** ships with a baseline migration out of the box.
-  - **MySQL:** scalar lists (`String[]`) are stored as `Json` arrays; run `db:migrate`
-    once after install to create the MySQL migration.
-  - **SQLite:** `Json` columns and scalar lists are stored as `String` (JSON text).
-    The API transparently JSON-encodes/decodes them at runtime via a Prisma extension
-    (`apps/api/src/common/json-field-codec.ts`), so admin JSON fields and audit logs
-    keep working. Run `db:migrate` once after install to create the SQLite database file.
+- **PostgreSQL:** reference database with reviewed migration history.
+- **MySQL / SQLite:** development scaffolds use native JSON (scalar lists become JSON arrays). The initial setup uses non-destructive schema push. Do not use PostgreSQL migrations on another provider.
+- Database support in the V2 candidate is subject to the installed-package CI matrix.
 
 ## Quick start (for package users)
 
