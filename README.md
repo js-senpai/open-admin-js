@@ -280,3 +280,7 @@ If you want to support development, hosting and community tooling:
   - BTC (SegWit): `bc1qpcc4hd7w82jjvsdhvx6hgu2kfuz8jgfuvxurd7`
   - ETH / USDC (ERC-20): `0xe5ac19c6f1f5070a7c713973fd25ee02eaf9eb48`
   - USDT (TRC-20): `TWyzMehesWqJS7qs5LYL4QGmgTpohNy3gf`
+
+### Open Core V2 development candidate
+
+The current development branch includes the redesigned admin and additional security, storage, optional integrations and deployment changes. Read [V2 migration notes](docs/v2-migration.md) and the [PostgreSQL deployment guide](docs/deployment.md) before testing. The published package and main branch remain unchanged. Stripe integration is test-mode only; OIDC remains disabled.

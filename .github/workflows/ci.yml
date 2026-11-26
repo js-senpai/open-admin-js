@@ -179,6 +179,10 @@ jobs:
           pnpm exec prisma generate --schema prisma/schema.prisma
           pnpm db:seed
 
+      - name: Verify CRM example installer (dry run)
+        working-directory: ${{ runner.temp }}/it-app
+        run: node scripts/install-crm.mjs --dry-run
+
       - name: Build scaffold and exercise real HTTP and browser flows
         env:
           QA_ADMIN_PASSWORD: quality-test-passphrase-2026
@@ -215,7 +219,20 @@ jobs:
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/candidate"
           cd "$RUNNER_TEMP/candidate"
           tar -tzf ./*.tgz > contents.txt
-          if grep -E '(^|/)\.env($|\.)' contents.txt | grep -vE '/\.env\.example$'; then
+          if grep -E '(^|/)\.env($|\.)' contents.txt | grep -vE '/\.env(\.production)?\.example; then
+            echo "::error::Real env file in candidate"; exit 1
+          fi
+          if grep -E '(^|/)(node_modules|coverage|\.next|\.git)/|\.(test|spec)\.[cm]?[jt]sx?$|\.(db|sqlite|pem|key)$' contents.txt; then
+            echo "::error::Unexpected file in candidate"; exit 1
+          fi
+          grep -q '^package/dist/index.js$' contents.txt
+          sha256sum ./*.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+; then
             echo "::error::Real env file in candidate"; exit 1
           fi
           if grep -E '(^|/)(node_modules|coverage|\.next|\.git)/|\.(test|spec)\.[cm]?[jt]sx?$|\.(db|sqlite|pem|key)$' contents.txt; then
