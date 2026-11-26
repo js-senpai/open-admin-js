@@ -116,7 +116,9 @@ try {
   assert.equal((await request("/auth/refresh", "POST", { refreshToken, realm: "admin" })).status, 401);
   assert.equal((await request("/auth/me", "GET", undefined, rotated.data.accessToken)).status, 401);
   browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({viewport:{width:1440,height:900}});
+  // An explicit context supports multiple tabs sharing the same session cookies.
+  const context = await browser.newContext({viewport:{width:1440,height:900}});
+  const page = await context.newPage();
   await page.goto(admin + "/login");
   await page.screenshot({path:join(out,"login-desktop.png"),fullPage:true});
   await page.locator('input[type="email"]').fill(email);
@@ -130,7 +132,7 @@ try {
   assert((await page.request.get(admin + "/api/backend/admin/resources")).ok());
   assert.equal((await page.request.post(admin + "/api/backend/admin/resources/posts", { headers: { origin: "https://untrusted.example" }, data: {} })).status(), 403);
   // Both tabs share cookies. Use a correctly signed expired JWT, not an invalid signature.
-  const second=await page.context().newPage();
+  const second=await context.newPage();
   await second.goto(admin+"/resources/posts");
   await second.getByText("No records found",{exact:true}).waitFor();
   await Promise.all([page.waitForLoadState("networkidle"),second.waitForLoadState("networkidle")]);
