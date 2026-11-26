@@ -232,3 +232,23 @@ jobs:
           name: openadminjs-candidate
           path: ${{ runner.temp }}/candidate
           if-no-files-found: error
+
+  runtime-packages:
+    name: Independent npm runtime packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/pack-runtime.mjs
+      - run: node scripts/test-runtime.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openadminjs-runtime-packages
+          path: runtime-artifacts/

@@ -1,6 +1,6 @@
-import type { PluginCapability, PluginSurfaceRegistry, ResourceLifecycleHooks } from "./hooks";
+import type { PluginCapability, PluginSurfaceRegistry, ResourceLifecycleHooks } from "./hooks.js";
 
-export type * from "./hooks";
+export type * from "./hooks.js";
 
 export type PluginRegistrationContext<Config extends Record<string, unknown> = Record<string, unknown>> = {
   readonly pluginId: string;

@@ -1,6 +1,6 @@
 {
   "name": "@openadminjs/plugin-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0-rc.1",
   "description": "Contracts for OpenAdminJS server plugins (hooks, manifest metadata).",
   "license": "MIT",
   "type": "module",

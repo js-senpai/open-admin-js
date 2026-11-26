@@ -9,7 +9,7 @@
     "@openadminjs/core": "workspace:*"
   },
   "peerDependencies": {
-    "@nestjs/common": "^11.0.0"
+    "@nestjs/common": "11.1.21"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

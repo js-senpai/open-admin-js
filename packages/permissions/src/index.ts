@@ -1,13 +1,13 @@
 export type Permission = `${string}.${string}`;
 
-export type { LocalizedRoleLabel, RoleBlueprint } from "./blueprints";
+export type { LocalizedRoleLabel, RoleBlueprint } from "./blueprints.js";
 export {
   DEFAULT_AUTH_REALM,
   expandRolePermissions,
   materializeAllRoles,
   realmOf,
   roleMatrixKey
-} from "./blueprints";
+} from "./blueprints.js";
 
 export function can(permissions: readonly string[], permission: string): boolean {
   return permissions.includes(permission) || permissions.includes("*");
