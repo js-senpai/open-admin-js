@@ -58,7 +58,7 @@ export class AuthGuard implements CanActivate {
         where: { id: payload.sub },
         include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
       });
-      if (!user) throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
+      if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
 
       const assignments = user.roles.filter((ur) => ur.role.realm === realm);
       if (assignments.length === 0) {

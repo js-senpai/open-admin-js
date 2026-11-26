@@ -26,7 +26,7 @@ export class AuthService {
       where: { email },
       include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
     });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || user.status !== "active" || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException({ message: "Invalid email or password", code: "AUTH_INVALID" });
     }
     const assignments = user.roles.filter((ur) => ur.role.realm === realm);
@@ -69,11 +69,13 @@ export class AuthService {
     const oidcKey = `${issuer}::${profile.sub}`;
     const emailNorm = profile.email.toLowerCase().trim();
     let user = await this.prisma.user.findFirst({
-      where: { OR: [{ oidcKey }, { email: emailNorm }] },
+      where: { oidcKey },
       include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
     });
 
     if (!user) {
+      const existing = await this.prisma.user.findUnique({ where: { email: emailNorm } });
+      if (existing) throw new UnauthorizedException({ message: "Explicit account linking required", code: "OIDC_LINK_REQUIRED" });
       const randomPass = randomBytes(48).toString("hex");
       const created = await this.prisma.user.create({
         data: {
@@ -96,6 +98,7 @@ export class AuthService {
         include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
       });
     } else {
+      if (user.status !== "active") throw new UnauthorizedException({ message: "Invalid account", code: "AUTH_INVALID" });
       const updates: { oidcKey?: string; avatarUrl?: string | null; name?: string | null } = {};
       if (!user.oidcKey) updates.oidcKey = oidcKey;
       if (profile.picture && !user.avatarUrl) updates.avatarUrl = profile.picture;
@@ -161,7 +164,9 @@ export class AuthService {
       if (found) return found;
       return candidate.refreshTokenHash && (await bcrypt.compare(refreshToken, candidate.refreshTokenHash)) ? candidate : undefined;
     }, Promise.resolve(undefined));
-    if (!user) throw new UnauthorizedException({ message: "Invalid refresh token", code: "REFRESH_INVALID" });
+    if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid refresh token", code: "REFRESH_INVALID" });
+    const assignment = await this.prisma.userRole.findFirst({ where: { userId: user.id, role: { realm } } });
+    if (!assignment) throw new UnauthorizedException({ message: "Invalid refresh token", code: "REFRESH_INVALID" });
     return this.issueSession(user.id, realm);
   }
 
@@ -199,7 +204,6 @@ export class AuthService {
       });
     }
 
-    if (process.env.NODE_ENV !== "production") return { ok: true, message: "Reset token generated", token: rawToken };
     return { ok: true, message: "If the email exists, reset instructions will be sent." };
   }
 
@@ -218,19 +222,13 @@ export class AuthService {
     if (!resetToken) throw new BadRequestException({ message: "Invalid or expired reset token", code: "RESET_TOKEN_INVALID" });
 
     const nextPasswordHash = await bcrypt.hash(password, 12);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: resetToken.userId },
-        data: { passwordHash: nextPasswordHash, refreshTokenHash: null }
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { usedAt: now }
-      }),
-      this.prisma.auditLog.create({
-        data: { userId: resetToken.userId, action: "password.reset.completed", resource: "auth" }
-      })
-    ]);
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetToken.updateMany({ where: { id: resetToken.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+      if (claimed.count !== 1) throw new BadRequestException({ message: "Invalid or expired reset token", code: "RESET_TOKEN_INVALID" });
+      await tx.user.update({ where: { id: resetToken.userId }, data: { passwordHash: nextPasswordHash, refreshTokenHash: null } });
+      await tx.passwordResetToken.updateMany({ where: { userId: resetToken.userId, usedAt: null }, data: { usedAt: new Date() } });
+      await tx.auditLog.create({ data: { userId: resetToken.userId, action: "password.reset.completed", resource: "auth" } });
+    });
 
     return { ok: true };
   }
@@ -269,7 +267,7 @@ export class AuthService {
       where: { id: userId },
       include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
     });
-    if (!user) throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
+    if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
     const assignments = user.roles.filter((ur) => ur.role.realm === realm);
     return {
       id: user.id,
@@ -289,7 +287,7 @@ export class AuthService {
       where: { id: userId },
       include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } }
     });
-    if (!user) throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
+    if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
     const byRealm = new Map<string, { roles: string[]; permissions: string[] }>();
     for (const ur of user.roles) {
       const r = ur.role.realm;

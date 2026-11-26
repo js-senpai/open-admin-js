@@ -39,6 +39,12 @@ describe("AuthGuard", () => {
     await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it("rejects disabled accounts even with a valid JWT", async () => {
+    const { ctx, reflector } = createContext("Bearer token", "admin");
+    const guard = new AuthGuard({ verifyAsync: vi.fn().mockResolvedValue({ sub: "u1", realm: "admin" }) } as never, { user: { findUnique: vi.fn().mockResolvedValue({ id: "u1", status: "blocked" }) } } as never, reflector as never, mockConfig as never);
+    await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
   it("attaches request.user for valid token", async () => {
     const { ctx, reflector, request } = createContext("Bearer token", "admin");
     const guard = new AuthGuard(
@@ -47,7 +53,8 @@ describe("AuthGuard", () => {
         user: {
           findUnique: vi.fn().mockResolvedValue({
             id: "u1",
-            email: "openadminjs@proton.me",
+            status: "active",
+            email: "admin@example.test",
             name: "Admin",
             roles: [{ role: { name: "admin", realm: "admin", permissions: [{ permission: { name: "*" } }] } }]
           })
