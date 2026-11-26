@@ -4,6 +4,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cac } from "cac";
 import pc from "picocolors";
+import ts from "typescript";
+import { pluralResourceSlug } from "./resource-slug.js";
 import { createProjectInteractive, type DatabaseDriver, type PackageManager } from "./create-project.js";
 import { modelNameToResourceSlug } from "./resource-slug.js";
 import {
@@ -49,11 +51,14 @@ const cli = cac("openadminjs");
 
 // ── generators ──────────────────────────────────────────────────────────────
 
-function generateResource(rawName: string, options: { force?: boolean }): void {
+function generateResource(rawName: string, options: { force?: boolean; dryRun?: boolean; icon?: string; slug?: string }): void {
   const validated = validateName(rawName, "resource name");
   const model = toPascalCase(validated);
   const slug = toKebabCase(validated);
-  const plural = `${slug}s`;
+  const plural = options.slug ?? pluralResourceSlug(slug);
+  if (!/^[a-z][a-z0-9-]*$/.test(plural)) throw new Error("Invalid resource slug");
+  const icon = options.icon ?? "Database";
+  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(icon)) throw new Error("Invalid icon name");
   const projectRoot = process.cwd();
   const targetDir = join(projectRoot, "apps/api/src/resources");
   const target = assertInsideDir(targetDir, `${slug}.resource.ts`);
@@ -62,11 +67,25 @@ function generateResource(rawName: string, options: { force?: boolean }): void {
     process.exitCode = 1;
     return;
   }
+  const registryPath = join(targetDir, "registry.ts");
+  const registry = existsSync(registryPath) ? readFileSync(registryPath, "utf8") : undefined;
+  const schemaPath = join(projectRoot, "prisma", "schema.prisma");
+  const schema = existsSync(schemaPath) ? readFileSync(schemaPath, "utf8") : undefined;
+  const modelExists = Boolean(schema && new RegExp(`^\\s*model\\s+${model}\\s*\\{`, "m").test(schema));
+  const registered = registry && modelExists ? registerResourceImport(registry, slug, toCamelCase(model)) : undefined;
+  if (options.dryRun) {
+    console.log(`Would create ${target}${registered ? " and register resource" : ""}`);
+    if (!modelExists) console.log(`Add model ${model} to prisma/schema.prisma before registering the resource.`);
+    return;
+  }
   mkdirSync(targetDir, { recursive: true });
   writeFileSync(
     target,
-    `import { defineResource } from '@openadminjs/core';\n\nexport default defineResource({\n  name: '${plural}',\n  label: '${model}s',\n  model: '${model}',\n  titleField: 'id',\n  icon: 'Database',\n  permissions: {\n    read: '${plural}.read',\n    create: '${plural}.create',\n    update: '${plural}.update',\n    delete: '${plural}.delete',\n  },\n  fields: {\n    id: { type: 'id', label: 'ID', create: false, edit: false },\n  },\n});\n`
+    `import { defineResource } from '@openadminjs/core';\n\nexport default defineResource({\n  name: '${plural}',\n  label: '${startCase(plural)}',\n  model: '${toCamelCase(model)}',\n  titleField: 'id',\n  icon: '${icon}',\n  permissions: {\n    read: '${plural}.read',\n    create: '${plural}.create',\n    update: '${plural}.update',\n    delete: '${plural}.delete',\n  },\n  fields: {\n    id: { type: 'id', label: 'ID', create: false, edit: false },\n  },\n});\n`
   );
+  if (registered !== undefined && registered !== registry) writeFileSync(registryPath, registered);
+  if (!modelExists) console.log(pc.yellow(`Add model ${model} { id String @id @default(cuid()) } to Prisma, migrate, then register this resource in registry.ts.`));
+  else console.log(pc.dim("Run db:seed after migration to materialize resource permissions."));
   console.log(pc.green(`Created ${target}`));
 }
 
@@ -90,19 +109,25 @@ function generatePlugin(rawId: string, options: { force?: boolean }): void {
   console.log(pc.green(`Created ${target}`));
 }
 
-function normalizeFieldType(raw: string): "text" | "number" | "boolean" | "date" | "json" {
+function normalizeFieldType(raw: string): "text" | "number" | "boolean" | "date" | "json" | "decimal" {
   const t = raw.trim().toLowerCase();
-  if (["number", "int", "integer", "float", "decimal"].includes(t)) return "number";
+  if (["number", "int", "integer", "float"].includes(t)) return "number";
+  if (t === "decimal" || t === "money") return "decimal";
   if (["boolean", "bool"].includes(t)) return "boolean";
   if (["datetime", "date", "timestamp"].includes(t)) return "date";
   if (["json", "object"].includes(t)) return "json";
-  return "text";
+  if (["text", "string"].includes(t)) return "text";
+  throw new Error(`Unsupported field type: ${raw}`);
 }
 
 function prismaFieldFragment(fieldName: string, fieldType: string, required: boolean): string {
   switch (fieldType) {
-    case "number":
-      return `${fieldName} Int${required ? " @default(0)" : "?"}`;
+    case "number": case "int": case "integer":
+      return `${fieldName} Int${required ? "" : "?"}`;
+    case "float":
+      return `${fieldName} Float${required ? "" : "?"}`;
+    case "decimal": case "money":
+      return `${fieldName} Decimal${required ? "" : "?"}`;
     case "boolean":
       return `${fieldName} Boolean${required ? " @default(false)" : "?"}`;
     case "date":
@@ -154,6 +179,7 @@ function generateResourceField(
     filterable?: boolean;
     searchable?: boolean;
     label?: string;
+    dryRun?: boolean;
   }
 ): void {
   // resourceArg is only used to resolve an existing file; validate to block traversal.
@@ -171,27 +197,6 @@ function generateResourceField(
   }
   const fieldType = normalizeFieldType(fieldTypeRaw);
   const content = readFileSync(target, "utf8");
-  if (new RegExp(`^\\s*${fieldName}\\s*:`, "m").test(content) && !options.force) {
-    console.error(pc.red(`Field "${fieldName}" already present. Use --force to add anyway.`));
-    process.exitCode = 1;
-    return;
-  }
-  const fieldsBlock = content.match(/fields:\s*\{[\s\S]*?\n\s*\},\n\s*(permissions|actions|i18n|seo|listScope|hooks|})/m);
-  if (fieldsBlock?.index == null) {
-    console.error(pc.red("Could not locate fields block (`fields: { ... }`)."));
-    process.exitCode = 1;
-    return;
-  }
-  const fieldsStart = fieldsBlock.index;
-  const fieldsEnd = fieldsStart + fieldsBlock[0].length;
-  const head = content.slice(0, fieldsEnd - fieldsBlock[1]!.length - 1);
-  const tail = content.slice(fieldsEnd - fieldsBlock[1]!.length - 1);
-  const lb = head.lastIndexOf("},");
-  if (lb < 0) {
-    console.error(pc.red("Malformed resource file near fields."));
-    process.exitCode = 1;
-    return;
-  }
   const labelJson = JSON.stringify(options.label?.trim() || startCase(fieldName));
   const attributes = [
     `type: '${fieldType}'`,
@@ -202,11 +207,69 @@ function generateResourceField(
     options.filterable ? "filterable: true" : "",
     options.searchable ? "searchable: true" : ""
   ].filter(Boolean);
-  const snippet = `\n    ${fieldName}: { ${attributes.join(", ")} },`;
-  writeFileSync(target, `${head.slice(0, lb + 2)}${snippet}${tail}`);
+  const snippet = `${fieldName}: { ${attributes.join(", ")} }`;
+  const next = insertResourceField(content, fieldName, snippet, Boolean(options.force));
+  if (!options.dryRun) writeFileSync(target, next);
+  else console.log(pc.dim("Dry run — no files written"));
   console.log(pc.green(`Updated ${target}`));
   console.log(pc.dim("// Prisma model fragment — merge into schema.prisma, then run: openadminjs db migrate dev"));
-  console.log(pc.dim(`//   ${prismaFieldFragment(fieldName, fieldType, Boolean(options.required))}`));
+  console.log(pc.dim(`//   ${prismaFieldFragment(fieldName, ["float", "decimal", "money"].includes(fieldTypeRaw.trim().toLowerCase()) ? fieldTypeRaw.trim().toLowerCase() : fieldType, Boolean(options.required))}`));
+}
+
+
+function readSource(content: string): ts.SourceFile {
+  return ts.createSourceFile("resource.ts", content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+function propertyName(node: ts.PropertyName | undefined): string | undefined {
+  return node && (ts.isIdentifier(node) || ts.isStringLiteral(node)) ? node.text : undefined;
+}
+export function insertResourceField(content: string, name: string, snippet: string, force = false): string {
+  const source = readSource(content);
+  const matches: ts.ObjectLiteralExpression[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "defineResource") {
+      const arg = node.arguments[0];
+      if (arg && ts.isObjectLiteralExpression(arg)) {
+        const fields = arg.properties.find(p => propertyName(p.name) === "fields");
+        if (fields && ts.isPropertyAssignment(fields) && ts.isObjectLiteralExpression(fields.initializer)) matches.push(fields.initializer);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  if (matches.length !== 1) throw new Error("Expected exactly one literal defineResource fields object");
+  const fields = matches[0]!;
+  if (fields.properties.some(p => ts.isSpreadAssignment(p) || p.name && ts.isComputedPropertyName(p.name))) throw new Error("Cannot safely edit dynamic resource fields");
+  const existing = fields.properties.find(p => propertyName(p.name) === name);
+  if (existing) {
+    if (!force) throw new Error("Field already exists. Use --force to replace it.");
+    return content.slice(0, existing.getStart(source)) + snippet + content.slice(existing.getEnd());
+  }
+  const close = fields.getEnd() - 1;
+  const last = fields.properties[fields.properties.length - 1];
+  if (last && !fields.properties.hasTrailingComma) return content.slice(0, last.getEnd()) + "," + content.slice(last.getEnd(), close) + "\n    " + snippet + ",\n  " + content.slice(close);
+  return content.slice(0, close) + "\n    " + snippet + ",\n  " + content.slice(close);
+}
+function registerResourceImport(content: string, slug: string, name: string): string {
+  const source = readSource(content);
+  const modulePath = "./" + slug + ".resource";
+  if (source.statements.some(node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === modulePath)) return content;
+  const localName = name + "GeneratedResource";
+  if (new RegExp("\\b" + localName + "\\b").test(content)) throw new Error("Resource import name conflict");
+  let array: ts.ArrayLiteralExpression | undefined;
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const decl of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || decl.name.text !== "resources") continue;
+      let init = decl.initializer;
+      while (init && (ts.isSatisfiesExpression(init) || ts.isAsExpression(init))) init = init.expression;
+      if (init && ts.isArrayLiteralExpression(init)) array = init;
+    }
+  }
+  if (!array) throw new Error("Cannot safely locate resource registry array");
+  const last = array.elements[array.elements.length - 1];
+  const insertion = last ? last.getEnd() : array.getEnd() - 1;
+  return 'import ' + localName + ' from "' + modulePath + '";\n' + content.slice(0, insertion) + (last ? ",\n  " : "") + localName + content.slice(insertion);
 }
 
 // ── doctor / security ─────────────────────────────────────────────────────────
@@ -405,7 +468,10 @@ cli
   .option("--sortable", "Mark field as sortable (generate field)")
   .option("--filterable", "Mark field as filterable (generate field)")
   .option("--searchable", "Mark field as searchable (generate field)")
-  .option("--force", "Overwrite / append even when the target already exists")
+  .option("--force", "Replace existing resource or field")
+  .option("--dry-run", "Print generation plan without writing")
+  .option("--slug <slug>", "Resource route slug")
+  .option("--icon <icon>", "Resource icon")
   .action(runGenerate);
 
 cli
@@ -417,10 +483,16 @@ cli
   .option("--sortable", "Mark field as sortable")
   .option("--filterable", "Mark field as filterable")
   .option("--searchable", "Mark field as searchable")
-  .option("--force", "Overwrite existing file")
+  .option("--force", "Replace existing resource or field")
+  .option("--dry-run", "Print generation plan without writing")
+  .option("--slug <slug>", "Resource route slug")
+  .option("--icon <icon>", "Resource icon")
   .action(runGenerate);
 
 type GenerateOptions = {
+  dryRun?: boolean;
+  slug?: string;
+  icon?: string;
   type?: string;
   force?: boolean;
   required?: boolean;
@@ -441,10 +513,12 @@ function runGenerate(
     switch (kind) {
       case "resource":
         if (!name) return usageError("openadminjs generate resource <Model> [--force]");
-        generateResource(name, { force: options.force });
+        if (fieldName) return usageError("openadminjs generate resource <Model> [--slug <slug>] [--icon <icon>] [--dry-run]");
+        generateResource(name, options);
         return;
       case "plugin":
         if (!name) return usageError("openadminjs generate plugin <plugin.id> [--force]");
+        if (options.dryRun) { console.log(`Would generate plugin ${validatePluginId(name)}`); return; }
         generatePlugin(name, { force: options.force });
         return;
       case "field":
@@ -458,7 +532,8 @@ function runGenerate(
           sortable: options.sortable,
           filterable: options.filterable,
           searchable: options.searchable,
-          label: options.label
+          label: options.label,
+          dryRun: options.dryRun
         });
         return;
       default:
