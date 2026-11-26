@@ -9,11 +9,16 @@ const history=join(root,"prisma/migrations");
 const hasHistory=existsSync(history)&&readdirSync(history,{withFileTypes:true}).some(e=>e.isDirectory());
 const cli=resolve("node_modules/prisma/build/index.js");
 if(!existsSync(cli))throw Error("Install dependencies first");
-if(!process.env.DATABASE_URL&&existsSync(join(root,"apps/api/.env"))){
-  const dotenv=createRequire(join(root,"apps/api/package.json"))("dotenv");
-  dotenv.config({path:join(root,"apps/api/.env")});
+if(!process.env.DATABASE_URL){
+  const envFile=[join(root,".env"),join(root,"apps/api/.env")].find(existsSync);
+  if(envFile){
+    const dotenv=createRequire(join(root,"apps/api/package.json"))("dotenv");
+    dotenv.config({path:envFile});
+  }
 }
 if(!process.env.DATABASE_URL)throw Error("Set DATABASE_URL for this project");
+const url=process.env.DATABASE_URL;
+if(provider==="sqlite"?!url.startsWith("file:"):provider==="mysql"?!url.startsWith("mysql:"):!/^postgres(?:ql)?:/.test(url))throw Error("Database URL and schema provider mismatch");
 if(provider==="postgresql"&&!hasHistory)throw Error("PostgreSQL requires reviewed migration history");
 if(!hasHistory&&process.env.NODE_ENV==="production")throw Error("Production requires reviewed migration history; schema push is disabled");
 if(hasHistory){

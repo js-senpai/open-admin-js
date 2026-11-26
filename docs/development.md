@@ -7,3 +7,5 @@ For a SQLite development instance, build the CLI and scaffold outside the monore
 The installed-package CI suite runs production server builds on disposable databases. It exercises low-privilege roles, cross-realm isolation, forbidden plugin changes, upload paths, client-controlled prices, invalid webhooks, reset response secrecy, introspection/Swagger defaults and concurrent browser-tab refresh. It does not submit actual payments or contact an external IdP. Web Locks coordinate cross-tab refresh where supported; browsers without them have per-tab single-flight only and strict replay revocation remains enabled.
 
 Set OPENADMIN_GRAPHQL_INTROSPECTION=0 to disable introspection and the Apollo landing page in development as well. Production always disables both.
+
+The legacy root `e2e` script is a lightweight static/mocked check, not an end-to-end run. The real HTTP/Playwright checks live in `scripts/installed-smoke.mjs` and the CI database matrix. For expiry, the suite replaces the browser access cookie with a correctly signed expired JWT while retaining the valid refresh cookie.

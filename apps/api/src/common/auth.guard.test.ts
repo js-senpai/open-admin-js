@@ -45,6 +45,14 @@ describe("AuthGuard", () => {
     await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it("rejects malformed verified claims without querying the database", async () => {
+    const { ctx, reflector } = createContext("Bearer token", "admin");
+    const findUnique=vi.fn();
+    const guard=new AuthGuard({verifyAsync:vi.fn().mockResolvedValue({realm:"admin"})} as never,{user:{findUnique}} as never,reflector as never,mockConfig as never);
+    await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
   it("does not turn database unavailability into an authentication failure", async () => {
     const { ctx, reflector } = createContext("Bearer token", "admin");
     const outage = new Error("DB temporarily unavailable");

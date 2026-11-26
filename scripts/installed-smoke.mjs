@@ -129,14 +129,23 @@ try {
   assert(!(await page.evaluate(() => document.cookie)).includes("oajs_at="));
   assert((await page.request.get(admin + "/api/backend/admin/resources")).ok());
   assert.equal((await page.request.post(admin + "/api/backend/admin/resources/posts", { headers: { origin: "https://untrusted.example" }, data: {} })).status(), 403);
-  // Both tabs share cookies. Clear only the access cookie to simulate expiry.
+  // Both tabs share cookies. Use a correctly signed expired JWT, not an invalid signature.
   const second=await page.context().newPage();
   await second.goto(admin+"/resources/posts");
   await second.getByText("No records found",{exact:true}).waitFor();
-  await page.context().clearCookies({name:"oajs_at"});
+  await Promise.all([page.waitForLoadState("networkidle"),second.waitForLoadState("networkidle")]);
+  const oldAccess=(await page.context().cookies()).find(c=>c.name==="oajs_at");
+  assert(oldAccess);
+  const {JwtService}=appRequire("@nestjs/jwt");
+  const jwt=new JwtService({secret:process.env.JWT_SECRET||env.JWT_SECRET});
+  const claims=jwt.decode(oldAccess.value);
+  assert(claims.sub&&claims.sid&&claims.realm==="admin");
+  const expired=jwt.sign({sub:claims.sub,sid:claims.sid,realm:claims.realm},{expiresIn:-60});
+  assert.equal((await request("/auth/me","GET",undefined,expired)).status,401);
   const refreshResponses=[];
   const onResponse=response=>{if(new URL(response.url()).pathname==="/api/auth/refresh")refreshResponses.push(response.status());};
   page.context().on("response",onResponse);
+  await page.context().addCookies([{...oldAccess,value:expired,expires:Math.floor(Date.now()/1000)+600}]);
   await Promise.all([page.goto(admin+"/resources/posts"),second.reload()]);
   await Promise.all([page.getByText("No records found",{exact:true}).waitFor(),second.getByText("No records found",{exact:true}).waitFor()]);
   assert.equal(refreshResponses.filter(s=>s===200).length,1,"Expected one successful rotation across tabs");

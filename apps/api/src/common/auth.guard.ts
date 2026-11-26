@@ -47,6 +47,9 @@ export class AuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException({ message: "Invalid access token", code: "AUTH_INVALID" });
     }
+    if (!payload || typeof payload.sub !== "string" || !payload.sub || typeof payload.sid !== "string" || !payload.sid || (payload.realm !== undefined && typeof payload.realm !== "string")) {
+      throw new UnauthorizedException({ message: "Invalid access token claims", code: "AUTH_INVALID" });
+    }
     // Database/transport failures must propagate as server failures, not invalid credentials.
     // Otherwise the BFF could revoke a valid browser session during a DB outage.
     const realm = payload.realm ?? DEFAULT_AUTH_REALM;
@@ -69,7 +72,6 @@ export class AuthGuard implements CanActivate {
     });
     if (!user || user.status !== "active") throw new UnauthorizedException({ message: "Invalid session", code: "AUTH_INVALID" });
 
-    if (!payload.sid) throw new UnauthorizedException("Session required");
     const session = await this.prisma.session.findFirst({ where: { id: payload.sid, userId: user.id, realm, revokedAt: null, expiresAt: { gt: new Date() } } });
     if (!session) throw new UnauthorizedException("Session revoked or expired");
 
