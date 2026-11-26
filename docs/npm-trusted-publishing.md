@@ -15,14 +15,15 @@ In each package's npm Settings > Trusted Publisher, select GitHub Actions and al
 
 ### One-time bootstrap for new npm package names
 
-OIDC cannot create the first package name without an existing trust configuration. For a name that does not exist, use an interactive npm login (with 2FA), not a stored CI secret. Download the `openadminjs-runtime-packages` artifact from a successful, reviewed main CI run, check the manifest and SHA-256 hashes, and stage the actual tested archive locally with npm 11:
+OIDC cannot create the first package name without an existing trust configuration. Use the one-time `bootstrap-runtime.yml` workflow instead of building locally.
 
-```sh
-npm login
-npm stage publish ./openadminjs-resource-0.2.0-rc.1.tgz --access public --tag next --ignore-scripts
-```
+1. Ensure you own the npm organization/scope `@openadminjs`.
+2. Create a short-lived Granular Access Token limited to that scope with **Read and write (stage only)**, without bypass 2FA. Store it in the GitHub environment `npm-runtime-bootstrap` as `NPM_BOOTSTRAP_TOKEN`. Restrict that environment to main; configure reviewers if appropriate.
+3. Run **Bootstrap new npm runtime packages (stage only)** on main with approve=true. It reuses CI, verifies all archive checksums, skips already registered names (including placeholders), and stages only missing names. It cannot directly publish with a stage-only token. The staged first version uses the next tag.
+4. In npm's Staged Packages tab, review and approve with 2FA in dependency order: resource, core, auth, permissions, plugin-sdk, storage, queue, notifications, mail, payments, nest, admin-client, prisma. Existing placeholders from earlier runs must be reviewed separately; the workflow deliberately does not overwrite them.
+5. Revoke the bootstrap token and delete its GitHub secret. Prepare new versions for the next OIDC release (including affected dependent package versions), then configure trusted publishers and run the regular OIDC release within 48 hours.
 
-Staging a new name creates a public placeholder (`0.0.0-stage`). Review it in npm, approve the staged release with 2FA, and repeat for other new names in dependency order (resource, core, auth, permissions, plugin-sdk, storage, queue, notifications, mail, payments, nest, admin-client, prisma; check the manifest). Do not stage an existing version again. The real first release is then manually approved; advance versions for the next OIDC release. Alternatively, create the first version interactively via npm publish with 2FA. Do not publish untested placeholders from local workspace source. Configure trust after the package exists. Do not create trust until the next new version is ready to publish within 48 hours.
+No local archives are required. The one-time stage-only token is not used in normal OIDC releases. See https://github.blog/changelog/2026-10-02-npm-staged-publishing-now-supports-creating-new-packages/ and https://docs.npmjs.com/staged-publishing/.
 
 For bulk configuration of existing runtime packages, using an interactive npm session:
 

@@ -1,0 +1,44 @@
+name: Bootstrap new npm runtime packages (stage only)
+on:
+  workflow_dispatch:
+    inputs:
+      approve:
+        description: Register missing runtime names and stage the tested release
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: npm-runtime-release
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main' && inputs.approve == true
+    uses: ./.github/workflows/ci.yml
+  bootstrap:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && inputs.approve == true
+    runs-on: ubuntu-24.04
+    environment: npm-runtime-bootstrap
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-runtime-packages
+          path: runtime-artifacts
+      - name: Stage missing package names (not direct publish)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$NODE_AUTH_TOKEN" || { echo "::error::Set NPM_BOOTSTRAP_TOKEN to a scope-limited stage-only token"; exit 1; }
+          npm --version
+          node scripts/stage-runtime-bootstrap.mjs runtime-artifacts
