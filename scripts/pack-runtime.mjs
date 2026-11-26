@@ -11,7 +11,7 @@ const names=["resource","core","auth","permissions","plugin-sdk","storage","queu
 const packages=Object.fromEntries(names.map(name=>[name,JSON.parse(readFileSync(join(root,"packages",name,"package.json"),"utf8"))]));
 const versions=Object.fromEntries(names.map(name=>[packages[name].name,packages[name].version]));
 function run(command,args,cwd=root){
- const r=spawnSync(command,args,{cwd,stdio:"inherit",shell:process.platform==="win32"});
+ const r=spawnSync(command,args,{cwd,stdio:"inherit"});
  if(r.status!==0||r.error)throw Error(command+" failed");
 }
 mkdirSync(out,{recursive:true});rmSync(stage,{recursive:true,force:true});mkdirSync(stage,{recursive:true});

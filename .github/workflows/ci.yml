@@ -248,7 +248,103 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: node scripts/pack-runtime.mjs
       - run: node scripts/test-runtime.mjs
+      - run: node scripts/test-schema-profiles.mjs
+      - run: node scripts/schema.mjs check
       - uses: actions/upload-artifact@v4
         with:
           name: openadminjs-runtime-packages
           path: runtime-artifacts/
+
+  legacy-migrations:
+    name: Legacy schema/data migration (${{ matrix.db }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [postgresql, mysql, sqlite]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start disposable legacy DB
+        if: matrix.db != 'sqlite'
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          set -euo pipefail
+          if [ "$DB" = "postgresql" ]; then
+            docker run -d --name legacy -p 5432:5432 -e POSTGRES_USER=legacy -e POSTGRES_PASSWORD=legacy -e POSTGRES_DB=legacy postgres:16
+            for i in $(seq 1 60); do docker exec legacy pg_isready -U legacy && exit 0; sleep 2; done
+          else
+            docker run -d --name legacy -p 3306:3306 -e MYSQL_ROOT_PASSWORD=local -e MYSQL_USER=legacy -e MYSQL_PASSWORD=legacy -e MYSQL_DATABASE=legacy mysql:8
+            for i in $(seq 1 60); do docker exec legacy mysqladmin ping -ulegacy -plegacy --silent && exit 0; sleep 2; done
+          fi
+          exit 1
+      - name: Exercise actual baseline + upgrade migration
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          set -euo pipefail
+          if [ "$DB" = "postgresql" ]; then export LEGACY_DATABASE_URL=postgresql://legacy:legacy@localhost:5432/legacy; fi
+          if [ "$DB" = "mysql" ]; then export LEGACY_DATABASE_URL=mysql://legacy:legacy@localhost:3306/legacy; fi
+          node scripts/test-legacy-migration.mjs "$DB"
+
+  runtime-scaffold:
+    name: Installed scaffold with external runtime archives
+    needs: [pack, runtime-packages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-runtime-packages
+          path: ${{ runner.temp }}/runtime
+      - name: Install CLI and scaffold using published-format runtime packages
+        env:
+          QA_ADMIN_PASSWORD: quality-test-passphrase-2026
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum -c SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/test-runner"
+          cd "$RUNNER_TEMP/test-runner"
+          npm init -y
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/candidate/*.tgz playwright@1.56.1
+          cp "$GITHUB_WORKSPACE/scripts/installed-smoke.mjs" .
+          npx playwright install --with-deps chromium
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/test-runner/node_modules/.bin/openadminjs" create runtime-app --pm pnpm --db sqlite --admin-email admin@example.test --admin-password-env QA_ADMIN_PASSWORD --skip-redis --no-git --non-interactive --no-install
+          cd runtime-app
+          "$RUNNER_TEMP/test-runner/node_modules/.bin/openadminjs" runtime --archives "$RUNNER_TEMP/runtime" --apply
+          test ! -d packages/core
+          pnpm install
+          export DATABASE_URL=file:./dev.db
+          pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate
+          pnpm exec prisma generate --schema prisma/schema.prisma
+          pnpm db:seed
+          pnpm schema:check
+          pnpm build
+          node "$RUNNER_TEMP/test-runner/installed-smoke.mjs" "$PWD"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-external-runtime
+          path: ${{ runner.temp }}/smoke-results
+          if-no-files-found: ignore

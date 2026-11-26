@@ -80,7 +80,7 @@ export function migrateRuntime(root:string,template:string,flags:Flags={}){
    const to=join(backup,"sources",relative(root,from));mkdirSync(dirname(to),{recursive:true});renameSync(from,to);moved.push({from,to});
   }
   if(files.length){mkdirSync(archiveDir);for(const f of files)copyFileSync(f.source,f.target);}
-  write(join(backup,"migration.json"),result);
+  write(join(backup,"migration.json"),{...result,applied:true});
   // Keep this backup out of Git and avoid accidental workspace discovery.
   const ignore=join(root,".gitignore");if(existsSync(ignore)&&!readFileSync(ignore,"utf8").includes(".openadminjs-runtime-backup/"))writeFileSync(ignore,readFileSync(ignore,"utf8")+"\n.openadminjs-runtime-backup/\n");
   if(flags.initial)rmSync(backup,{recursive:true,force:true});

@@ -10,6 +10,7 @@ const cwd=mkdtempSync(join(tmpdir(),"oajs-runtime-"));
 try{
  const dependencies={};
  for(const [name,entry] of Object.entries(manifest)){
+  if(!/^@openadminjs\/[a-z-]+$/.test(name)||!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/.test(entry.version)||entry.archive!==name.slice(1).replace("/","-")+"-"+entry.version+".tgz")throw Error("Invalid runtime archive manifest");
   const archive=join(dir,entry.archive);
   assert.equal(createHash("sha256").update(readFileSync(archive)).digest("hex"),entry.sha256);
   dependencies[name]="file:"+archive;
@@ -17,24 +18,6 @@ try{
  writeFileSync(join(cwd,"package.json"),JSON.stringify({private:true,type:"module",dependencies}));
  const install=spawnSync("npm",["install","--ignore-scripts","--no-audit","--no-fund"],{cwd,stdio:"inherit"});
  assert.equal(install.status,0);
- writeFileSync(join(cwd,"smoke.mjs"),`import assert from "node:assert/strict";
-import {defineResource} from "@openadminjs/core";
-import {safeData,sanitizeRecord,buildWhere} from "@openadminjs/nest";
-import {can} from "@openadminjs/permissions";
-import {loadDensity} from "@openadminjs/admin-client";
-import {LocalStorage} from "@openadminjs/storage";
-import {composeSchema} from "@openadminjs/prisma";
-const r=defineResource({name:"things",label:"Things",model:"thing",permissions:{read:"things.read"},fields:{id:{type:"id"},name:{type:"text",searchable:true},passwordHash:{type:"password"}}});
-const user={id:"u",permissions:["things.read"]};
-assert(can(user.permissions,"things.read"));
-assert.deepEqual(safeData(r,{name:"ok"},"create",user),{name:"ok"});
-assert.deepEqual(sanitizeRecord(r,{id:"1",name:"x",passwordHash:"secret"},user),{id:"1",name:"x"});
-assert(buildWhere(r,{search:"x"},user));
-assert.equal(loadDensity("things"),"comfortable");
-assert.equal(typeof LocalStorage,"function");
-assert(composeSchema({provider:"sqlite",modules:["core"]}).includes("model Session"));
-for(const name of Object.keys(${JSON.stringify(manifest)}))await import(name);
-console.log("Independent npm runtime consumer passed");
-`);
+ writeFileSync(join(cwd,"smoke.mjs"),readFileSync(new URL("./runtime-consumer.mjs",import.meta.url)));
  const result=spawnSync(process.execPath,["smoke.mjs"],{cwd,stdio:"inherit"});assert.equal(result.status,0);
 }finally{rmSync(cwd,{recursive:true,force:true});}
