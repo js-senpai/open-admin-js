@@ -9,7 +9,7 @@ import {
   resolveResourceForLocale,
   shouldApplyListScope
 } from "@openadminjs/core";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { lstat, mkdir, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { PrismaService } from "../common/prisma.service";
@@ -51,7 +51,7 @@ export class AdminResourceService {
           titleField: view.titleField,
           permissions: view.permissions,
           fields: Object.fromEntries(Object.entries(view.fields).filter(([name]) => this.canReadField(resource, name, user)).map(([name, field]) => [name, { ...field, create: field.create !== false && (!field.permissions?.create || this.has(user, field.permissions.create)), edit: field.edit !== false && (!field.permissions?.update || this.has(user, field.permissions.update)) }])),
-          actions: view.actions,
+          actions: Object.fromEntries(Object.entries(view.actions ?? {}).filter(([,action])=>this.has(user,action.permission)).map(([name,{handler,...config}])=>[name,config])),
           i18n: view.i18n,
           seo: view.seo
         };
@@ -139,7 +139,19 @@ export class AdminResourceService {
   private async createRecord(name: string, data: Record<string, unknown>, user: UserContext) {
     const resource = this.authorizedResource(name, user, "create");
 
-    if (name === "api-tokens") throw new ForbiddenException("API token issuance is disabled until authentication is supported");
+    if (name === "api-tokens") {
+      const label = typeof data.name === "string" ? data.name.trim() : "";
+      const scopes = Array.isArray(data.scopes) ? [...new Set(data.scopes)] : [];
+      const allowed = new Set(resources.filter(r => !["api-tokens","settings","audit-logs","users","job-logs","webhook-logs"].includes(r.name) && this.has(user,r.permissions.read)).map(r=>r.permissions.read));
+      if (!label || label.length > 120 || !scopes.length || scopes.length > 50 || !scopes.every(s=>typeof s==="string" && allowed.has(s))) throw new BadRequestException("Choose explicit permitted resource read scopes");
+      const plainToken = "oajs_" + randomBytes(32).toString("base64url");
+      const created = await this.prisma.$transaction(async tx => {
+        const record = await tx.apiToken.create({data:{name:label, scopes:scopes as string[], userId:user.id, tokenHash:createHash("sha256").update(plainToken).digest("hex")}});
+        await tx.auditLog.create({data:{userId:user.id,resource:name,resourceId:record.id,action:"create"}});
+        return record;
+      });
+      return {...this.sanitizeRecord(resource,created,user) as object,plainToken};
+    }
 
     const payload = this.safeData(resource, data, "create", user);
     const hookUser = { id: user.id, email: user.email ?? "", permissions: user.permissions };
@@ -215,8 +227,8 @@ export class AdminResourceService {
   }
 
   async action(name: string, id: string, action: string, user: UserContext, input?: unknown) {
-    const resource = getResource(name);
-    const config = resource?.actions?.[action];
+    const resource = this.authorizedResource(name,user,"read");
+    const config = resource.actions?.[action];
     if (!resource || !config) throw new NotFoundException({ message: "Action not found", code: "ACTION_NOT_FOUND" });
     if (!this.has(user, config.permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
 
@@ -250,6 +262,7 @@ export class AdminResourceService {
     const failures: { id: string; message: string }[] = [];
     let ok = 0;
 
+    if (uniqueIds.length > 100) throw new BadRequestException("Bulk limit is 100");
     if (dto.action === "delete") {
       this.authorizedResource(name, user, "delete");
       for (const id of uniqueIds) {
@@ -284,11 +297,11 @@ export class AdminResourceService {
   async reorder(name: string, orderedIds: string[], user: UserContext, baseIndex = 0): Promise<{ ok: true }> {
     const resource = this.authorizedResource(name, user, "update");
     const orderField = resource.fields.order;
-    if (!orderField || orderField.type !== "number" || orderField.edit === false) {
+    if (!orderField || orderField.type !== "number" || orderField.edit === false || (orderField.permissions?.update && !this.has(user,orderField.permissions.update))) {
       throw new BadRequestException({ message: "Resource does not support drag-and-drop ordering", code: "REORDER_UNSUPPORTED" });
     }
     const uniqueIds = [...new Set(orderedIds.map(String).filter(Boolean))];
-    if (!uniqueIds.length) throw new BadRequestException({ message: "No ids provided", code: "REORDER_EMPTY" });
+    if (!uniqueIds.length || uniqueIds.length > 100 || !Number.isSafeInteger(baseIndex) || baseIndex < 0 || baseIndex + uniqueIds.length > 2147483647) throw new BadRequestException({ message: "Invalid reorder request", code: "REORDER_INVALID" });
 
     const delegate = this.delegate(resource);
     const rows = await delegate.findMany({ where: { id: { in: uniqueIds } } });
@@ -306,13 +319,11 @@ export class AdminResourceService {
       if (!txDelegate) throw new NotFoundException({ message: "Prisma model not found", code: "MODEL_NOT_FOUND" });
       for (let i = 0; i < uniqueIds.length; i++) {
         await txDelegate.update({
-          where: { id: uniqueIds[i] },
+          where: { id: uniqueIds[i], ...(shouldApplyListScope(resource,user.permissions)?listScopeWhereClause(resource,user.id):{}) },
           data: { order: baseIndex + i }
         });
       }
-    });
-
-    await this.prisma.auditLog.create({
+      await tx.auditLog.create({
       data: {
         userId: user.id,
         resource: name,
@@ -321,6 +332,7 @@ export class AdminResourceService {
         before: { ids: uniqueIds, previous: rows.map((r) => ({ id: (r as { id: string }).id, order: (r as { order?: number }).order })) } as object,
         after: { ids: uniqueIds, baseIndex, order: uniqueIds.map((id, index) => ({ id, order: baseIndex + index })) } as object
       }
+    });
     });
 
     return { ok: true };
@@ -560,12 +572,12 @@ export class AdminResourceService {
   private coerceFilterScalar(field: ResourceField, value: string): string | number | boolean {
     if (field.type === "number" || field.type === "money") {
       const n = Number(value);
-      if (Number.isNaN(n)) {
+      if (!Number.isFinite(n) || !value.trim()) {
         throw new BadRequestException({ message: `Invalid number for filter`, code: "FILTER_VALUE_INVALID" });
       }
       return n;
     }
-    if (field.type === "boolean") return value === "true" || value === "1";
+    if (field.type === "boolean") { if (!["true","false","1","0"].includes(value)) throw new BadRequestException("Invalid boolean"); return value === "true" || value === "1"; }
     return value;
   }
 

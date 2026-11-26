@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 import { GqlExecutionContext } from "@nestjs/graphql";
 import { JwtService } from "@nestjs/jwt";
+import { createHash } from "node:crypto";
 import { DEFAULT_AUTH_REALM } from "@openadminjs/permissions";
 import { PrismaService } from "./prisma.service";
 import { AUTH_REALM_KEY } from "./auth-realm.decorator";
@@ -38,6 +39,7 @@ export class AuthGuard implements CanActivate {
     const header = request.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException({ message: "Missing access token", code: "AUTH_REQUIRED" });
+    if (token.startsWith("oajs_")) return this.authenticateApiToken(context,request,token);
     try {
       const jwtSecret = this.config.get<string>("JWT_SECRET")?.trim() ?? process.env.JWT_SECRET?.trim();
       const payload = await this.jwt.verifyAsync<{ sub: string; realm?: string; sid?: string }>(token, { secret: jwtSecret });
@@ -88,6 +90,21 @@ export class AuthGuard implements CanActivate {
       if (e instanceof ForbiddenException) throw e;
       throw new UnauthorizedException({ message: "Invalid access token", code: "AUTH_INVALID" });
     }
+  }
+
+  private async authenticateApiToken(context: ExecutionContext, request: {user?:RequestUser}, token:string) {
+    const denied = () => new UnauthorizedException("Invalid API token");
+    if (!/^oajs_[A-Za-z0-9_-]{43}$/.test(token) || context.getType() !== "http") throw denied();
+    const req = context.switchToHttp().getRequest<{method:string;path:string}>();
+    // Personal keys are intentionally read-only and cannot access auth, settings, jobs, AI or plugin APIs.
+    if (req.method !== "GET" || !/^\/admin\/resources(?:\/|$)/.test(req.path) || req.path === "/admin/resources/overview") throw new ForbiddenException("API token route not allowed");
+    const entry = await this.prisma.apiToken.findUnique({where:{tokenHash:createHash("sha256").update(token).digest("hex")},include:{user:{include:{roles:{include:{role:{include:{permissions:{include:{permission:true}}}}}}}}}});
+    if (!entry || entry.revokedAt || entry.user.status !== "active" || !Array.isArray(entry.scopes)) throw denied();
+    const live = entry.user.roles.filter(x=>x.role.realm==="admin").flatMap(x=>x.role.permissions.map(p=>p.permission.name));
+    const permissions = entry.scopes.filter((x):x is string=>typeof x==="string" && x.endsWith(".read") && !["api-tokens.read","settings.read","audit-logs.read","users.read","jobs.read","webhook-logs.read"].includes(x) && (live.includes("*")||live.includes(x)));
+    if (!permissions.length) throw denied();
+    request.user={id:entry.userId,sessionId:entry.id,realm:"admin",email:entry.user.email,roles:[],permissions};
+    return true;
   }
 
   private getRequest(context: ExecutionContext): {

@@ -207,7 +207,7 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) return { ok: true, message: "If the email exists, reset instructions will be sent." };
+    if (!user || user.status !== "active") return { ok: true, message: "If the email exists, reset instructions will be sent." };
 
     const rawToken = randomBytes(32).toString("base64url");
     const tokenHash = this.hashToken(rawToken);
@@ -246,7 +246,7 @@ export class AuthService {
       include: { user: true }
     });
 
-    if (!resetToken) throw new BadRequestException({ message: "Invalid or expired reset token", code: "RESET_TOKEN_INVALID" });
+    if (!resetToken || resetToken.user.status !== "active") throw new BadRequestException({ message: "Invalid or expired reset token", code: "RESET_TOKEN_INVALID" });
 
     const nextPasswordHash = await bcrypt.hash(password, 12);
     await this.prisma.$transaction(async (tx) => {
@@ -273,19 +273,13 @@ export class AuthService {
     });
     if (!verification) throw new BadRequestException({ message: "Invalid or expired verification token", code: "VERIFY_TOKEN_INVALID" });
 
-    await this.prisma.$transaction([
-      this.prisma.emailVerificationToken.update({
-        where: { id: verification.id },
-        data: { usedAt: now }
-      }),
-      this.prisma.user.update({
-        where: { id: verification.userId },
-        data: { status: "active" }
-      }),
-      this.prisma.auditLog.create({
-        data: { userId: verification.userId, action: "email.verified", resource: "auth" }
-      })
-    ]);
+    await this.prisma.$transaction(async tx => {
+      const claimed = await tx.emailVerificationToken.updateMany({ where: { id: verification.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+      if (claimed.count !== 1) throw new BadRequestException("Invalid or expired verification token");
+      const activated = await tx.user.updateMany({ where: { id: verification.userId, status: { in: ["pending", "unverified"] } }, data: { status: "active" } });
+      if (activated.count !== 1) throw new BadRequestException("Account is not awaiting verification");
+      await tx.auditLog.create({ data: { userId: verification.userId, action: "email.verified", resource: "auth" } });
+    });
 
     return { ok: true };
   }

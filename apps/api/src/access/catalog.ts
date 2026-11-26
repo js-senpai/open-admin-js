@@ -40,6 +40,7 @@ const PERMISSION_LABEL_OVERRIDES: Record<string, { en: string; ru: string }> = {
   "orders.refund": { en: "Refund orders", ru: "Возврат средств" },
   "ai.config.read": { en: "View AI configuration", ru: "Настройки AI (чтение)" },
   "ai.config.update": { en: "Change AI configuration", ru: "Настройки AI (запись)" },
+  "system-logs.read": {en:"View system logs",ru:"Системные журналы"},
   "ai.chat": { en: "Use AI consultant", ru: "AI-консультант" }
 };
 
