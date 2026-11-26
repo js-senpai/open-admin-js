@@ -39,7 +39,7 @@ function filter(source) {
   if (/\.(?:test|spec|stories)\.[cm]?[jt]sx?$/.test(name) || /^vitest\.config\./.test(name)) return false;
   if (/\.(?:db|sqlite|sqlite3|log|tsbuildinfo|pem|key|map|tgz|swp)(?:[-.]|$)/i.test(name) || name === ".DS_Store") return false;
   // Explicit source/config/document/media extensions; no compiled JS adjacent to TS source.
-  if (source.includes("/src/") && /\.js$/.test(name)) return false;
+  if (source.replaceAll("\\", "/").includes("/src/") && /\.js$/.test(name)) return false;
   return /\.(?:ts|tsx|mts|cts|mjs|cjs|js|jsx|json|yaml|yml|toml|prisma|sql|md|txt|css|svg|png|jpg|jpeg|webp|ico|woff2?|html|sh)$/.test(name) || [".gitignore", ".env.example", "Dockerfile", "LICENSE"].includes(name);
 }
 

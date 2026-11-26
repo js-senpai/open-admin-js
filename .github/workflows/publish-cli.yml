@@ -1,64 +1,39 @@
-name: Publish openadminjs to npm
-
-# Publishes the `openadminjs` CLI when `packages/cli/package.json` version is
-# higher than the latest version on npm (typical flow: bump version on main, push).
-# Requires repository secret NPM_TOKEN (npm "Automation" access token).
-
+name: Publish verified OpenAdminJS candidate
 on:
-  push:
-    branches: [main]
-    paths:
-      - "packages/cli/package.json"
-      - "pnpm-lock.yaml"
   workflow_dispatch:
-
+    inputs:
+      publish:
+        description: Explicit approval to publish the tested candidate to npm
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
-
 jobs:
+  validate:
+    if: github.ref == 'refs/heads/main' && inputs.publish == true
+    uses: ./.github/workflows/ci.yml
   publish:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && inputs.publish == true
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
           registry-url: https://registry.npmjs.org
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Build CLI
-        run: pnpm --filter openadminjs build
-
-      - name: Publish if version is new
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: candidate
+      - name: Publish the exact tested archive
+        working-directory: candidate
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::NPM_TOKEN secret is empty. Add an npm Automation token with publish access for 'openadminjs'."
-            exit 1
-          fi
-          # Ensure pnpm's publish uses the token (setup-node's env-substituted .npmrc
-          # is not always honored by `pnpm publish`, which surfaces as a 404 on PUT).
-          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
-          LOCAL=$(node -p "require('./packages/cli/package.json').version")
-          REMOTE=$(npm view openadminjs version 2>/dev/null || true)
-          if [ -z "${REMOTE:-}" ]; then
-            echo "No published version found; publishing $LOCAL"
-            pnpm --filter openadminjs publish --access public --no-git-checks
-            exit 0
-          fi
-          if [ "$(printf '%s\n' "$REMOTE" "$LOCAL" | sort -V | tail -1)" = "$LOCAL" ] && [ "$LOCAL" != "$REMOTE" ]; then
-            echo "Publishing $LOCAL (npm has $REMOTE)"
-            pnpm --filter openadminjs publish --access public --no-git-checks
-          else
-            echo "Skip publish: local=$LOCAL npm=$REMOTE"
-          fi
+          sha256sum -c SHA256SUMS
+          npm publish ./*.tgz --access public --provenance --ignore-scripts

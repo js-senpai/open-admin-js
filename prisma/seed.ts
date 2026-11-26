@@ -85,6 +85,7 @@ async function askForSuperadminCredentials(): Promise<SeedCredentials> {
 
 async function main() {
   const superadmin = await askForSuperadminCredentials();
+  if (["viewer@example.com", "shopper@example.com"].includes(superadmin.email.toLowerCase()) || superadmin.password.length < 12) throw new Error("Use a non-demo administrator email and a password of at least 12 characters");
 
   const mergedCatalog: { name: string; label: { en: string; ru: string } }[] = [...permissionCatalog];
   for (const p of publicPermissionCatalog) {
@@ -166,7 +167,6 @@ async function main() {
 
   // Previous releases seeded known credentials. Disable only unchanged demo accounts.
   for (const email of ["viewer@example.com", "shopper@example.com"]) {
-    if (email === superadmin.email) throw new Error("Choose a non-demo administrator email");
     const legacy = await prisma.user.findUnique({ where: { email } });
     if (legacy && await bcrypt.compare("password", legacy.passwordHash)) {
       await prisma.$transaction(async tx => {

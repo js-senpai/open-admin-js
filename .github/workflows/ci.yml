@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -88,6 +89,8 @@ jobs:
   # Database matrix: verify a generated project's schema + migrations for every
   # advertised database (PostgreSQL + MySQL) against a real container.
   database-matrix:
+    needs: pack
+    timeout-minutes: 30
     name: DB integration (${{ matrix.db }})
     runs-on: ubuntu-latest
     strategy:
@@ -127,24 +130,25 @@ jobs:
               -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=openadminjs -e MYSQL_PASSWORD=openadminjs -e MYSQL_DATABASE=openadminjs \
               ${{ matrix.image }}
           fi
-      - run: pnpm install --frozen-lockfile
-      - name: Build CLI
-        run: pnpm --filter openadminjs build
-      - name: Scaffold a project for ${{ matrix.db }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+      - name: Install actual release candidate
+        env:
+          QA_ADMIN_PASSWORD: quality-test-passphrase-2026
         run: |
-          node --input-type=module -e "
-          import { createProject } from './packages/cli/dist/create-project.js';
-          import { randomBytes } from 'node:crypto';
-          createProject({
-            projectName: 'it-app', cwd: process.env.RUNNER_TEMP, packageManager: 'pnpm',
-            database: '${{ matrix.db }}',
-            superadminEmail: 'admin@localhost.dev', superadminPassword: 'a-strong-passphrase',
-            databaseUrl: '${{ matrix.url }}', redisUrl: 'redis://localhost:6379',
-            jwtSecret: randomBytes(48).toString('base64url'), jwtRefreshSecret: randomBytes(48).toString('base64url'),
-            adminOrigin: 'http://localhost:3000', apiPort: '4000', git: false, install: false
-          });
-          console.log('scaffolded', process.env.RUNNER_TEMP + '/it-app');
-          "
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum -c SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/test-runner"
+          cd "$RUNNER_TEMP/test-runner"
+          npm init -y
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/candidate/*.tgz playwright@1.56.1
+          cp "$GITHUB_WORKSPACE/scripts/installed-smoke.mjs" .
+          npx playwright install --with-deps chromium
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/test-runner/node_modules/.bin/openadminjs" create it-app --pm pnpm --db "${{ matrix.db }}" --db-url "${{ matrix.url }}" --admin-email admin@example.test --admin-password-env QA_ADMIN_PASSWORD --skip-redis --no-git --non-interactive --no-install
       - name: Wait for DB
         if: matrix.db != 'sqlite'
         run: |
@@ -175,9 +179,22 @@ jobs:
           pnpm exec prisma generate --schema prisma/schema.prisma
           pnpm db:seed
 
-  # Verify the published tarball contains only what it should (no secrets).
+      - name: Build scaffold and exercise real HTTP and browser flows
+        env:
+          QA_ADMIN_PASSWORD: quality-test-passphrase-2026
+        run: |
+          cd "$RUNNER_TEMP/it-app"
+          pnpm build
+          node "$RUNNER_TEMP/test-runner/installed-smoke.mjs" "$PWD"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.db }}
+          path: ${{ runner.temp }}/smoke-results
+          if-no-files-found: ignore
+
   pack:
-    name: npm pack inspection
+    name: Build and inspect release candidate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -190,18 +207,24 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter openadminjs build
-      - name: npm pack --dry-run
-        working-directory: packages/cli
-        run: npm pack --dry-run 2>&1 | tee pack.txt
-      - name: Assert tarball has no secrets / junk
+      - name: Pack and validate contents
         working-directory: packages/cli
         run: |
           set -euo pipefail
-          if grep -E "(^|/)\.env($|[^.])" pack.txt | grep -v "\.env\.example"; then
-            echo "::error::real .env file would be published"; exit 1
+          mkdir -p "$RUNNER_TEMP/candidate"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/candidate"
+          cd "$RUNNER_TEMP/candidate"
+          tar -tzf ./*.tgz > contents.txt
+          if grep -E '(^|/)\.env($|\.)' contents.txt | grep -vE '/\.env\.example$'; then
+            echo "::error::Real env file in candidate"; exit 1
           fi
-          for bad in "apps/api/.env" "coverage/" ".tmp" ".sqlite" "node_modules/"; do
-            if grep -q "$bad" pack.txt; then echo "::error::tarball includes $bad"; exit 1; fi
-          done
-          grep -q "dist/index.js" pack.txt || { echo "::error::dist missing from tarball"; exit 1; }
-          echo "Tarball contents look correct."
+          if grep -E '(^|/)(node_modules|coverage|\.next|\.git)/|\.(test|spec)\.[cm]?[jt]sx?$|\.(db|sqlite|pem|key)$' contents.txt; then
+            echo "::error::Unexpected file in candidate"; exit 1
+          fi
+          grep -q '^package/dist/index.js$' contents.txt
+          sha256sum ./*.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
