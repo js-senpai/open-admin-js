@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdir, open } from "node:fs/promises";
 import { join } from "node:path";
@@ -15,7 +17,7 @@ const admin = "http://localhost:3000";
 const out = join(process.env.RUNNER_TEMP || cwd, "smoke-results");
 await mkdir(out, { recursive: true });
 const log = await open(join(out, "runtime.log"), "w");
-const child = spawn("pnpm", ["start"], { cwd, detached: true, stdio: ["ignore", log.fd, log.fd] });
+const child = spawn("pnpm", ["start"], { cwd, detached: true, stdio: ["ignore", log.fd, log.fd], env: {...process.env,NODE_ENV:"production",OPENADMIN_SWAGGER:"0",OPENADMIN_GRAPHQL_INTROSPECTION:"0",OPENADMIN_COMMERCE_ENABLED:"1",STRIPE_SECRET_KEY:"sk_test_ci_placeholder",STRIPE_WEBHOOK_SECRET:"whsec_ci_placeholder",CHECKOUT_SUCCESS_URL:"https://example.test/success",CHECKOUT_CANCEL_URL:"https://example.test/cancel"} });
 let browser;
 async function waitFor(url) {
   for (let i = 0; i < 120; i++) {
@@ -38,6 +40,52 @@ try {
   assert(login.ok, "Admin login failed: " + login.status);
   const { accessToken, refreshToken } = login.data;
   assert(accessToken && refreshToken);
+  // These fixtures belong only to the disposable generated test database.
+  assert.equal((await request("/auth/login","POST",{email:"viewer@example.com",password:"password",realm:"admin"})).status,401);
+  assert.equal((await request("/auth/login","POST",{email:"shopper@example.com",password:"password",realm:"public"})).status,401);
+  const appRequire=createRequire(join(cwd,"apps/api/package.json"));
+  const rootRequire=createRequire(join(cwd,"package.json"));
+  const env=appRequire("dotenv").parse(await (await import("node:fs/promises")).readFile(join(cwd,"apps/api/.env")));
+  const {PrismaClient}=rootRequire("@prisma/client");
+  const db=new PrismaClient({datasourceUrl:process.env.DATABASE_URL||env.DATABASE_URL});
+  const viewerEmail="audit-"+randomBytes(8).toString("hex")+"@example.test";
+  const viewerPassword=randomBytes(24).toString("base64url");
+  try {
+    const role=await db.role.findUniqueOrThrow({where:{name_realm:{name:"viewer",realm:"admin"}}});
+    await db.user.create({data:{email:viewerEmail,passwordHash:await appRequire("bcryptjs").hash(viewerPassword,12),roles:{create:{roleId:role.id}}}});
+  } finally {await db.$disconnect();}
+  const viewer=await request("/auth/login","POST",{email:viewerEmail,password:viewerPassword,realm:"admin"});
+  assert(viewer.ok);
+  const viewerToken=viewer.data.accessToken;
+  assert((await request("/admin/resources/posts","GET",undefined,viewerToken)).ok);
+  for(const [path,method,body] of [
+    ["/admin/plugins","POST",{package:"audit-regression-placeholder"}],
+    ["/admin/resources/posts","POST",{title:"denied",slug:"denied"}],
+    ["/admin/resources/posts/bulk","POST",{action:"delete",ids:["nonexistent"]}],
+    ["/admin/resources/files/upload","POST",{filename:"denied.txt",mimeType:"text/plain",contentBase64:"aGk="}],
+    ["/admin/ai/config","PUT",{baseUrl:"https://example.test"}],
+    ["/admin/resources/orders/nonexistent/refund","POST",{}]
+  ]) assert.equal((await request(path,method,body,viewerToken)).status,403,path);
+  assert.equal((await request("/admin/resources/files/upload","POST",{filename:"denied.txt",mimeType:"text/plain",contentBase64:"aGk=",targetPath:"audit-proof.txt"},accessToken)).status,400);
+  assert.equal((await request("/admin/resources/posts","POST",{title:"unknown",slug:"unknown",unknownField:true},accessToken)).status,400);
+  assert.equal((await request("/admin/resources/posts?page=abc","GET",undefined,accessToken)).status,400);
+  const reset=await request("/auth/password/forgot","POST",{email:viewerEmail});
+  assert(reset.ok && !("token" in reset.data) && !("resetToken" in reset.data));
+  assert.equal((await request("/store/session","GET",undefined,accessToken)).data.code,"AUTH_REALM_MISMATCH");
+  const pub=await request("/auth/login","POST",{email,password,realm:"public"});
+  assert(pub.ok);
+  assert.equal((await request("/admin/resources/posts","GET",undefined,pub.data.accessToken)).data.code,"AUTH_REALM_MISMATCH");
+  assert.equal((await request("/store/checkout","POST",{})).status,401);
+  assert.equal((await request("/store/orders/nonexistent/status")).status,401);
+  assert.equal((await request("/store/checkout","POST",{idempotencyKey:"audit-invalid-price",items:[{productId:"nonexistent",quantity:1,price:1}]},pub.data.accessToken)).status,400);
+  assert.equal((await request("/store/webhook/mock","POST",{})).status,400);
+  const forged=await fetch(api+"/store/webhook/stripe",{method:"POST",headers:{"content-type":"application/json","stripe-signature":"forged"},body:"{}"});
+  assert.equal(forged.status,400);
+  const introspection=await request("/graphql","POST",{query:"{ __schema { queryType { name } } }"},accessToken);
+  assert(Array.isArray(introspection.data?.errors)&&!introspection.data?.data?.__schema,"Production introspection exposed");
+  assert.equal((await fetch(api+"/api/docs")).status,404);
+  console.log("Audit regression: role/realm, legacy accounts, upload, payment, reset, GraphQL and Swagger checks passed");
+
   assert((await request("/admin/resources/posts", "GET", undefined, accessToken)).ok);
   const slug = "release-smoke-" + Date.now();
   const post = await request("/admin/resources/posts", "POST", { title: "Release smoke", slug, status: "draft" }, accessToken);
@@ -81,6 +129,22 @@ try {
   assert(!(await page.evaluate(() => document.cookie)).includes("oajs_at="));
   assert((await page.request.get(admin + "/api/backend/admin/resources")).ok());
   assert.equal((await page.request.post(admin + "/api/backend/admin/resources/posts", { headers: { origin: "https://untrusted.example" }, data: {} })).status(), 403);
+  // Both tabs share cookies. Clear only the access cookie to simulate expiry.
+  const second=await page.context().newPage();
+  await second.goto(admin+"/resources/posts");
+  await second.getByText("No records found",{exact:true}).waitFor();
+  await page.context().clearCookies({name:"oajs_at"});
+  const refreshResponses=[];
+  const onResponse=response=>{if(new URL(response.url()).pathname==="/api/auth/refresh")refreshResponses.push(response.status());};
+  page.context().on("response",onResponse);
+  await Promise.all([page.goto(admin+"/resources/posts"),second.reload()]);
+  await Promise.all([page.getByText("No records found",{exact:true}).waitFor(),second.getByText("No records found",{exact:true}).waitFor()]);
+  assert.equal(refreshResponses.filter(s=>s===200).length,1,"Expected one successful rotation across tabs");
+  assert(!refreshResponses.includes(401),"Concurrent tabs replayed the token");
+  assert((await page.request.get(admin+"/api/backend/auth/me")).ok());
+  page.context().off("response",onResponse);
+  await second.close();
+  await page.goto(admin+"/dashboard");
   await page.screenshot({ path: join(out, "admin.png"), fullPage: true });
   await page.goto(admin + "/resources/posts");
   await page.getByRole("heading",{name:"Posts",exact:true}).waitFor({state:"visible"});

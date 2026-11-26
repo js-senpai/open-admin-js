@@ -19,7 +19,8 @@
     "schema:check": "node scripts/schema.mjs check",
     "schema:compose": "node scripts/schema.mjs compose",
     "schema:adopt": "node scripts/schema.mjs adopt",
-    "schema:upgrade-plan": "node scripts/migrate-existing.mjs"
+    "schema:upgrade-plan": "node scripts/migrate-existing.mjs",
+    "db:init": "node scripts/db-init.mjs"
   },
   "devDependencies": {
     "@prisma/client": "^6.1.0",

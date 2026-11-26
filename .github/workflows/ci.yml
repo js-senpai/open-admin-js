@@ -171,12 +171,7 @@ jobs:
           # (MySQL users often can't create one → P3014). Use the non-interactive path:
           # PostgreSQL ships a baseline migration → deploy it; MySQL/SQLite have no
           # migration history → push the schema directly (no shadow DB required).
-          if [ "${{ matrix.db }}" = "postgresql" ]; then
-            pnpm exec prisma migrate deploy --schema prisma/schema.prisma
-          else
-            pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate
-          fi
-          pnpm exec prisma generate --schema prisma/schema.prisma
+          pnpm db:init
           pnpm db:seed
 
       - name: Verify CRM example installer (dry run)
@@ -336,8 +331,7 @@ jobs:
           test ! -d packages/core
           pnpm install
           export DATABASE_URL=file:./dev.db
-          pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate
-          pnpm exec prisma generate --schema prisma/schema.prisma
+          pnpm db:init
           pnpm db:seed
           pnpm schema:check
           pnpm build

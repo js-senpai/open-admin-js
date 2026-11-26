@@ -35,6 +35,25 @@ The reference workspace uses pnpm. The CLI also exposes npm and yarn profiles; t
 - **MySQL / SQLite:** development scaffolds use native JSON (scalar lists become JSON arrays). The initial setup uses non-destructive schema push. Do not use PostgreSQL migrations on another provider.
 - Database support in the V2 candidate is subject to the installed-package CI matrix.
 
+## Contributor quick start (repository checkout)
+
+The repository's canonical schema and migration history use PostgreSQL. Start a local database without editing Prisma files:
+
+```bash
+docker compose -f compose.dev.yaml up -d --wait
+pnpm install --frozen-lockfile
+export DATABASE_URL=postgresql://openadminjs:local-development-only@localhost:5432/openadminjs
+export JWT_SECRET="$(node -e 'console.log(require("node:crypto").randomBytes(48).toString("hex"))')"
+export ADMIN_ORIGIN=http://localhost:3000
+export SUPERADMIN_EMAIL=admin@localhost.dev
+read -rs SUPERADMIN_PASSWORD; export SUPERADMIN_PASSWORD
+pnpm db:init
+pnpm db:seed
+pnpm dev
+```
+
+The Compose credentials are local-only, bound to loopback; never use them in production. For SQLite without Docker, build the CLI (`pnpm --filter openadminjs build`) and create a disposable SQLite scaffold outside this workspace with the built CLI. See [development guide](docs/development.md) and [RBAC matrix](docs/rbac.md).
+
 ## Quick start (for package users)
 
 Full documentation: [https://js-senpai.github.io/open-admin-js/docs.html](https://js-senpai.github.io/open-admin-js/docs.html)
@@ -114,7 +133,7 @@ OPENADMIN_PLUGIN_PNPM_INSTALL=0
 
 ```bash
 pnpm install
-pnpm db:migrate        # prisma migrate dev
+pnpm db:init           # non-interactive provider-aware initialization
 pnpm db:seed           # seed roles + superadmin
 pnpm dev               # start API + admin
 ```
@@ -186,11 +205,10 @@ overwritten without `--force`.
 
 ## Current limitations
 
-- The scaffold supports **pnpm** only (npm/yarn are not offered).
+- pnpm is the reference tested profile; npm/yarn are available but not fully integration-tested.
 - **PostgreSQL** ships a baseline migration; **MySQL** and **SQLite** create their
   initial migration on first `db:migrate`.
-- On **SQLite**, `Json` fields are JSON-encoded in `String` columns at runtime
-  (transparent to the admin UI).
+- New SQLite projects use native Prisma JSON. Legacy text JSON is supported only for existing schemas until migrated.
 - Redis is optional; queue features require a reachable `REDIS_URL`.
 
 ## Production deployment (outline)
@@ -216,7 +234,7 @@ NODE_ENV=production pnpm start
 | `prisma migrate deploy` fails on a fresh DB | Run `pnpm db:migrate` (dev) once, or check the DB is reachable |
 | `Can't reach database server` (PostgreSQL/MySQL) | Start the database server and verify host/port in `DATABASE_URL` |
 | MySQL/SQLite: no tables after create | Run `pnpm db:migrate` then `pnpm db:seed` — non-PostgreSQL providers do not ship the baseline migration |
-| SQLite: `Json` fields look like strings in Prisma Studio | Expected at rest; the API decodes them at runtime via `json-field-codec.ts` |
+| SQLite: `Json` fields look like strings in Prisma Studio | Legacy projects only; use the reviewed schema upgrade planner to migrate to native JSON |
 | Peer dependency warnings on install | Ensure `@apollo/server@^5` + `@nestjs/apollo@^13.4` + `@as-integrations/express5` (already pinned) |
 | Secrets accidentally committed | Rotate them immediately; `.gitignore` prevents this by default |
 
@@ -226,7 +244,7 @@ NODE_ENV=production pnpm start
 - Auth, RBAC contracts, generic CRUD API, audit log and file/settings modules.
 - Next.js admin shell with login, dashboard, resource screens and operational pages.
 - Generated app `apps/web` for public frontend pages and SEO.
-- CLI: `create`, `dev`, `build`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
+- CLI: `create`, `runtime`, `schema`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
 
 ## Plugin Platform
 
@@ -239,7 +257,7 @@ OpenAdminJS now uses a broad extension model (no legacy compatibility layer). Pl
 - `jobs` handlers
 - `adminUi` extensions (menus/pages/widgets/actions)
 
-Plugins are controlled by manifest capabilities and trust mode (`trusted` / `sandboxed`) in `apps/api/plugins.manifest.json`.
+Plugins are controlled by manifest capabilities; only trusted in-process code is supported in `apps/api/plugins.manifest.json`.
 
 ### Capability matrix
 
@@ -250,7 +268,7 @@ Plugins are controlled by manifest capabilities and trust mode (`trusted` / `san
 - `jobs.run` — background job handlers.
 - `admin.ui.extend` — admin menu/page/widget/action extensions.
 
-`trusted` mode may run with broad access; `sandboxed` mode should explicitly declare only required capabilities.
+Capabilities are not a security sandbox. Install trusted plugins during build/deployment; never run untrusted code in-process.
 
 Generate a starter plugin:
 
