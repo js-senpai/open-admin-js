@@ -1,0 +1,4 @@
+# Project-local reference; crawler rules apply only at the hostname root /robots.txt.
+User-agent: *
+Allow: /
+Sitemap: https://js-senpai.github.io/open-admin-js/sitemap.xml
