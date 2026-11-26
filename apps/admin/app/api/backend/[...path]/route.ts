@@ -15,11 +15,27 @@ async function proxy(req: NextRequest, context: RouteContext) {
   const contentType = req.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
   const init: RequestInit = { method: req.method, headers, cache: "no-store", redirect: "error" };
-  if (req.method !== "GET" && req.method !== "HEAD") init.body = await req.arrayBuffer();
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    const max = 15 * 1024 * 1024;
+    if (Number(req.headers.get("content-length") || 0) > max) return NextResponse.json({message:"Body too large"},{status:413});
+    const reader = req.body?.getReader();
+    if(reader) {
+      const chunks: Uint8Array[] = []; let total = 0;
+      for(;;) {
+        const {done,value}=await reader.read(); if(done) break;
+        total += value.byteLength;
+        if(total > max) {await reader.cancel();return NextResponse.json({message:"Body too large"},{status:413});}
+        chunks.push(value);
+      }
+      const data=new Uint8Array(total);let offset=0;
+      for(const chunk of chunks){data.set(chunk,offset);offset+=chunk.byteLength;}
+      init.body=data.buffer;
+    }
+  }
   const response = await fetch(API_URL + route + req.nextUrl.search, init).catch(() => null);
   if (!response) return NextResponse.json({ message: "API unavailable" }, { status: 502 });
   const outgoing = new Headers({ "cache-control": "no-store", "x-content-type-options": "nosniff" });
-  for (const name of ["content-type", "content-disposition", "retry-after"]) {
+  for (const name of ["content-type", "content-disposition", "retry-after", "x-request-id"]) {
     const value = response.headers.get(name);
     if (value) outgoing.set(name, value);
   }

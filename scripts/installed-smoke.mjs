@@ -52,8 +52,9 @@ try {
   assert.equal((await request("/auth/refresh", "POST", { refreshToken, realm: "admin" })).status, 401);
   assert.equal((await request("/auth/me", "GET", undefined, rotated.data.accessToken)).status, 401);
   browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage({viewport:{width:1440,height:900}});
   await page.goto(admin + "/login");
+  await page.screenshot({path:join(out,"login-desktop.png"),fullPage:true});
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
@@ -65,6 +66,11 @@ try {
   assert((await page.request.get(admin + "/api/backend/admin/resources")).ok());
   assert.equal((await page.request.post(admin + "/api/backend/admin/resources/posts", { headers: { origin: "https://untrusted.example" }, data: {} })).status(), 403);
   await page.screenshot({ path: join(out, "admin.png"), fullPage: true });
+  await page.goto(admin + "/resources/posts");
+  await page.screenshot({path:join(out,"resources-desktop.png"),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:join(out,"resources-mobile.png"),fullPage:true});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth + 1),"Mobile page overflows");
   assert((await page.request.post(admin + "/api/auth/logout", { headers: { origin: admin } })).ok());
   assert.equal((await page.request.get(admin + "/api/backend/admin/resources")).status(), 401);
   console.log("Installed tarball: HTTP CRUD, refresh replay, browser login, HttpOnly, CSRF, logout passed");

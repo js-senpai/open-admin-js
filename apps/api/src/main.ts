@@ -1,13 +1,15 @@
 import "reflect-metadata";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.useBodyParser("json", { limit: "15mb" });
   app.use(cookieParser());
   app.use(helmet());
   const prodOrigins = (process.env.ADMIN_ORIGIN ?? "")

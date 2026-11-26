@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, HttpException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { defaultFileValidation } from "@openadminjs/storage";
+import { defaultFileValidation, LocalStorage } from "@openadminjs/storage";
 import type { ResourceConfig, ResourceField } from "@openadminjs/core";
 import {
   isSensitiveField,
@@ -10,8 +10,6 @@ import {
   shouldApplyListScope
 } from "@openadminjs/core";
 import { randomBytes, createHash } from "node:crypto";
-import { lstat, mkdir, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
 import { PrismaService } from "../common/prisma.service";
 import { pluginRuntime } from "../plugins/plugin-runtime";
 import { getResource, resources } from "../resources/registry";
@@ -222,6 +220,10 @@ export class AdminResourceService {
       });
     });
 
+    if (name === "files") {
+      const path = String((before as Record<string,unknown>).path ?? "");
+      await new LocalStorage().delete(path).catch(() => console.warn("Storage cleanup requires operator review", id));
+    }
     await runAfterDelete(name, resource, hookUser, this.prisma, id);
     return { ok: true };
   }
@@ -388,18 +390,13 @@ export class AdminResourceService {
       "text/plain": b => !b.includes(0)
     };
     if (!signatures[mimeType]?.(fileBuffer)) throw new BadRequestException("File content does not match MIME type");
-    const root = resolve(process.cwd(), "uploads");
-    await mkdir(root, { recursive: true, mode: 0o700 });
-    if (!(await lstat(root)).isDirectory() || (await lstat(root)).isSymbolicLink()) throw new BadRequestException("Invalid storage root");
-    const key = randomBytes(24).toString("hex");
-    const relPath = `uploads/${key}`;
-    const absPath = join(root, key);
-    await writeFile(absPath, fileBuffer, { flag: "wx", mode: 0o600 });
+    const storage = new LocalStorage();
+    const stored = await storage.put(fileBuffer,{filename,path:"",mimeType,size:fileBuffer.length});
     let record: unknown;
     try {
-      record = await this.createRecord("files", { filename, path: relPath, mimeType, size: fileBuffer.byteLength }, user);
+      record = await this.createRecord("files", stored, user);
     } catch (error) {
-      await unlink(absPath).catch(() => undefined);
+      await storage.delete(stored.path).catch(()=>undefined);
       throw error;
     }
 
@@ -414,6 +411,16 @@ export class AdminResourceService {
     }
 
     return record as Record<string, unknown>;
+  }
+
+  async downloadFile(id: string, user: UserContext) {
+    this.authorizedResource("files", user, "read");
+    const file = await this.prisma.fileAsset.findUnique({where:{id}});
+    if (!file) throw new NotFoundException("File not found");
+    const resource = this.authorizedResource("files",user,"read");
+    if (this.isOutOfListScope(resource,user,file)) throw new NotFoundException("File not found");
+    try { return {filename:file.filename, bytes:await new LocalStorage().read(file.path)}; }
+    catch { throw new NotFoundException("File unavailable"); }
   }
 
   private bulkErrorMessage(err: unknown): string {
