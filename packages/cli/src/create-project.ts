@@ -336,7 +336,7 @@ function runDatabaseSetup(packageManager: PackageManager, database: DatabaseDriv
   const prismaArgs =
     database === "postgresql"
       ? ["migrate", "deploy", ...schemaFlag]
-      : ["db", "push", ...schemaFlag, "--accept-data-loss"];
+      : ["db", "push", ...schemaFlag];
   const label = database === "postgresql" ? "prisma migrate deploy" : "prisma db push";
 
   if (packageManager === "npm") {
@@ -585,6 +585,15 @@ function generateIntoDir(
     if (existsSync(schemaPath)) {
       const schema = readFileSync(schemaPath, "utf8");
       writeFileSync(schemaPath, renderSchemaForProvider(schema, resolved.database));
+    }
+    // Non-PostgreSQL development profiles do not ship provider-specific migration history.
+    // Bootstrap is non-interactive and must never accept data loss automatically.
+    const apiPackagePath = join(targetDir, "apps", "api", "package.json");
+    if (existsSync(apiPackagePath)) {
+      const apiPackage = JSON.parse(readFileSync(apiPackagePath, "utf8")) as { scripts: Record<string, string> };
+      apiPackage.scripts["db:migrate"] = "prisma db push --schema ../../prisma/schema.prisma";
+      // Production deploy requires the operator to supply provider-correct reviewed migrations.
+      writeFileSync(apiPackagePath, JSON.stringify(apiPackage, null, 2) + "\n");
     }
   }
 
