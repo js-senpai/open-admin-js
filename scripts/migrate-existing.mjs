@@ -6,13 +6,13 @@ import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync} from "node:
 import {resolve,join} from "node:path";
 import {spawnSync} from "node:child_process";
 import {createHash} from "node:crypto";
-const {mergeLegacySchema,providers}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
+const {mergeLegacySchema,providers,schemaProvider}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
 const args=process.argv.slice(2);
 if(args.length!==2||args[0]!=="--out")throw Error("Usage: node scripts/migrate-existing.mjs --out <new-directory> (DATABASE_URL must point to a staging copy)");
 const root=process.cwd(),source=join(root,"prisma/schema.prisma"),out=resolve(args[1]);
 if(existsSync(out))throw Error("Output directory already exists");
 if(!process.env.DATABASE_URL)throw Error("Set DATABASE_URL explicitly to an isolated staging database");
-const original=readFileSync(source,"utf8"),provider=original.match(/datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/)?.[1];
+const original=readFileSync(source,"utf8"),provider=schemaProvider(original);
 if(!providers.includes(provider))throw Error("Unsupported provider");
 const url=process.env.DATABASE_URL;
 if(provider==="sqlite"?!url.startsWith("file:"):provider==="mysql"?!url.startsWith("mysql:"):!/^postgres(?:ql)?:/.test(url))throw Error("DATABASE_URL provider mismatch");
@@ -49,7 +49,9 @@ if(!hasHistory){
  write("migration_lock.toml",'provider = "'+provider+'"\n');
 }
 const flags=upgrade.split("\n").filter(l=>/\bDROP\b|\bTRUNCATE\b|\bDELETE\s+FROM\b|ALTER\s+COLUMN|MODIFY\s+COLUMN|NOT NULL/i.test(l)).map(l=>l.trim()).slice(0,100);
-write("plan.json",JSON.stringify({provider,sourceSha256:createHash("sha256").update(original).digest("hex"),targetSha256:createHash("sha256").update(plan.schema).digest("hex"),upgradeSha256:createHash("sha256").update(upgrade).digest("hex"),hasMigrationHistory:hasHistory,changes:plan.changes,reviewRequired:flags},null,2)+"\n");
+// These are file integrity checksums, not credential hashes. The files contain schema/DDL, not rows.
+const fileChecksum=name=>createHash("sha256").update(readFileSync(join(out,name))).digest("hex");
+write("plan.json",JSON.stringify({provider,sourceSha256:fileChecksum("source.prisma"),targetSha256:fileChecksum("target.prisma"),upgradeSha256:fileChecksum("upgrade.sql"),hasMigrationHistory:hasHistory,changes:plan.changes,reviewRequired:flags},null,2)+"\n");
 write("README.md",[
  "# Reviewed migration plan — never apply blindly",
  "",

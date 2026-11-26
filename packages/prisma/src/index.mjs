@@ -10,10 +10,33 @@ export function resolveModules(requested=moduleNames){
  add("core");for(const name of requested)add(name);
  return moduleNames.filter(name=>enabled.has(name));
 }
+// Locate the provider in a single pass over formatted Prisma lines. Do not
+// use an unbounded, unanchored regex over library-supplied schema text.
+function locateProvider(schema){
+ if(typeof schema!=="string")throw Error("Schema must be a string");
+ let inside=false,offset=0,found;
+ for(const line of schema.split(/(\r?\n)/)){
+  if(/^[ \t]*datasource[ \t]+[A-Za-z_]\w*[ \t]*\{[ \t]*(?:\/\/.*)?$/.test(line))inside=true;
+  else if(inside&&/^[ \t]*\}/.test(line))inside=false;
+  else if(inside){
+   const m=line.match(/^[ \t]*provider[ \t]*=[ \t]*"([^"\r\n]+)"[ \t]*(?:\/\/.*)?$/);
+   if(m){
+    if(found)throw Error("Multiple datasource providers are not supported");
+    const start=offset+line.indexOf('"')+1;
+    found={provider:m[1],start,end:start+m[1].length};
+   }
+  }
+  offset+=line.length;
+ }
+ if(!found)throw Error("Format schema with a datasource provider on its own line");
+ return found;
+}
+export function schemaProvider(schema){return locateProvider(schema).provider;}
 const scalars=new Set(["String","Boolean","Int","BigInt","Float","Decimal","DateTime","Bytes","Json"]);
 export function renderProvider(schema,provider){
  if(!providers.includes(provider))throw Error("Unsupported provider: "+provider);
- let result=schema.replace(/(datasource\s+\w+\s*\{[^}]*?provider\s*=\s*)"[^"]+"/,(_,prefix)=>prefix+JSON.stringify(provider));
+ const location=locateProvider(schema);
+ let result=schema.slice(0,location.start)+provider+schema.slice(location.end);
  if(provider==="postgresql")return result;
  let model=false,comment=false;
  return result.split(/(\r?\n)/).map(line=>{
@@ -75,7 +98,7 @@ export function legacySqliteNormalizationSql(){
  * No database connection or filesystem mutation occurs here.
  */
 export function mergeLegacySchema(schema,provider){
- const actual=schema.match(/datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/)?.[1];
+ const actual=schemaProvider(schema);
  if(actual!==provider||!providers.includes(provider))throw Error("Provider mismatch; cross-provider migration is not supported");
  const canonical=composeSchema({provider});
  const models=text=>[...text.matchAll(/^model\s+(\w+)\s*\{[\s\S]*?^}/gm)];

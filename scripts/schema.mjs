@@ -1,13 +1,13 @@
 import {existsSync,readFileSync,writeFileSync,mkdirSync,readdirSync,lstatSync,renameSync} from "node:fs";
 import {join,resolve} from "node:path";
 import {createHash} from "node:crypto";
-const {composeSchema,splitSchema,moduleNames,providers}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
+const {composeSchema,splitSchema,moduleNames,providers,schemaProvider}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
 const root=process.cwd(),schema=join(root,"prisma/schema.prisma"),dir=join(root,"prisma/modules"),manifest=join(dir,"manifest.json");
 const [command,...args]=process.argv.slice(2);
 const hash=text=>createHash("sha256").update(text).digest("hex");
 const read=path=>readFileSync(path,"utf8");
 function readLocal(path){if(lstatSync(path).isSymbolicLink())throw Error("Symbolic links not allowed in schema modules");return read(path);}
-function providerOf(text){const p=text.match(/datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/)?.[1];if(!providers.includes(p))throw Error("Unknown schema provider");return p;}
+function providerOf(text){const p=schemaProvider(text);if(!providers.includes(p))throw Error("Unknown schema provider");return p;}
 const current=read(schema);
 if(command==="adopt"){
  if(existsSync(dir))throw Error("prisma/modules already exists; refusing overwrite");

@@ -27,8 +27,8 @@ const originalManifest=existsSync(manifestPath)?readFileSync(manifestPath,"utf8"
 const manifest=originalManifest?JSON.parse(originalManifest):null;
 const sha=s=>createHash("sha256").update(s).digest("hex");
 if(existsSync(moduleFile))throw Error("CRM schema module already exists");
-const {composeSchema}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
-const provider=schema.match(/datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/)?.[1];
+const {composeSchema,schemaProvider}=await import("../packages/prisma/src/index.mjs").catch(()=>import("@openadminjs/prisma"));
+const provider=schemaProvider(schema);
 let nextSchema;
 if(manifest){
  if(manifest.lastSchemaHash!==sha(schema))throw Error("Adopted schema has drift; reconcile first");
