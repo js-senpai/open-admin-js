@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -555,6 +556,23 @@ function usageError(usage: string): void {
   console.error(pc.red(`Usage: ${usage}`));
   process.exitCode = 1;
 }
+
+cli
+  .command("schema <action>", "Compose/adopt schema modules or plan an existing database upgrade")
+  .option("--out <directory>", "New migration review directory (upgrade-plan)")
+  .option("--write", "Explicitly write the composed schema")
+  .option("--replace-generated", "Acknowledge overwriting a known generated schema")
+  .action((action:string,flags:{out?:string;write?:boolean;replaceGenerated?:boolean})=>{
+    let script:string,args:string[];
+    if(action==="upgrade-plan"){
+      if(!flags.out)throw Error("Use schema upgrade-plan --out <new-directory>");
+      script="migrate-existing.mjs";args=["--out",flags.out];
+    }else if(["check","adopt","compose"].includes(action)){
+      script="schema.mjs";args=[action,...(flags.write?["--write"]:[]),...(flags.replaceGenerated?["--replace-generated"]:[])];
+    }else throw Error("Use schema check, adopt, compose, or upgrade-plan");
+    const result=spawnSync(process.execPath,[join(defaultTemplateDir(),"scripts",script),...args],{cwd:process.cwd(),stdio:"inherit"});
+    if(result.error||result.status!==0)process.exitCode=result.status??1;
+  });
 
 cli
   .command("runtime", "Plan migration from copied runtime sources to versioned packages")

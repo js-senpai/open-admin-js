@@ -44,14 +44,14 @@ pnpm schema:compose
 node scripts/schema.mjs profile postgresql core content > /tmp/schema.prisma
 ```
 
-For a new generated project, add custom model fragments in prisma/modules/*.prisma, preview composition, then explicitly write a reviewed generated schema using `pnpm schema:compose --write --replace-generated`. The CRM installer uses this module path. For an existing customized schema, use `pnpm schema:adopt`: this splits the existing schema losslessly and keeps a local ordered manifest. Edit those local fragments; use `pnpm schema:compose` to preview and `pnpm schema:compose --write` to update. No DDL is run by the composer. Backups must be retained or moved before the next compose. Adopted schemas are owned by the project, not silently overwritten by new package releases.
+For a new generated project, add custom model fragments in prisma/modules/*.prisma, preview composition, then explicitly write a reviewed generated schema using `pnpm schema:compose --write --replace-generated`. The CRM installer uses this module path. For an existing customized schema, use `openadminjs schema adopt` (works with the new CLI even before copying V2 scripts into a legacy project): this splits the existing schema losslessly and keeps a local ordered manifest. Edit those local fragments; use `pnpm schema:compose` to preview and `pnpm schema:compose --write` to update. No DDL is run by the composer. Backups must be retained or moved before the next compose. Adopted schemas are owned by the project, not silently overwritten by new package releases.
 
 ## Existing database migration
 
 Use a disposable copy of your database. Set DATABASE_URL explicitly to the copy, never production. The operator tool requires the existing schema and staging database to agree before generating the target and SQL. It preserves extra models and fields, rejects incompatible customized field types, adds missing built-in models/fields, handles legacy SQLite JSON text and revokes obsolete credentials. It creates an upgrade SQL script, a target schema, checksums, review flags and a baseline SQL file only when there is no local migration history.
 
 ```sh
-pnpm schema:upgrade-plan --out ./migration-review
+openadminjs schema upgrade-plan --out ./migration-review
 ```
 
 Do not execute baseline SQL against an existing database. Verify the actual deployed migration history (including _prisma_migrations), restore backups into staging and review all SQL. For PostgreSQL installations with the original migration history use the unchanged shipped migrations; do not run a parallel generated migration for those same changes. For legacy MySQL/SQLite installations initialized with db push, baseline their actual existing schema only after checking for applied migration records, mark that baseline applied, and then apply a reviewed provider-specific upgrade migration. The generated README contains commands. For customized PostgreSQL history, review and merge the migration carefully rather than replacing historical SQL.
@@ -59,3 +59,7 @@ Do not execute baseline SQL against an existing database. Verify the actual depl
 Valid JSON text stays JSON. Legacy invalid text is quoted as a JSON string (matching the old codec's read semantics). SQL NULL remains NULL. Old refresh token hashes are cleared and old API keys revoked. Review malformed scopes, duplicate token hashes and any customized schema constraints before deployment. MySQL DDL may auto-commit; SQLite may rebuild tables. Never add --accept-data-loss or reset a production database. Rollback is restoration of a consistent database/application/storage snapshot, not a generated destructive down migration.
 
 CI creates a pre-V2 schema with a custom table and custom User column, inserts records, plans a migration, baselines the database, applies the upgrade using Prisma migrate deploy, generates the updated client and checks preserved JSON, custom data, credential revocation and session models for PostgreSQL/MySQL/SQLite. This is a representative regression test, not validation of every customer's private database. Cross-provider conversion is intentionally not provided.
+
+## Release gate
+
+The manual `Publish independently versioned runtime packages` workflow is main-only, requires explicit approval, successful CI and the `npm-runtime-release` environment. It checks archive checksums, checks published dependency versions, publishes in dependency order, and permits selecting individual packages. Configure npm namespace ownership, environment protection and publishing credentials before using it. Prereleases can only use the `next` dist-tag. No release is triggered by a push or PR.
