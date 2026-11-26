@@ -140,8 +140,8 @@ function RelationPicker({ field, value, onChange, disabled }: RelationPickerProp
                   <button
                     type="button"
                     onClick={() => { onChange(opt.id); setSelectedLabel(opt.label); setOpen(false); setSearch(""); }}
-                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 hover:text-[#2454ff] dark:hover:bg-slate-800 ${
-                      opt.id === value ? "bg-[#eef3ff] font-semibold text-[#2454ff] dark:bg-slate-800" : "text-slate-700 dark:text-slate-300"
+                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-lime-50 hover:text-[#426b1d] dark:hover:bg-slate-800 ${
+                      opt.id === value ? "bg-[#e6f6d4] font-semibold text-[#426b1d] dark:bg-slate-800" : "text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     {opt.label}
@@ -265,7 +265,7 @@ export function ResourceForm({ resource, mode, recordId, initialData }: Props) {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[#0ea5a4]">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[#426b1d]">
             {mode === "create" ? "New record" : "Edit record"}
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">

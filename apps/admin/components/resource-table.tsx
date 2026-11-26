@@ -77,8 +77,8 @@ function SkeletonRow({ cols }: { cols: number }) {
 function SortIcon({ field, sort }: { field: string; sort?: SortState }) {
   if (!sort || sort.field !== field) return <ArrowUpDown className="h-3 w-3 text-slate-300 group-hover:text-slate-400" />;
   return sort.dir === "asc"
-    ? <ArrowUp className="h-3 w-3 text-[#2454ff]" />
-    : <ArrowDown className="h-3 w-3 text-[#2454ff]" />;
+    ? <ArrowUp className="h-3 w-3 text-[#426b1d]" />
+    : <ArrowDown className="h-3 w-3 text-[#426b1d]" />;
 }
 
 function canInlineEdit(field: ResourceMeta["fields"][string], canUpdate: boolean): boolean {
@@ -291,7 +291,7 @@ export function ResourceTable({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between animate-in stagger-1">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[#0ea5a4]">Resource</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[#426b1d]">Resource</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {resource.label}
           </h1>
@@ -311,7 +311,7 @@ export function ResourceTable({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 animate-in stagger-2">
-        <div className="flex min-w-[200px] flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all focus-within:border-[#2454ff] focus-within:shadow-[0_0_0_3px_rgba(36,84,255,0.1)] dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex min-w-[200px] flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all focus-within:border-[#426b1d] focus-within:shadow-[0_0_0_3px_rgba(66,107,29,0.1)] dark:border-slate-700 dark:bg-slate-900">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />
           <input
             value={search}
@@ -337,7 +337,7 @@ export function ResourceTable({
       </div>
 
       {selected.size > 0 && bulkEnabled && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#2454ff]/30 bg-[#eef3ff] px-4 py-3 text-sm dark:border-blue-500/30 dark:bg-slate-800/80">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#426b1d]/30 bg-[#e6f6d4] px-4 py-3 text-sm dark:border-lime-500/30 dark:bg-slate-800/80">
           <span className="font-semibold text-slate-800 dark:text-slate-200">{selected.size} selected</span>
           {resource.permissions.delete && (
             <button
@@ -444,7 +444,7 @@ export function ResourceTable({
                   return (
                     <tr
                       key={rowId}
-                      className={`group transition-colors hover:bg-blue-50/30 dark:hover:bg-slate-800/50 ${dragRowId === rowId ? "opacity-70" : ""}`}
+                      className={`group transition-colors hover:bg-lime-50/30 dark:hover:bg-slate-800/50 ${dragRowId === rowId ? "opacity-70" : ""}`}
                       onDragOver={(e) => listReorderEnabled && e.preventDefault()}
                       onDrop={() => onRowDrop(rowId)}
                     >
@@ -563,7 +563,7 @@ export function ResourceTable({
                       <td className={`${padClass} text-right`}>
                         <Link
                           href={`/resources/${resource.name}/${rowId}`}
-                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 transition-all hover:bg-[#eef3ff] hover:text-[#2454ff] dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 transition-all hover:bg-[#e6f6d4] hover:text-[#426b1d] dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
                         >
                           Open
                         </Link>
@@ -616,7 +616,7 @@ export function ResourceTable({
                     onClick={() => onPageChange?.(p)}
                     className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold transition ${
                       p === pagination.page
-                        ? "bg-[#2454ff] text-white shadow-[0_2px_6px_rgba(36,84,255,0.35)]"
+                        ? "bg-[#426b1d] text-white shadow-[0_2px_6px_rgba(66,107,29,0.35)]"
                         : "border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                     }`}
                   >
