@@ -1,9 +1,8 @@
 import { BadRequestException, ForbiddenException, HttpException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { defaultFileValidation, LocalStorage } from "@openadminjs/storage";
-import type { ResourceConfig, ResourceField } from "@openadminjs/core";
+import type { ResourceConfig } from "@openadminjs/core";
 import {
-  isSensitiveField,
   listScopeWhereClause,
   mergeWhereClauses,
   resolveResourceForLocale,
@@ -23,7 +22,8 @@ import {
 } from "../resources/resource-hooks.runner";
 import { parseWritePayload } from "./validate-resource-payload";
 
-type UserContext = { id: string; email?: string; permissions: string[] };
+import { isOutOfListScope, has, systemScope, canReadField, safeData, auditSnapshot, sanitizeRecord, type UserContext } from "./resource-policy";
+import { buildWhere, buildOrderBy } from "./resource-query";
 type PrismaDelegate = {
   findMany(args?: unknown): Promise<unknown[]>;
   count(args?: unknown): Promise<number>;
@@ -39,7 +39,7 @@ export class AdminResourceService {
 
   listResources(user: UserContext, locale?: string) {
     return resources
-      .filter((resource) => this.has(user, resource.permissions.read))
+      .filter((resource) => has(user, resource.permissions.read))
       .map((resource) => {
         const view = resolveResourceForLocale(resource, locale);
         return {
@@ -48,8 +48,8 @@ export class AdminResourceService {
           icon: view.icon,
           titleField: view.titleField,
           permissions: view.permissions,
-          fields: Object.fromEntries(Object.entries(view.fields).filter(([name]) => this.canReadField(resource, name, user)).map(([name, field]) => [name, { ...field, create: field.create !== false && (!field.permissions?.create || this.has(user, field.permissions.create)), edit: field.edit !== false && (!field.permissions?.update || this.has(user, field.permissions.update)) }])),
-          actions: Object.fromEntries(Object.entries(view.actions ?? {}).filter(([,action])=>this.has(user,action.permission)).map(([name,{handler,...config}])=>[name,config])),
+          fields: Object.fromEntries(Object.entries(view.fields).filter(([name]) => canReadField(resource, name, user)).map(([name, field]) => [name, { ...field, create: field.create !== false && (!field.permissions?.create || has(user, field.permissions.create)), edit: field.edit !== false && (!field.permissions?.update || has(user, field.permissions.update)) }])),
+          actions: Object.fromEntries(Object.entries(view.actions ?? {}).filter(([,action])=>has(user,action.permission)).map(([name,{handler,...config}])=>[name,config])),
           i18n: view.i18n,
           seo: view.seo
         };
@@ -71,8 +71,8 @@ export class AdminResourceService {
 
     for (const resource of resources) {
       if (whitelist && !whitelist.has(resource.name.toLowerCase())) continue;
-      if (!this.has(user, resource.permissions.read)) continue;
-      const searchable = Object.entries(resource.fields).filter(([name, f]) => f.searchable && this.canReadField(resource, name, user)).map(([name]) => name);
+      if (!has(user, resource.permissions.read)) continue;
+      const searchable = Object.entries(resource.fields).filter(([name, f]) => f.searchable && canReadField(resource, name, user)).map(([name]) => name);
       if (!searchable.length) continue;
 
       const scope = shouldApplyListScope(resource, user.permissions) ? listScopeWhereClause(resource, user.id) : undefined;
@@ -80,15 +80,15 @@ export class AdminResourceService {
         {
           OR: searchable.map((field) => ({ [field]: { contains: q, ...(/^(postgres|postgresql):/.test(process.env.DATABASE_URL ?? "postgresql:") ? { mode: "insensitive" } : {}) } }))
         },
-        mergeWhereClauses(scope, this.systemScope(resource))
+        mergeWhereClauses(scope, systemScope(resource))
       );
       const rows = await this.delegate(resource).findMany({
         where,
         take: perResourceLimit,
-        orderBy: this.buildOrderBy(resource, "createdAt:desc", user)
+        orderBy: buildOrderBy(resource, "createdAt:desc", user)
       });
       for (const row of rows) {
-        const safe = this.sanitizeRecord(resource, row, user) as Record<string, unknown>;
+        const safe = sanitizeRecord(resource, row, user) as Record<string, unknown>;
         const id = String(safe.id ?? "");
         if (!id) continue;
         const tf = resource.titleField ?? "id";
@@ -108,25 +108,25 @@ export class AdminResourceService {
     if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(requestedLimit) || requestedLimit < 1) throw new BadRequestException({ message: "Invalid pagination", code: "PAGINATION_INVALID" });
     const limit = Math.min(requestedLimit, 100);
     if (!Number.isSafeInteger((page - 1) * limit)) throw new BadRequestException("Invalid pagination offset");
-    const baseWhere = this.buildWhere(resource, query, user);
+    const baseWhere = buildWhere(resource, query, user);
     const scope = shouldApplyListScope(resource, user.permissions) ? listScopeWhereClause(resource, user.id) : undefined;
-    const where = mergeWhereClauses(baseWhere, mergeWhereClauses(scope, this.systemScope(resource)));
-    const orderBy = this.buildOrderBy(resource, String(query.sort ?? "createdAt:desc"), user);
+    const where = mergeWhereClauses(baseWhere, mergeWhereClauses(scope, systemScope(resource)));
+    const orderBy = buildOrderBy(resource, String(query.sort ?? "createdAt:desc"), user);
     const [data, total] = await Promise.all([
       delegate.findMany({ where, orderBy, skip: (page - 1) * limit, take: limit }),
       delegate.count({ where })
     ]);
-    return { data: data.map((row) => this.sanitizeRecord(resource, row, user)), meta: { page, limit, total, pages: Math.ceil(total / limit) || 1 } };
+    return { data: data.map((row) => sanitizeRecord(resource, row, user)), meta: { page, limit, total, pages: Math.ceil(total / limit) || 1 } };
   }
 
   async get(name: string, id: string, user: UserContext) {
     const resource = this.authorizedResource(name, user, "read");
     const record = await this.delegate(resource).findUnique({ where: { id } });
     if (!record) throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
-    if (this.isOutOfListScope(resource, user, record)) {
+    if (isOutOfListScope(resource, user, record)) {
       throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
     }
-    return this.sanitizeRecord(resource, record, user);
+    return sanitizeRecord(resource, record, user);
   }
 
   async create(name: string, data: Record<string, unknown>, user: UserContext) {
@@ -140,7 +140,7 @@ export class AdminResourceService {
     if (name === "api-tokens") {
       const label = typeof data.name === "string" ? data.name.trim() : "";
       const scopes = Array.isArray(data.scopes) ? [...new Set(data.scopes)] : [];
-      const allowed = new Set(resources.filter(r => !["api-tokens","settings","audit-logs","users","job-logs","webhook-logs"].includes(r.name) && this.has(user,r.permissions.read)).map(r=>r.permissions.read));
+      const allowed = new Set(resources.filter(r => !["api-tokens","settings","audit-logs","users","job-logs","webhook-logs"].includes(r.name) && has(user,r.permissions.read)).map(r=>r.permissions.read));
       if (!label || label.length > 120 || !scopes.length || scopes.length > 50 || !scopes.every(s=>typeof s==="string" && allowed.has(s))) throw new BadRequestException("Choose explicit permitted resource read scopes");
       const plainToken = "oajs_" + randomBytes(32).toString("base64url");
       const created = await this.prisma.$transaction(async tx => {
@@ -148,13 +148,13 @@ export class AdminResourceService {
         await tx.auditLog.create({data:{userId:user.id,resource:name,resourceId:record.id,action:"create"}});
         return record;
       });
-      return {...this.sanitizeRecord(resource,created,user) as object,plainToken};
+      return {...sanitizeRecord(resource,created,user) as object,plainToken};
     }
 
-    const payload = this.safeData(resource, data, "create", user);
+    const payload = safeData(resource, data, "create", user);
     const hookUser = { id: user.id, email: user.email ?? "", permissions: user.permissions };
     await runBeforeCreate(name, resource, hookUser, this.prisma, payload);
-    const validated = parseWritePayload(resource, "create", this.safeData(resource, payload, "create", user));
+    const validated = parseWritePayload(resource, "create", safeData(resource, payload, "create", user));
     if (name === "notifications") validated.userId = user.id;
 
     const record = await this.prisma.$transaction(async (tx) => {
@@ -162,13 +162,13 @@ export class AdminResourceService {
       if (!txDelegate) throw new NotFoundException({ message: "Prisma model not found", code: "MODEL_NOT_FOUND" });
       const created = await txDelegate.create({ data: validated });
       await tx.auditLog.create({
-        data: { userId: user.id, resource: name, resourceId: (created as { id?: string }).id, action: "create", before: Prisma.JsonNull, after: this.auditSnapshot(resource, created) as object }
+        data: { userId: user.id, resource: name, resourceId: (created as { id?: string }).id, action: "create", before: Prisma.JsonNull, after: auditSnapshot(resource, created) as object }
       });
       return created;
     });
 
     await runAfterCreate(name, resource, hookUser, this.prisma, payload, record);
-    return this.sanitizeRecord(resource, record, user);
+    return sanitizeRecord(resource, record, user);
   }
 
   async update(name: string, id: string, data: Record<string, unknown>, user: UserContext) {
@@ -176,27 +176,27 @@ export class AdminResourceService {
     const delegate = this.delegate(resource);
     const before = await delegate.findUnique({ where: { id } });
     if (!before) throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
-    if (this.isOutOfListScope(resource, user, before)) {
+    if (isOutOfListScope(resource, user, before)) {
       throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
     }
-    const payload = this.safeData(resource, data, "edit", user);
+    const payload = safeData(resource, data, "edit", user);
     const hookUser = { id: user.id, email: user.email ?? "", permissions: user.permissions };
     await runBeforeUpdate(name, resource, hookUser, this.prisma, id, payload);
-    const validated = parseWritePayload(resource, "edit", this.safeData(resource, payload, "edit", user));
+    const validated = parseWritePayload(resource, "edit", safeData(resource, payload, "edit", user));
     const scope = shouldApplyListScope(resource, user.permissions) ? listScopeWhereClause(resource, user.id) : undefined;
 
     const record = await this.prisma.$transaction(async (tx) => {
       const txDelegate = (tx as unknown as Record<string, PrismaDelegate>)[resource.model];
       if (!txDelegate) throw new NotFoundException({ message: "Prisma model not found", code: "MODEL_NOT_FOUND" });
-      const updated = await txDelegate.update({ where: { id, ...(scope ?? {}), ...(this.systemScope(resource) ?? {}) }, data: validated });
+      const updated = await txDelegate.update({ where: { id, ...(scope ?? {}), ...(systemScope(resource) ?? {}) }, data: validated });
       await tx.auditLog.create({
-        data: { userId: user.id, resource: name, resourceId: id, action: "update", before: this.auditSnapshot(resource, before) as object, after: this.auditSnapshot(resource, updated) as object }
+        data: { userId: user.id, resource: name, resourceId: id, action: "update", before: auditSnapshot(resource, before) as object, after: auditSnapshot(resource, updated) as object }
       });
       return updated;
     });
 
     await runAfterUpdate(name, resource, hookUser, this.prisma, id, payload, before, record);
-    return this.sanitizeRecord(resource, record, user);
+    return sanitizeRecord(resource, record, user);
   }
 
   async delete(name: string, id: string, user: UserContext) {
@@ -204,7 +204,7 @@ export class AdminResourceService {
     const delegate = this.delegate(resource);
     const before = await delegate.findUnique({ where: { id } });
     if (!before) throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
-    if (this.isOutOfListScope(resource, user, before)) {
+    if (isOutOfListScope(resource, user, before)) {
       throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
     }
     const hookUser = { id: user.id, email: user.email ?? "", permissions: user.permissions };
@@ -214,9 +214,9 @@ export class AdminResourceService {
       const txDelegate = (tx as unknown as Record<string, PrismaDelegate>)[resource.model];
       if (!txDelegate) throw new NotFoundException({ message: "Prisma model not found", code: "MODEL_NOT_FOUND" });
       const scope = shouldApplyListScope(resource, user.permissions) ? listScopeWhereClause(resource, user.id) : undefined;
-      await txDelegate.delete({ where: { id, ...(scope ?? {}), ...(this.systemScope(resource) ?? {}) } });
+      await txDelegate.delete({ where: { id, ...(scope ?? {}), ...(systemScope(resource) ?? {}) } });
       await tx.auditLog.create({
-        data: { userId: user.id, resource: name, resourceId: id, action: "delete", before: this.auditSnapshot(resource, before) as object, after: Prisma.JsonNull }
+        data: { userId: user.id, resource: name, resourceId: id, action: "delete", before: auditSnapshot(resource, before) as object, after: Prisma.JsonNull }
       });
     });
 
@@ -232,12 +232,12 @@ export class AdminResourceService {
     const resource = this.authorizedResource(name,user,"read");
     const config = resource.actions?.[action];
     if (!resource || !config) throw new NotFoundException({ message: "Action not found", code: "ACTION_NOT_FOUND" });
-    if (!this.has(user, config.permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
+    if (!has(user, config.permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
 
     if (config.handler) {
       const existing = await this.delegate(resource).findUnique({ where: { id } });
       if (!existing) throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
-      if (this.isOutOfListScope(resource, user, existing)) {
+      if (isOutOfListScope(resource, user, existing)) {
         throw new NotFoundException({ message: "Record not found", code: "NOT_FOUND" });
       }
       const result = await config.handler({
@@ -246,8 +246,8 @@ export class AdminResourceService {
         user: { id: user.id, email: user.email ?? "", permissions: user.permissions },
         input
       });
-      await this.audit(user.id, name, id, action, this.auditSnapshot(resource, existing), this.auditSnapshot(resource, result));
-      return this.sanitizeRecord(resource, result, user);
+      await this.audit(user.id, name, id, action, auditSnapshot(resource, existing), auditSnapshot(resource, result));
+      return sanitizeRecord(resource, result, user);
     }
 
     throw new NotFoundException({ message: "Action not implemented for this resource", code: "ACTION_NOT_IMPLEMENTED" });
@@ -283,7 +283,7 @@ export class AdminResourceService {
     if (!resource || !config?.handler) {
       throw new NotFoundException({ message: "Action not found", code: "ACTION_NOT_FOUND" });
     }
-    if (!this.has(user, config.permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
+    if (!has(user, config.permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
 
     for (const id of uniqueIds) {
       try {
@@ -299,7 +299,7 @@ export class AdminResourceService {
   async reorder(name: string, orderedIds: string[], user: UserContext, baseIndex = 0): Promise<{ ok: true }> {
     const resource = this.authorizedResource(name, user, "update");
     const orderField = resource.fields.order;
-    if (!orderField || orderField.type !== "number" || orderField.edit === false || (orderField.permissions?.update && !this.has(user,orderField.permissions.update))) {
+    if (!orderField || orderField.type !== "number" || orderField.edit === false || (orderField.permissions?.update && !has(user,orderField.permissions.update))) {
       throw new BadRequestException({ message: "Resource does not support drag-and-drop ordering", code: "REORDER_UNSUPPORTED" });
     }
     const uniqueIds = [...new Set(orderedIds.map(String).filter(Boolean))];
@@ -311,7 +311,7 @@ export class AdminResourceService {
       throw new BadRequestException({ message: "One or more records were not found", code: "REORDER_IDS_INVALID" });
     }
     for (const row of rows) {
-      if (this.isOutOfListScope(resource, user, row)) {
+      if (isOutOfListScope(resource, user, row)) {
         throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
       }
     }
@@ -418,7 +418,7 @@ export class AdminResourceService {
     const file = await this.prisma.fileAsset.findUnique({where:{id}});
     if (!file) throw new NotFoundException("File not found");
     const resource = this.authorizedResource("files",user,"read");
-    if (this.isOutOfListScope(resource,user,file)) throw new NotFoundException("File not found");
+    if (isOutOfListScope(resource,user,file)) throw new NotFoundException("File not found");
     try { return {filename:file.filename, bytes:await new LocalStorage().read(file.path)}; }
     catch { throw new NotFoundException("File unavailable"); }
   }
@@ -438,23 +438,11 @@ export class AdminResourceService {
     return "Request failed";
   }
 
-  private isOutOfListScope(resource: ResourceConfig, user: UserContext, record: unknown): boolean {
-    if (resource.name === "settings" && String((record as Record<string, unknown>).key ?? "").toLowerCase().startsWith("ai.")) return true;
-    if (!shouldApplyListScope(resource, user.permissions)) return false;
-    const clause = listScopeWhereClause(resource, user.id);
-    if (!clause) return false;
-    const row = record as Record<string, unknown>;
-    for (const [key, expected] of Object.entries(clause)) {
-      if (row[key] !== expected) return true;
-    }
-    return false;
-  }
-
   private authorizedResource(name: string, user: UserContext, action: keyof ResourceConfig["permissions"]) {
     const resource = getResource(name);
     if (!resource) throw new NotFoundException({ message: "Resource not found", code: "RESOURCE_NOT_FOUND" });
     const permission = resource.permissions[action];
-    if (!permission || !this.has(user, permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
+    if (!permission || !has(user, permission)) throw new ForbiddenException({ message: "Missing permission", code: "PERMISSION_DENIED" });
     return resource;
   }
 
@@ -462,154 +450,6 @@ export class AdminResourceService {
     const delegate = (this.prisma as unknown as Record<string, PrismaDelegate>)[resource.model];
     if (!delegate) throw new NotFoundException({ message: "Prisma model not found", code: "MODEL_NOT_FOUND" });
     return delegate;
-  }
-
-  private has(user: UserContext, permission?: string) {
-    return Boolean(permission && (user.permissions.includes(permission) || user.permissions.includes("*")));
-  }
-
-  private systemScope(resource: ResourceConfig) {
-    return resource.name === "settings" ? { NOT: { key: { startsWith: "ai." } } } : undefined;
-  }
-
-  private canReadField(resource: ResourceConfig, name: string, user: UserContext) {
-    const field = Object.hasOwn(resource.fields, name) ? resource.fields[name] : undefined;
-    return Boolean(field && !isSensitiveField(name, field) && (!field.permissions?.read || this.has(user, field.permissions.read)));
-  }
-
-  private safeData(resource: ResourceConfig, data: Record<string, unknown>, mode: "create" | "edit", user: UserContext) {
-    for (const name of Object.keys(data)) {
-      const field = Object.hasOwn(resource.fields, name) ? resource.fields[name] : undefined;
-      if (!field) throw new BadRequestException({ message: "Unknown field", code: "FIELD_UNKNOWN" });
-      const permission = field.permissions?.[mode === "create" ? "create" : "update"];
-      if (permission && !this.has(user, permission)) throw new ForbiddenException({ message: "Missing field permission", code: "FIELD_PERMISSION_DENIED" });
-      if (field[mode] === false || isSensitiveField(name, field) || field.type === "id" || field.type === "computed") throw new ForbiddenException("Field is not writable");
-    }
-    if (resource.name === "settings" && "key" in data && String(data.key).toLowerCase().startsWith("ai.")) throw new ForbiddenException("Reserved setting");
-    return { ...data };
-  }
-
-  private redact(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(item => this.redact(item));
-    if (!value || typeof value !== "object" || value instanceof Date) return value;
-    return Object.fromEntries(Object.entries(value).filter(([name]) => !isSensitiveField(name)).map(([name, item]) => [name, this.redact(item)]));
-  }
-
-  private auditSnapshot(resource: ResourceConfig, record: unknown) {
-    if (!record || typeof record !== "object") return {};
-    return this.redact(Object.fromEntries(Object.entries(record).filter(([name]) => {
-      const field = resource.fields[name];
-      return Object.hasOwn(resource.fields, name) && field && !isSensitiveField(name, field) && field.type !== "json";
-    })));
-  }
-
-  private sanitizeRecord(resource: ResourceConfig, record: unknown, user: UserContext) {
-    if (!record || typeof record !== "object") return record;
-    const entries = Object.entries(record).filter(([name]) => this.canReadField(resource, name, user));
-    // Historical snapshots may contain secrets and cannot reliably be sanitized retroactively.
-    if (resource.name === "audit-logs") return Object.fromEntries(entries.filter(([name]) => name !== "before" && name !== "after"));
-    if (resource.name === "settings" && String((record as Record<string, unknown>).key ?? "").toLowerCase().startsWith("ai.")) return {};
-    return Object.fromEntries(entries);
-  }
-
-  private buildWhere(resource: ResourceConfig, query: Record<string, unknown>, user: UserContext) {
-    const clauses: Record<string, unknown>[] = [];
-    if (query.search) {
-      const searchable = Object.entries(resource.fields).filter(([name, field]) => field.searchable && this.canReadField(resource, name, user));
-      clauses.push({ OR: searchable.map(([field]) => ({ [field]: { contains: String(query.search), ...(/^(postgres|postgresql):/.test(process.env.DATABASE_URL ?? "postgresql:") ? { mode: "insensitive" } : {}) } })) });
-    }
-    for (const [key, value] of Object.entries(query)) {
-      const opMatch = key.match(/^filter\[([^\]]+)]\[(\w+)]$/);
-      if (opMatch?.[1] && opMatch[2]) {
-        const clause = this.buildOperatorClause(resource, opMatch[1], opMatch[2], value, user);
-        if (clause) clauses.push(clause);
-        continue;
-      }
-      const legacy = key.match(/^filter\[([^\]]+)]$/);
-      if (legacy?.[1]) {
-        const clause = this.buildOperatorClause(resource, legacy[1], "eq", value, user);
-        if (clause) clauses.push(clause);
-      }
-    }
-    return clauses.length ? { AND: clauses } : undefined;
-  }
-
-  private buildOperatorClause(resource: ResourceConfig, fieldName: string, op: string, raw: unknown, user: UserContext): Record<string, unknown> | null {
-    const field = resource.fields[fieldName];
-    if (!field?.filterable || !this.canReadField(resource, fieldName, user)) {
-      throw new BadRequestException({ message: `Field "${fieldName}" is not filterable`, code: "FILTER_NOT_ALLOWED" });
-    }
-    const str = raw == null ? "" : String(raw);
-    switch (op) {
-      case "eq":
-        return { [fieldName]: this.coerceFilterScalar(field, str) };
-      case "ne":
-        return { [fieldName]: { not: this.coerceFilterScalar(field, str) } };
-      case "in": {
-        const parts = str
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((p) => this.coerceFilterScalar(field, p));
-        return { [fieldName]: { in: parts } };
-      }
-      case "gt":
-        return { [fieldName]: { gt: this.coerceFilterComparable(field, str) } };
-      case "gte":
-        return { [fieldName]: { gte: this.coerceFilterComparable(field, str) } };
-      case "lt":
-        return { [fieldName]: { lt: this.coerceFilterComparable(field, str) } };
-      case "lte":
-        return { [fieldName]: { lte: this.coerceFilterComparable(field, str) } };
-      case "contains": {
-        if (!this.isStringFilterField(field)) {
-          throw new BadRequestException({ message: `Operator "contains" is only for string-like fields`, code: "FILTER_OP_INVALID" });
-        }
-        return { [fieldName]: { contains: str, ...(/^(postgres|postgresql):/.test(process.env.DATABASE_URL ?? "postgresql:") ? { mode: "insensitive" } : {}) } };
-      }
-      default:
-        throw new BadRequestException({ message: `Unknown filter operator "${op}"`, code: "FILTER_OP_UNKNOWN" });
-    }
-  }
-
-  private isStringFilterField(field: ResourceField): boolean {
-    return ["text", "textarea", "email", "url", "slug", "markdown", "code", "richtext", "badge", "select"].includes(field.type);
-  }
-
-  private coerceFilterScalar(field: ResourceField, value: string): string | number | boolean {
-    if (field.type === "number" || field.type === "money") {
-      const n = Number(value);
-      if (!Number.isFinite(n) || !value.trim()) {
-        throw new BadRequestException({ message: `Invalid number for filter`, code: "FILTER_VALUE_INVALID" });
-      }
-      return n;
-    }
-    if (field.type === "boolean") { if (!["true","false","1","0"].includes(value)) throw new BadRequestException("Invalid boolean"); return value === "true" || value === "1"; }
-    return value;
-  }
-
-  private coerceFilterComparable(field: ResourceField, value: string): Date | number | string | boolean {
-    if (field.type === "datetime" || field.type === "date") {
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) {
-        throw new BadRequestException({ message: `Invalid date for filter`, code: "FILTER_VALUE_INVALID" });
-      }
-      return d;
-    }
-    return this.coerceFilterScalar(field, value);
-  }
-
-  private buildOrderBy(resource: ResourceConfig, sort: string, user: UserContext) {
-    const [field, dirRaw] = sort.split(":");
-    const direction = dirRaw === "asc" ? "asc" : "desc";
-    const candidate = field ? resource.fields[field] : undefined;
-    if (field && candidate?.sortable && this.canReadField(resource, field, user)) {
-      return { [field]: direction };
-    }
-    if (resource.fields.createdAt?.sortable && this.canReadField(resource, "createdAt", user)) {
-      return { createdAt: direction };
-    }
-    return undefined;
   }
 
   /** Write an audit log entry outside a transaction (used by the action handler). */
