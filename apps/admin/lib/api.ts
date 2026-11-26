@@ -73,11 +73,15 @@ function tryRefreshToken(): Promise<boolean> {
       return response.ok;
     };
     const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
-    refreshInFlight = (locks ? locks.request("openadminjs-refresh", async () => {
+    const run = async (): Promise<boolean> => {
+      if (!locks) return refresh();
+      return await locks.request("openadminjs-refresh", async () => {
       const check = await fetch("/api/backend/auth/me", { credentials: "same-origin", cache: "no-store" });
       if(check.ok) { authGeneration++; return true; }
       return refresh();
-    }) : refresh()).catch(() => false).finally(() => { refreshInFlight = undefined; });
+    });
+    };
+    refreshInFlight = run().catch(() => false).finally(() => { refreshInFlight = undefined; });
   }
   return refreshInFlight;
 }
