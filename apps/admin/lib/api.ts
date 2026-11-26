@@ -1,15 +1,5 @@
 import { getUiLocale } from "./locale";
-import {
-  token,
-  refreshToken,
-  setTokenCookies,
-  clearTokenCookies,
-  isTokenFresh
-} from "./tokens";
-
-const rawApi = process.env.NEXT_PUBLIC_API_URL;
-export const API_URL =
-  typeof rawApi === "string" && rawApi.trim().length > 0 ? rawApi.trim() : "http://localhost:4000";
+export const API_URL = "/api/backend";
 
 export class ApiError extends Error {
   status: number;
@@ -60,18 +50,6 @@ export type ResourceMeta = {
   seo?: { public?: boolean; slugField?: string; pathPattern?: string; titleField?: string; descriptionField?: string };
 };
 
-// Re-export for backward compat and convenience
-export { token, isTokenFresh as isAccessTokenFresh };
-
-/** True when the stored access token exists and has not expired (with 5-second buffer). */
-export function hasUsableAccessToken(): boolean {
-  return isTokenFresh(token());
-}
-
-// ──────────────────────────────────────────────
-// Locale helper
-// ──────────────────────────────────────────────
-
 function withAdminLocale(path: string): string {
   if (!path.startsWith("/admin/resources")) return path;
   const loc = getUiLocale();
@@ -83,33 +61,19 @@ function withAdminLocale(path: string): string {
 // Refresh flow (server-side BFF or direct fallback)
 // ──────────────────────────────────────────────
 
-async function tryRefreshToken(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-
-  // Prefer the Next.js BFF route (same-origin, handles cookie setting)
-  const bffRes = await fetch("/api/auth/refresh", { method: "POST" }).catch(() => null);
-  if (bffRes?.ok) return true;
-
-  // Direct NestJS fallback (e.g. in dev when BFF route is unavailable)
-  const rt = refreshToken();
-  if (!rt) return false;
-  const res = await fetch(`${API_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ refreshToken: rt, realm: "admin" })
-  }).catch(() => null);
-  const data = (await res?.json().catch(() => ({}))) as { accessToken?: string; refreshToken?: string };
-  if (!res?.ok || !data.accessToken || !data.refreshToken) return false;
-  setTokenCookies(data.accessToken, data.refreshToken);
-  return true;
+let refreshInFlight: Promise<boolean> | undefined;
+function tryRefreshToken(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (!refreshInFlight) {
+    refreshInFlight = fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" })
+      .then(res => res.ok).catch(() => false).finally(() => { refreshInFlight = undefined; });
+  }
+  return refreshInFlight;
 }
 
-// ──────────────────────────────────────────────
-// Core fetch wrapper
-// ──────────────────────────────────────────────
-
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_URL}${withAdminLocale(path)}`;
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) throw new Error("Invalid API path");
+  const url = path === "/auth/logout" ? "/api/auth/logout" : `${API_URL}${withAdminLocale(path)}`;
   const response = await requestWithAuthRetry(url, options);
   if (!response.ok) {
     const retryAfterHeader = response.headers?.get?.("retry-after") ?? null;
@@ -143,36 +107,15 @@ export function onApiError(listener: (error: ApiError) => void): () => void {
 
 async function requestWithAuthRetry(url: string, options: RequestInit): Promise<Response> {
   const method = (options.method ?? "GET").toUpperCase();
-  const body =
-    options.body ??
-    (method !== "GET" && method !== "HEAD" && method !== "DELETE" ? "{}" : undefined);
-
-  const makeRequest = (tok: string | null) =>
-    fetch(url, {
-      ...options,
-      ...(body !== undefined ? { body } : {}),
-      headers: {
-        "content-type": "application/json",
-        ...(tok ? { authorization: `Bearer ${tok}` } : {}),
-        ...options.headers
-      }
-    });
-
-  const res = await makeRequest(hasUsableAccessToken() ? token() : null);
-
-  if (
-    res.status === 401 &&
-    typeof window !== "undefined" &&
-    !url.includes("/auth/login") &&
-    !url.includes("/auth/refresh")
-  ) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) return makeRequest(token());
-
-    clearTokenCookies();
-    if (!window.location.pathname.startsWith("/login")) {
-      window.location.assign("/login");
-    }
+  const body = options.body ?? (method !== "GET" && method !== "HEAD" && method !== "DELETE" ? "{}" : undefined);
+  const headers = new Headers(options.headers);
+  headers.delete("authorization");
+  if (!headers.has("content-type")) headers.set("content-type", "application/json");
+  const makeRequest = () => fetch(url, { ...options, headers, credentials: "same-origin", ...(body !== undefined ? { body } : {}) });
+  const res = await makeRequest();
+  if (res.status === 401 && typeof window !== "undefined") {
+    if (await tryRefreshToken()) return makeRequest();
+    if (!window.location.pathname.startsWith("/login")) window.location.assign("/login");
   }
   return res;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Check, Loader2, MessageCircle, Paperclip, Pencil, Plus, Search, Send, Sparkles, Trash2, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { API_URL, api, token } from "../lib/api";
+import { API_URL, api } from "../lib/api";
 import type { AiStreamEvent } from "../lib/ai-events";
 
 type ChatMessage = {
@@ -182,9 +182,7 @@ export function AiAssistantWidget() {
     const filename = typeof result?.filename === "string" ? result.filename : "artifact.bin";
     if (!downloadUrl) return;
     const response = await fetch(`${API_URL}${downloadUrl}`, {
-      headers: {
-        ...(token() ? { authorization: `Bearer ${token()}` } : {})
-      }
+      credentials: "same-origin"
     });
     if (!response.ok) {
       setError("Failed to download artifact");
@@ -233,8 +231,7 @@ export function AiAssistantWidget() {
     const response = await fetch(`${API_URL}/admin/ai/chat/stream`, {
       method: "POST",
       headers: {
-        "content-type": "application/json",
-        ...(token() ? { authorization: `Bearer ${token()}` } : {})
+        "content-type": "application/json"
       },
       body: JSON.stringify({
         message: payload.message,

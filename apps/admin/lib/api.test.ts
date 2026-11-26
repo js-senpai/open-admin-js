@@ -13,16 +13,10 @@ describe("api client", () => {
     vi.resetModules();
   });
 
-  it("token returns null without document (SSR context)", async () => {
-    const { token } = await import("./tokens");
-    expect(token()).toBeNull();
-  });
-
-  it("token reads from document.cookie in browser", async () => {
-    const cookieValue = `oajs_at=${encodeURIComponent("my-access-token")}`;
-    vi.stubGlobal("document", { cookie: cookieValue });
-    const { token } = await import("./tokens");
-    expect(token()).toBe("my-access-token");
+  it("does not expose browser token helpers", async () => {
+    const tokens = await import("./tokens");
+    expect("token" in tokens).toBe(false);
+    expect("refreshToken" in tokens).toBe(false);
   });
 
   it("api parses JSON on success", async () => {
@@ -89,10 +83,13 @@ describe("api client", () => {
     const { api } = await import("./api");
     const response = await api<{ data: string }>("/admin/resources/overview");
     expect(response.data).toBe("result");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("/api/backend/");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/auth/refresh");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(locationAssign).not.toHaveBeenCalled();
   });
 
-  it("api clears cookies and redirects to login when all refresh attempts fail", async () => {
+  it("api redirects to login when all refresh attempts fail", async () => {
     const locationAssign = vi.fn();
     const freshJwt = fakeJwt({ exp: 9_999_999_999 });
     let cookieStore = `oajs_at=${encodeURIComponent(freshJwt)}; oajs_rt=${encodeURIComponent("rt")}`;

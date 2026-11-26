@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("../lib/api", () => ({
-  hasUsableAccessToken: vi.fn()
+  api: vi.fn()
 }));
 
 describe("AuthGuard", () => {
@@ -21,8 +21,8 @@ describe("AuthGuard", () => {
   });
 
   it("allows public login route without redirect", async () => {
-    const { hasUsableAccessToken } = await import("../lib/api");
-    vi.mocked(hasUsableAccessToken).mockReturnValue(false);
+    const { api } = await import("../lib/api");
+    vi.mocked(api).mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
     usePathname.mockReturnValue("/login");
     const { AuthGuard } = await import("./auth-guard");
 
@@ -37,8 +37,8 @@ describe("AuthGuard", () => {
   });
 
   it("redirects to login when token is missing", async () => {
-    const { hasUsableAccessToken } = await import("../lib/api");
-    vi.mocked(hasUsableAccessToken).mockReturnValue(false);
+    const { api } = await import("../lib/api");
+    vi.mocked(api).mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
     usePathname.mockReturnValue("/dashboard");
     const { AuthGuard } = await import("./auth-guard");
 
