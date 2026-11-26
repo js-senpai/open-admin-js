@@ -11,7 +11,7 @@ This branch is **not a stable release**. The published npm package and main bran
 5. Serve the admin over HTTPS. Set ADMIN_ORIGIN to the exact public admin origin and API_INTERNAL_URL to the private API origin. Set real JWT secrets and database credentials. Keep the API off the public network unless it is intentionally exposed.
 6. Browser authentication uses same-origin BFF and HttpOnly cookies; do not reintroduce localStorage tokens. Refresh-token replay revokes its session family. Concurrent refresh across tabs requires validation.
 7. Plugin installation is a trusted build/deploy operation only. Explicit capabilities are required. Sandboxed mode is rejected rather than claiming in-process isolation.
-8. API keys are newly issued with explicit read-only scopes; legacy tokens are revoked by migration. AI is an opt-in read-only OpenAI assistant, with OPENADMIN_AI_ENABLED=1 and OPENAI_API_KEY in deployment secrets. Commerce is opt-in Stripe test mode only (OPENADMIN_COMMERCE_ENABLED=1, test key, signing secret and configured HTTPS redirect URLs). OIDC remains disabled. None of these changes establishes production certification.
+8. API keys are newly issued with explicit read-only scopes; legacy tokens are revoked by migration. AI is an opt-in read-only OpenAI assistant, with OPENADMIN_AI_ENABLED=1 and OPENAI_API_KEY in deployment secrets. Commerce is opt-in Stripe test mode only (OPENADMIN_COMMERCE_ENABLED=1, test key, signing secret and configured HTTPS redirect URLs). OIDC uses openid-client and is disabled by default until explicitly enabled; use a verified provider and pre-linked active account. None of these changes establishes production certification.
 
 ## Status against the combined audit
 
@@ -22,7 +22,7 @@ This branch is **not a stable release**. The published npm package and main bran
 | S03 | No default demo users, disable unchanged legacy accounts, no seed password overwrite | Seed upgrade and restore test |
 | S04 | Opt-in read-only assistant, environment secret, explicit permissions, fixed provider HTTPS and pinned public IPv4 | Real provider integration and egress acceptance; no autonomous actions |
 | S05 | Hashed, indexed session tokens, rotation, replay and revocation; HttpOnly BFF; browser-wide refresh lock | Real database concurrency and multi-tab checks |
-| S06 | Reset token not disclosed, atomic consumption, email verification restricted to pending accounts, session revocation; OIDC disabled | Supported OIDC client, verified callback and full identity/verification tests |
+| S06 | Reset token not disclosed, atomic consumption, email verification restricted to pending accounts, session revocation; opt-in OIDC with openid-client, signature/nonce/state/PKCE checks and BFF cookie exchange | Real identity provider and negative signature/replay test acceptance |
 | S07 | Extracted policy/query modules, allowlists, scoped writes, bulk and reorder validation | Complete action/hook concurrency tests |
 | S08 | Audit snapshot redaction; hashed owner-bound read-only API keys, live scope checks and revocation | CI runtime acceptance, full audit coverage, migration of historical logs |
 | S09 | Stripe test-only checkout, server pricing, cart idempotency, signed deduplicated webhook | Real Stripe test account, reconciliation and financial acceptance |
@@ -37,7 +37,7 @@ This branch is **not a stable release**. The published npm package and main bran
 | A02 | Standalone scaffold retained | Separate versioned runtime packages and upgrade/rollback CLI |
 | A03 | Unsafe optional modules disabled | Separate profiles, schema fragments, validated indexes |
 | A04 | Docker/Compose candidate, health/readiness, private storage and deployment/backup guide | Actual container/staging deployment, restore drill and observability |
-| U01 | Open Core login, dashboard, shared shell, dynamic navigation, command search, mobile drawer and resource components | Browser visual acceptance, full i18n and accessibility |
+| U01 | Open Core login, dashboard, shared shell, dynamic navigation, command search, mobile drawer and resource components | Browser screenshots reviewed; production visual acceptance, full i18n and accessibility |
 | U02 | CRM installer included in scaffold (dry run + explicit apply), migration instructions | Full CRM CRUD acceptance and complete snippet/doc verification |
 | U03 | Deferred by original specification | Embedded adapter, MFA, storage/queue adapters |
 | D01 | Self-contained vector generator for SVG, PNG, favicon, OG, monochrome | Generated artifact visual review and trademark/contrast review |
@@ -52,3 +52,7 @@ Keep the pull request in draft until CI and the outstanding P0 criteria pass. Do
 ## Admin redesign
 
 The admin follows the landing page's Open Core visual tokens: ink #101820, lime #B9F56D, paper #F5F7F2, neutral borders, dark top bar, typography and code-inspired identity. The login layout includes a geometric brand panel; the workspace has permission-derived navigation, mobile drawer, breadcrumbs and keyboard search. Playwright captures screenshots from the installed archive; these are not visual approval until inspected. See [deployment guide](deployment.md) and [CRM example](../examples/crm-admin/README.md).
+
+## OIDC opt-in (experimental)
+
+Set OPENADMIN_OIDC_ENABLED=1 only after staging acceptance. Configure OIDC_ISSUER (HTTPS), OIDC_CLIENT_ID, OIDC_CLIENT_SECRET and OIDC_REDIRECT_URI=https://admin.example.com/api/auth/oidc/callback, and exact ADMIN_ORIGIN. The operator must pre-link the provider subject on an existing active account using its oidcKey (issuer without trailing slash, double colon, subject), and its verified provider email must match the local account. No automatic provisioning, email-only linking or role assignment is performed. The callback exchanges the code server-to-server and sets HttpOnly session cookies; no session tokens appear in redirect URLs. Use a dedicated test IdP client before enabling production.

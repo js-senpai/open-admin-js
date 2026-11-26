@@ -283,4 +283,4 @@ If you want to support development, hosting and community tooling:
 
 ### Open Core V2 development candidate
 
-The current development branch includes the redesigned admin and additional security, storage, optional integrations and deployment changes. Read [V2 migration notes](docs/v2-migration.md) and the [PostgreSQL deployment guide](docs/deployment.md) before testing. The published package and main branch remain unchanged. Stripe integration is test-mode only; OIDC remains disabled.
+The current development branch includes the redesigned admin and additional security, storage, optional integrations and deployment changes. Read [V2 migration notes](docs/v2-migration.md) and the [PostgreSQL deployment guide](docs/deployment.md) before testing. The published package and main branch remain unchanged. Stripe integration is test-mode only; OIDC is opt-in and requires provider acceptance and pre-linked accounts.

@@ -21,4 +21,4 @@ docker compose exec -T api tar -C /app/storage -cf - . > storage.tar
 
 Encrypt and store both backups off-host, record migration versions and checksums. Restore to a **separate staging stack/database**, not production, verify data and uploaded files, then plan a controlled switchover. The compose volume storage is private; do not mount it under a public web root. Test recovery routinely. Legacy arbitrary file paths require manual inventory and migration to opaque storage keys.
 
-Redis, external AI and Stripe test mode remain optional and are not enabled in this stack. MySQL and SQLite require separate provider-specific deployment and migration review.
+Redis, external AI, OIDC and Stripe test mode remain optional and are not enabled in this stack. MySQL and SQLite require separate provider-specific deployment and migration review.

@@ -15,11 +15,11 @@ const admin = "http://localhost:3000";
 const out = join(process.env.RUNNER_TEMP || cwd, "smoke-results");
 await mkdir(out, { recursive: true });
 const log = await open(join(out, "runtime.log"), "w");
-const child = spawn("pnpm", ["dev"], { cwd, detached: true, stdio: ["ignore", log.fd, log.fd] });
+const child = spawn("pnpm", ["start"], { cwd, detached: true, stdio: ["ignore", log.fd, log.fd] });
 let browser;
 async function waitFor(url) {
   for (let i = 0; i < 120; i++) {
-    if (child.exitCode !== null) throw new Error("Development servers exited");
+    if (child.exitCode !== null) throw new Error("Production servers exited");
     try { const r = await fetch(url, { signal: AbortSignal.timeout(3000) }); if (r.ok) return; } catch {}
     await delay(2000);
   }
@@ -83,6 +83,8 @@ try {
   assert.equal((await page.request.post(admin + "/api/backend/admin/resources/posts", { headers: { origin: "https://untrusted.example" }, data: {} })).status(), 403);
   await page.screenshot({ path: join(out, "admin.png"), fullPage: true });
   await page.goto(admin + "/resources/posts");
+  await page.getByRole("heading",{name:"Posts",exact:true}).waitFor({state:"visible"});
+  await page.getByText("No records found",{exact:true}).waitFor({state:"visible"});
   await page.screenshot({path:join(out,"resources-desktop.png"),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:join(out,"resources-mobile.png"),fullPage:true});
