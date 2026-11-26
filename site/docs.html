@@ -6,47 +6,25 @@
     <title>OpenAdminJS — Documentation</title>
     <meta name="description" content="OpenAdminJS documentation — full platform reference: Nest.js API routes (auth, admin CRUD, analytics, AI, plugins, jobs, storefront), Next.js admin &amp; web, CLI, Prisma, resources, RBAC, deployment. Copy-ready examples." />
     <link rel="icon" href="./assets/brand/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="./assets/brand/openadminjs-icon-new.png" type="image/png" sizes="32x32" />
+    
     <link rel="stylesheet" href="./assets/css/styles.css" />
+    <link rel="stylesheet" href="./assets/css/open-core.css">
+  <meta name="theme-color" content="#ffffff">
   </head>
-  <body class="site-body site-body--docs">
-    <header class="site-header">
-      <div class="header-inner">
-        <a class="brand" href="./index.html" aria-label="OpenAdminJS home">
-          <img src="./assets/brand/openadminjs-logo-new.png" alt="OpenAdminJS" />
-        </a>
-        <nav class="nav" aria-label="Main navigation">
-          <a href="./index.html#features">Features</a>
-          <a href="./index.html#demos">Demos</a>
-          <a href="./index.html#examples">Examples</a>
-          <a href="./index.html#apps">Modules</a>
-          <a href="./index.html#partners">Partners</a>
-          <a href="./index.html#faq">FAQ</a>
-          <a href="./docs.html" aria-current="page">Docs</a>
-          <a class="nav-cta" href="./index.html">Back to site</a>
-        </nav>
-        <button class="menu-button" type="button" aria-label="Open menu" data-menu-button>Menu</button>
-      </div>
-    </header>
+  <body class="site-body site-body--docs oc-docs">
+    <a class="oc-skip" href="#docs-content">Skip to content</a>
+<header class="oc-header">
+    <div class="oc-wrap oc-header-inner">
+      <a class="oc-brand" href="./index.html"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M29 13a19 19 0 1 0 0 38h9l11-23 7 15H45l-4 8h18L42 13h-8L21 42a11 11 0 1 1 8-21l3-7z"/></svg><span>OpenAdminJS</span></a>
+      <nav class="oc-nav" aria-label="Main navigation">
+        <a href="./index.html#features">Resources</a><a href="./docs.html" aria-current="page">Documentation</a><a href="https://github.com/js-senpai/open-admin-js">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+      <a class="oc-btn oc-primary" href="#installation">Get started <span aria-hidden="true">→</span></a>
+    </div>
+  </header>
 
     <main class="docs-page docs-page--nest">
-      <section class="docs-hero docs-hero--wide">
-        <div>
-          <p class="eyebrow">Documentation</p>
-          <h1>OpenAdminJS developer guide</h1>
-          <p class="hero-lead">
-            Layout inspired by framework docs such as Next.js: sticky section nav, searchable sidebar, predictable headings, and copy buttons on every block.
-            The stack pairs a Nest.js API with Next.js apps (admin &amp; web)—start with installation, master <code>defineResource</code>, then ship RBAC-backed CRUD and production deploys.
-          </p>
-        </div>
-        <div class="docs-hero-card">
-          <span>Quick install</span>
-          <div class="docs-code-block docs-code-block--inline" data-language="bash">
-            <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-            <pre><code>npx openadminjs create my-app</code></pre>
-          </div>
-        </div>
-      </section>
+      
 
       <div class="docs-layout">
         <aside class="docs-sidebar docs-sidebar--nest" aria-label="Documentation sections">
@@ -65,7 +43,7 @@
           <div class="docs-nav-group">
             <span class="docs-nav-heading">First steps</span>
             <a href="#overview">Overview</a>
-            <a href="#installation">Installation</a>
+            <a href="#installation">Quickstart</a>
             <a href="#structure">Project structure</a>
             <a href="#configuration">Configuration</a>
             <a href="#dev-scripts">Workspace scripts</a>
@@ -149,7 +127,11 @@
           </div>
         </aside>
 
-        <article class="docs-content docs-content--nest">
+        <article id="docs-content" class="docs-content docs-content--nest">
+          <p class="oc-breadcrumb">Documentation / Getting started</p>
+          <h1>OpenAdminJS documentation</h1>
+          <p class="oc-docs-lead">Learn how to scaffold your workspace, define resources, configure permissions and extend your application.</p>
+          <div class="docs-callout"><strong>Development branch:</strong> this guide is being updated for V2. Published npm versions may differ. Review the <a href="#security">security guide</a> before deploying.</div>
           <section id="overview">
             <h2>Overview</h2>
             <p>
@@ -169,7 +151,7 @@
           </section>
 
           <section id="installation">
-            <h2>Installation</h2>
+            <h2>Quickstart</h2>
             <p>
               Prerequisites: <strong>Node.js 20+</strong>, <strong>pnpm</strong> (recommended) or npm/yarn, and the OpenAdminJS CLI.
               The flow mirrors a typical Nest.js workspace bootstrap: scaffold, migrate, seed, run. Dependency installation and core env prompts (DB/Redis/JWT) happen automatically during project creation, while admin origin and API port are prefilled with local defaults.
@@ -1328,6 +1310,7 @@ export function generateMetadata({ params }) {
           <!-- Plugins & hooks -->
           <!-- ======================================================= -->
           <section id="plugins">
+            <div class="docs-callout"><strong>V2 security change:</strong> HTTP plugin installation and manifest mutation are disabled. Install trusted packages during build/deployment and edit the manifest as an operator. Existing route descriptions below are historical reference, not an enabled management workflow.</div>
             <h2>Plugin system</h2>
             <p>
               OpenAdminJS Plugin Platform is a broad extension system (WordPress-style) with explicit capability gating.
@@ -1892,13 +1875,11 @@ POST /admin/resources/orders/:id/refund   # admin Ops (PaymentService)</code></p
             </p>
           </section>
         </article>
+        <aside class="oc-toc" aria-label="On this page"><strong>On this page</strong><nav data-oc-toc><a href="#overview">Overview</a><a href="#installation">Installation</a><a href="#creating-resources">Creating resources</a><a href="#permissions">Permissions</a><a href="#deployment">Deployment</a></nav></aside>
       </div>
     </main>
 
-    <footer class="footer">
-      <span>© OpenAdminJS</span>
-      <a href="./index.html">Home</a>
-    </footer>
+    <footer class="oc-footer"><div class="oc-wrap"><strong>OpenAdminJS</strong><span>MIT · Open source</span><a href="./docs.html">Docs</a><a href="https://github.com/js-senpai/open-admin-js">GitHub ↗</a><a href="https://www.npmjs.com/package/openadminjs">npm ↗</a></div></footer>
 
     <script src="./assets/js/main.js"></script>
   </body>
