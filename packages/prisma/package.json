@@ -1,0 +1,21 @@
+{
+  "name": "@openadminjs/prisma",
+  "version": "0.2.0-rc.1",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.mjs",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs",
+      "default": "./src/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "node --check src/index.mjs",
+    "lint": "node --check src/index.mjs",
+    "typecheck": "node --check src/index.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

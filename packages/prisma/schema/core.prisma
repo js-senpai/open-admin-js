@@ -1,0 +1,106 @@
+model User {
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  passwordHash       String
+  /** Stable IdP subject, format `issuerNormalized::sub` — set when user signs in via OIDC. */
+  oidcKey            String?              @unique
+  /// Legacy refresh hash; invalidated by session migration.
+  refreshTokenHash   String?
+  sessions           Session[]
+  name               String?
+  avatarUrl          String?
+  status             String               @default("active")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  roles              UserRole[]
+  posts              Post[]
+  auditLogs          AuditLog[]
+  apiTokens          ApiToken[]
+  notifications      Notification[]
+  orders             Order[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  aiConversations    AiConversation[]
+  aiArtifacts        AiArtifact[]
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  /** RBAC partition: e.g. "admin" (back-office), "public" (storefront). Add more realms freely. */
+  realm       String           @default("admin")
+  name        String
+  label       String
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@unique([name, realm])
+}
+
+model Permission {
+  id    String           @id @default(cuid())
+  name  String           @unique
+  label String
+  roles RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id          String         @id @default(cuid())
+  userId      String
+  realm       String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  lastUsedAt  DateTime       @default(now())
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens      SessionToken[]
+
+  @@index([userId, realm])
+  @@index([expiresAt])
+}
+
+model SessionToken {
+  id          String   @id @default(cuid())
+  sessionId   String
+  tokenHash   String   @unique
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}

@@ -1,0 +1,79 @@
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  /** Price in smallest currency unit (e.g. cents for USD) */
+  price       Int
+  currency    String   @default("USD")
+  active      Boolean  @default(true)
+  imageUrl    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id           String        @id @default(cuid())
+  /** Null for guest checkouts */
+  userId       String?
+  email        String?
+  /** pending | paid | failed | refunded | cancelled */
+  status       String        @default("pending")
+  currency     String        @default("USD")
+  /** Total in smallest currency unit */
+  total        Int
+  notes        String?
+  checkoutKey String? @unique
+  checkoutRequestHash String?
+  checkoutSessionId String? @unique
+  paymentIntentId String? @unique
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User?         @relation(fields: [userId], references: [id])
+  items        OrderItem[]
+  transactions Transaction[]
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String?
+  name      String
+  /** Unit price at time of purchase */
+  price     Int
+  quantity  Int      @default(1)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model Transaction {
+  id                String   @id @default(cuid())
+  orderId           String
+  /** Payment provider slug: stripe | paypal | mock */
+  provider          String
+  /** Provider-side ID (Stripe PaymentIntent ID, etc.) */
+  providerTxId      String?
+  /** pending | succeeded | failed | refunded */
+  status            String   @default("pending")
+  /** Amount in smallest currency unit */
+  amount            Int
+  currency          String   @default("USD")
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  order             Order    @relation(fields: [orderId], references: [id])
+}
+
+model WebhookLog {
+  id        String   @id @default(cuid())
+  provider  String
+  eventType String
+  providerEventId String? @unique
+  payload   Json
+  /** pending | processed | failed */
+  status    String   @default("pending")
+  error     String?
+  createdAt DateTime @default(now())
+}

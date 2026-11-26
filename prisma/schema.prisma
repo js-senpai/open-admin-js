@@ -70,6 +70,83 @@ model RolePermission {
   @@id([roleId, permissionId])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id          String         @id @default(cuid())
+  userId      String
+  realm       String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  lastUsedAt  DateTime       @default(now())
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens      SessionToken[]
+
+  @@index([userId, realm])
+  @@index([expiresAt])
+}
+
+model SessionToken {
+  id          String   @id @default(cuid())
+  sessionId   String
+  tokenHash   String   @unique
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  resource  String?
+  resourceId String?
+  action    String
+  before    Json?
+  after     Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  group     String
+  type      String
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model FileAsset {
+  id        String   @id @default(cuid())
+  filename  String
+  path      String
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+  posts     Post[]
+}
+
 model Category {
   id        String   @id @default(cuid())
   name      String
@@ -96,39 +173,6 @@ model Post {
   category     Category?  @relation(fields: [categoryId], references: [id])
   coverImage   FileAsset? @relation(fields: [coverImageId], references: [id])
   author       User?      @relation(fields: [authorId], references: [id])
-}
-
-model FileAsset {
-  id        String   @id @default(cuid())
-  filename  String
-  path      String
-  mimeType  String
-  size      Int
-  createdAt DateTime @default(now())
-  posts     Post[]
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  resource  String?
-  resourceId String?
-  action    String
-  before    Json?
-  after     Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
-}
-
-model Setting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  group     String
-  type      String
-  value     Json
-  updatedAt DateTime @updatedAt
 }
 
 model ApiToken {
@@ -161,28 +205,6 @@ model JobLog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  tokenHash String
-  expiresAt DateTime
-  usedAt    DateTime?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model EmailVerificationToken {
-  id        String   @id @default(cuid())
-  tokenHash String
-  expiresAt DateTime
-  usedAt    DateTime?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// ──────────────────────────────────────────────
-// Commerce / Payments
-// ──────────────────────────────────────────────
 
 model Product {
   id          String   @id @default(cuid())
@@ -299,32 +321,4 @@ model AiArtifact {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
-}
-
-
-
-model Session {
-  id          String         @id @default(cuid())
-  userId      String
-  realm       String
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime       @default(now())
-  lastUsedAt  DateTime       @default(now())
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokens      SessionToken[]
-
-  @@index([userId, realm])
-  @@index([expiresAt])
-}
-
-model SessionToken {
-  id          String   @id @default(cuid())
-  sessionId   String
-  tokenHash   String   @unique
-  usedAt      DateTime?
-  createdAt   DateTime @default(now())
-  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
 }

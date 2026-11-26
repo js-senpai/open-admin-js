@@ -15,7 +15,10 @@
     "db:seed": "pnpm --filter @openadminjs/api db:seed",
     "db:studio": "pnpm --filter @openadminjs/api db:studio",
     "db:reset": "pnpm --filter @openadminjs/api db:reset",
-    "generate": "pnpm --filter @openadminjs/api generate"
+    "generate": "pnpm --filter @openadminjs/api generate",
+    "schema:check": "node scripts/schema.mjs check",
+    "schema:compose": "node scripts/schema.mjs compose",
+    "schema:adopt": "node scripts/schema.mjs adopt"
   },
   "devDependencies": {
     "@prisma/client": "^6.1.0",

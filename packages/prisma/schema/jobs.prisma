@@ -1,0 +1,9 @@
+model JobLog {
+  id        String   @id @default(cuid())
+  name      String
+  status    String
+  payload   Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,10 @@
+model ApiToken {
+  id        String    @id @default(cuid())
+  name      String
+  tokenHash String @unique
+  scopes    String[]
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+}

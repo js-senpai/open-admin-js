@@ -72,7 +72,7 @@ cpSync(join(root, "tsconfig.base.json"), join(templateDir, "tsconfig.base.json")
 // Include reviewed deployment and example installation assets in generated apps.
 for (const path of ["Dockerfile",".dockerignore","compose.yaml",".env.production.example"]) cpSync(join(root,path),join(templateDir,path));
 mkdirSync(join(templateDir,"scripts"),{recursive:true});
-cpSync(join(root,"scripts","install-crm.mjs"),join(templateDir,"scripts","install-crm.mjs"));
+for(const name of ["install-crm.mjs","schema.mjs"]) cpSync(join(root,"scripts",name),join(templateDir,"scripts",name));
 copyDir(join(root,"examples","crm-admin"),join(templateDir,"examples","crm-admin"));
 
 // Patch prisma schema: replace hardcoded provider with template placeholder so

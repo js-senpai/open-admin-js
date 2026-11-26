@@ -18,7 +18,10 @@
     "db:migrate": "pnpm --filter @openadminjs/api db:migrate",
     "db:seed": "pnpm --filter @openadminjs/api db:seed",
     "brand:assets": "node packages/brand/src/generate-assets.mjs",
-    "runtime:pack": "node scripts/pack-runtime.mjs"
+    "runtime:pack": "node scripts/pack-runtime.mjs",
+    "schema:check": "node scripts/schema.mjs check",
+    "schema:compose": "node scripts/schema.mjs compose",
+    "schema:adopt": "node scripts/schema.mjs adopt"
   },
   "devDependencies": {
     "@prisma/client": "^6.1.0",
