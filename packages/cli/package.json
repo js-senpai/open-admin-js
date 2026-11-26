@@ -1,6 +1,6 @@
 {
   "name": "openadminjs",
-  "version": "0.2.0",
+  "version": "0.3.0-rc.1",
   "description": "CLI scaffold generator for OpenAdminJS monorepos (NestJS, Prisma, Next.js). Not a runtime library — use npx openadminjs create.",
   "license": "MIT",
   "keywords": [

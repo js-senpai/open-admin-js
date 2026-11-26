@@ -154,9 +154,9 @@ jobs:
         run: |
           for i in $(seq 1 30); do
             if [ "${{ matrix.db }}" = "postgresql" ]; then
-              docker exec db pg_isready -U openadminjs && break
+              docker exec db pg_isready -h 127.0.0.1 -U openadminjs && break
             else
-              docker exec db mysqladmin ping -uopenadminjs -popenadminjs --silent && break
+              docker exec db mysql --protocol=TCP -h 127.0.0.1 -uopenadminjs -popenadminjs -Dopenadminjs -e 'SELECT 1' && break
             fi
             sleep 2
           done
@@ -280,10 +280,10 @@ jobs:
           set -euo pipefail
           if [ "$DB" = "postgresql" ]; then
             docker run -d --name legacy -p 5432:5432 -e POSTGRES_USER=legacy -e POSTGRES_PASSWORD=legacy -e POSTGRES_DB=legacy postgres:16
-            for i in $(seq 1 60); do docker exec legacy pg_isready -U legacy && exit 0; sleep 2; done
+            for i in $(seq 1 60); do docker exec legacy pg_isready -h 127.0.0.1 -U legacy && exit 0; sleep 2; done
           else
             docker run -d --name legacy -p 3306:3306 -e MYSQL_ROOT_PASSWORD=local -e MYSQL_USER=legacy -e MYSQL_PASSWORD=legacy -e MYSQL_DATABASE=legacy mysql:8
-            for i in $(seq 1 60); do docker exec legacy mysqladmin ping -ulegacy -plegacy --silent && exit 0; sleep 2; done
+            for i in $(seq 1 60); do docker exec legacy mysql --protocol=TCP -h 127.0.0.1 -ulegacy -plegacy -Dlegacy -e 'SELECT 1' && exit 0; sleep 2; done
           fi
           exit 1
       - name: Exercise actual baseline + upgrade migration
