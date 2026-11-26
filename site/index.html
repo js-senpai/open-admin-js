@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAdminJS — Define once. Build your admin.</title>
+  <meta name="description" content="Open-source, resource-driven admin platform for NestJS, Prisma and Next.js. Define your resources, generate your admin and own your code.">
+  <meta property="og:title" content="OpenAdminJS — Define once. Build your admin.">
+  <meta property="og:description" content="Resource-driven admin tooling with NestJS, Prisma and Next.js.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="./assets/brand/og-image.png">
+  <meta name="theme-color" content="#101820">
+  <link rel="icon" href="./assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <link rel="stylesheet" href="./assets/css/open-core.css">
+</head>
+<body class="oc-site">
+  <a class="oc-skip" href="#main">Skip to content</a>
+  <header class="oc-header">
+    <div class="oc-wrap oc-header-inner">
+      <a class="oc-brand" href="./index.html"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M29 13a19 19 0 1 0 0 38h9l11-23 7 15H45l-4 8h18L42 13h-8L21 42a11 11 0 1 1 8-21l3-7z"/></svg><span>OpenAdminJS</span></a>
+      <nav class="oc-nav" aria-label="Main navigation">
+        <a href="#features">Resources</a><a href="./docs.html">Documentation</a><a href="https://github.com/js-senpai/open-admin-js">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+      <a class="oc-btn oc-primary" href="./docs.html#installation">Get started <span aria-hidden="true">→</span></a>
+    </div>
+  </header>
+  <main id="main" class="oc-main">
+    <section class="oc-hero">
+      <div class="oc-wrap oc-hero-grid">
+        <div class="oc-hero-copy">
+          <p class="oc-kicker"><span></span> OPEN SOURCE / DEVELOPER FIRST</p>
+          <h1>Define once.<br><em>Build your admin.</em></h1>
+          <p class="oc-lead">Turn your data models into a full-stack admin workspace with NestJS, Prisma and Next.js. Write your domain logic, not another dashboard.</p>
+          <div class="oc-actions"><a class="oc-btn oc-primary" href="./docs.html#installation">Get started <span aria-hidden="true">→</span></a><a class="oc-btn oc-secondary" href="./docs.html">▤ &nbsp; Documentation</a></div>
+          <div class="oc-stack"><span>BUILT WITH</span><strong>NestJS</strong><strong>Prisma</strong><strong>Next.js</strong></div>
+        </div>
+        <div class="oc-visual" aria-label="Illustrative resource configuration and generated admin table">
+          <div class="oc-code">
+            <div class="oc-window-head"><span class="oc-dots" aria-hidden="true">● ● ●</span><span>resources/users.resource.ts</span></div>
+            <pre><code><span class="oc-pink">export default</span> defineResource({
+  name: <span class="oc-lime">'users'</span>,
+  model: <span class="oc-lime">'user'</span>,
+  fields: {
+    email: { type: <span class="oc-lime">'email'</span> },
+    name: { type: <span class="oc-lime">'text'</span> },
+  },
+  permissions: {
+    read: <span class="oc-lime">'users.read'</span>
+  }
+});</code></pre>
+          </div>
+          <svg class="oc-arrow" viewBox="0 0 120 90" aria-hidden="true"><path d="M8 5C4 55 56 70 106 65M86 46l24 19-25 19" fill="none" stroke="#B9F56D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="oc-admin">
+            <div class="oc-admin-top"><strong><span class="oc-mini-mark">OA</span> OpenAdminJS</strong><span>Workspace</span></div>
+            <div class="oc-admin-body"><aside aria-hidden="true"><span>Overview</span><b>Users</b><span>Posts</span><span>Settings</span></aside><div class="oc-admin-table"><div class="oc-admin-heading"><strong>Users</strong><span>3 records</span></div><table><thead><tr><th>Email</th><th>Status</th></tr></thead><tbody><tr><td>alice@example.com</td><td><span>Active</span></td></tr><tr><td>bob@example.com</td><td><span>Active</span></td></tr><tr><td>carol@example.com</td><td><span>Active</span></td></tr></tbody></table></div></div>
+          </div>
+          <div class="oc-demo-label">Illustrative UI · sample data</div>
+        </div>
+      </div>
+    </section>
+    <section class="oc-strip" aria-label="Platform principles">
+      <div class="oc-wrap oc-strip-grid">
+        <article><span class="oc-feature-icon">◈</span><div><h2>Resource-driven</h2><p>Describe your domain in code.</p></div></article>
+        <article><span class="oc-feature-icon">↯</span><div><h2>Modern stack</h2><p>TypeScript from API to UI.</p></div></article>
+        <article><span class="oc-feature-icon">⊞</span><div><h2>Own your code</h2><p>Self-hosted, extensible source.</p></div></article>
+      </div>
+    </section>
+    <section id="features" class="oc-section oc-wrap">
+      <p class="oc-kicker oc-dark-kicker">01 / THE RESOURCE ENGINE</p>
+      <h2>One resource.<br>Many possibilities.</h2>
+      <p class="oc-section-lead">A shared resource contract drives the generic CRUD API, field metadata and administration screens.</p>
+      <div class="oc-feature-grid">
+        <article><span>01</span><h3>Data management</h3><p>Lists, filters, forms, relations and resource actions from your configuration.</p><a href="./docs.html#resources">Explore resources →</a></article>
+        <article><span>02</span><h3>Access policies</h3><p>Define role permissions and record scopes. Review the security guide before deploying.</p><a href="./docs.html#permissions">Explore permissions →</a></article>
+        <article><span>03</span><h3>Extend your app</h3><p>Customize your generated workspace with resource hooks and trusted deployment-time plugins.</p><a href="./docs.html#plugins">Explore extensions →</a></article>
+      </div>
+    </section>
+    <section class="oc-dark-band"><div class="oc-wrap oc-start-grid"><div><p class="oc-kicker">02 / QUICKSTART</p><h2>From zero to<br>your workspace.</h2><p class="oc-lead">Start with the CLI. Follow the guide for supported environments and current release limitations.</p><a class="oc-btn oc-primary" href="./docs.html#installation">Read the quickstart →</a></div><div class="oc-terminal docs-code-block"><div class="oc-window-head"><span>TERMINAL / GET STARTED</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>npx openadminjs create my-app
+cd my-app
+pnpm dev</code></pre><p>Node.js · pnpm · your database</p></div></div></section>
+    <section id="examples" class="oc-section oc-wrap"><p class="oc-kicker oc-dark-kicker">03 / BUILD YOUR WAY</p><h2>Your business. Your rules.</h2><p class="oc-section-lead">Explore code examples for your next internal tool. Examples are starting points, not hosted demos.</p><div class="oc-feature-grid"><article><span>CRM</span><h3>Customer operations</h3><p>Contacts, ownership and deal pipelines.</p><a href="https://github.com/js-senpai/open-admin-js/tree/main/examples">Browse source →</a></article><article><span>CMS</span><h3>Content workflows</h3><p>Posts, categories and editorial data.</p><a href="./docs.html#creating-resources">Create a resource →</a></article><article><span>API</span><h3>Back-office systems</h3><p>Build around your domain and extend it when needed.</p><a href="./docs.html#api-surface">API reference →</a></article></div></section>
+  </main>
+  <footer class="oc-footer"><div class="oc-wrap"><strong>OpenAdminJS</strong><span>MIT · Open source</span><a href="./docs.html">Docs</a><a href="https://github.com/js-senpai/open-admin-js">GitHub ↗</a><a href="https://www.npmjs.com/package/openadminjs">npm ↗</a></div></footer>
+  <script src="./assets/js/main.js"></script>
+  <script>document.querySelectorAll('.oc-terminal [data-copy-code]').forEach(button=>button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(button.closest('.oc-terminal').querySelector('code').textContent);button.textContent='Copied';}catch{button.textContent='Select and copy';}}));</script>
+</body>
+</html>
