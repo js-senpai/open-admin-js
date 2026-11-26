@@ -6,7 +6,7 @@ import { cac } from "cac";
 import pc from "picocolors";
 import ts from "typescript";
 import { pluralResourceSlug } from "./resource-slug.js";
-import { createProjectInteractive, type DatabaseDriver, type PackageManager } from "./create-project.js";
+import { createProjectInteractive, defaultTemplateDir, type DatabaseDriver, type PackageManager } from "./create-project.js";
 import { modelNameToResourceSlug } from "./resource-slug.js";
 import {
   assertInsideDir,
@@ -19,6 +19,7 @@ import {
 import { buildDbCommand, runInherit, type DbAction } from "./db-commands.js";
 import { detectPackageManager } from "./detect-package-manager.js";
 import { runDoctorChecks, type CheckResult } from "./doctor.js";
+import { upgradeManaged } from "./upgrade.js";
 import { runSecurityChecks, type Finding } from "./security.js";
 
 export {
@@ -550,6 +551,17 @@ function usageError(usage: string): void {
   console.error(pc.red(`Usage: ${usage}`));
   process.exitCode = 1;
 }
+
+cli
+  .command("upgrade", "Plan a conservative framework source patch (does not migrate the database)")
+  .option("--apply", "Apply only unmodified managed files; abort on conflicts")
+  .option("--rollback", "Restore the last managed patch if its files are still unchanged")
+  .option("--json", "Machine-readable plan")
+  .action((flags: {apply?:boolean;rollback?:boolean;json?:boolean})=>{
+    const plan=upgradeManaged(process.cwd(),defaultTemplateDir(),flags);
+    console.log(flags.json?JSON.stringify(plan,null,2):plan.map(p=>p.status+" "+p.path).join("\n")||"No managed changes");
+    if(plan.some(p=>p.status==="conflict"))process.exitCode=1;
+  });
 
 cli
   .command("doctor", "Check generated project health")

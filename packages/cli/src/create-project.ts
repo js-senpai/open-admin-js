@@ -1,3 +1,4 @@
+import { writeManagedBaseline } from "./upgrade.js";
 import { accessSync, constants as fsConstants, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
 import net from "node:net";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
@@ -598,6 +599,7 @@ function generateIntoDir(
   }
 
   adaptProjectForPackageManager(targetDir, resolved.packageManager);
+  writeManagedBaseline(targetDir);
 
   // Git safety: write .gitignore + .env.example (tracked, placeholders only) as
   // part of generation, i.e. before any `git init`.
