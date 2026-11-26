@@ -1,15 +1,17 @@
 # OpenAdminJS
 
-OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL / MySQL / SQLite**, **Next.js 15**, **React 19**, TailwindCSS and shadcn/ui.
+OpenAdminJS is an open-source, resource-driven admin platform for the Node.js ecosystem, built with **Nest.js 11**, **Prisma 6**, **PostgreSQL / MySQL / SQLite**, **Next.js 15**, **React 19**, and TailwindCSS.
 
-![OpenAdminJS logo](https://js-senpai.github.io/open-admin-js/assets/brand/openadminjs-logo-new.png)
+![OpenAdminJS Open Core mark](site/assets/brand/favicon.svg)
+
+> **V2 development candidate:** do not deploy or publish until the [migration notes and release gates](docs/v2-migration.md) have been reviewed and CI has passed. The published npm version does not yet contain these changes.
 
 ## Requirements
 
 | Tool | Version |
 | --- | --- |
 | Node.js | **20 or newer** |
-| Package manager | **pnpm 9+** (required) |
+| Package manager | **pnpm 9+** (reference profile) |
 | Database | **PostgreSQL 14+**, **MySQL 8+**, or **SQLite 3** (local file) |
 | Redis | optional, only for background queues |
 
@@ -27,19 +29,30 @@ npm install -g pnpm
 
 ## Supported package managers & databases
 
-The generated project is a pnpm workspace monorepo.
+The reference workspace uses pnpm. The CLI also exposes npm and yarn profiles; their compatibility requires separate validation.
 
-- **Package managers:** only **pnpm** is offered by the CLI, because the scaffold
-  (workspace config, root scripts, lockfile) is pnpm-native. npm and yarn are
-  intentionally **not** exposed to avoid generating a project that does not build.
-- **Databases:** **PostgreSQL**, **MySQL**, and **SQLite** are supported.
-  - **PostgreSQL** ships with a baseline migration out of the box.
-  - **MySQL:** scalar lists (`String[]`) are stored as `Json` arrays; run `db:migrate`
-    once after install to create the MySQL migration.
-  - **SQLite:** `Json` columns and scalar lists are stored as `String` (JSON text).
-    The API transparently JSON-encodes/decodes them at runtime via a Prisma extension
-    (`apps/api/src/common/json-field-codec.ts`), so admin JSON fields and audit logs
-    keep working. Run `db:migrate` once after install to create the SQLite database file.
+- **PostgreSQL:** reference database with reviewed migration history.
+- **MySQL / SQLite:** development scaffolds use native JSON (scalar lists become JSON arrays). The initial setup uses non-destructive schema push. Do not use PostgreSQL migrations on another provider.
+- Database support in the V2 candidate is subject to the installed-package CI matrix.
+
+## Contributor quick start (repository checkout)
+
+The repository's canonical schema and migration history use PostgreSQL. Start a local database without editing Prisma files:
+
+```bash
+docker compose -f compose.dev.yaml up -d --wait
+pnpm install --frozen-lockfile
+export DATABASE_URL=postgresql://openadminjs:local-development-only@localhost:5432/openadminjs
+export JWT_SECRET="$(node -e 'console.log(require("node:crypto").randomBytes(48).toString("hex"))')"
+export ADMIN_ORIGIN=http://localhost:3000
+export SUPERADMIN_EMAIL=admin@localhost.dev
+read -rs SUPERADMIN_PASSWORD; export SUPERADMIN_PASSWORD
+pnpm db:init
+pnpm db:seed
+pnpm dev
+```
+
+The Compose credentials are local-only, bound to loopback; never use them in production. For SQLite without Docker, build the CLI (`pnpm --filter openadminjs build`) and create a disposable SQLite scaffold outside this workspace with the built CLI. See [development guide](docs/development.md) and [RBAC matrix](docs/rbac.md).
 
 ## Quick start (for package users)
 
@@ -58,8 +71,7 @@ scaffolds a **pnpm** monorepo backed by **PostgreSQL**, **MySQL**, or **SQLite**
 automatically.
 
 > **MySQL / SQLite note:** the shipped PostgreSQL baseline migration is not reused.
-> Run `pnpm db:migrate` (or `openadminjs db migrate dev`) once after install to
-> create the provider-specific migration, then `pnpm db:seed`.
+> Run `pnpm db:init` after install, then `pnpm db:seed`. MySQL/SQLite start with a safe development schema push; create and review provider-specific migration history before production.
 
 ### 2. Configure environment
 
@@ -120,7 +132,7 @@ OPENADMIN_PLUGIN_PNPM_INSTALL=0
 
 ```bash
 pnpm install
-pnpm db:migrate        # prisma migrate dev
+pnpm db:init           # non-interactive provider-aware initialization
 pnpm db:seed           # seed roles + superadmin
 pnpm dev               # start API + admin
 ```
@@ -176,6 +188,7 @@ exits non-zero.
 `security check` classifies findings as `info` / `warning` / `critical` and exits
 non-zero on any **critical** issue (weak/identical JWT secrets, weak admin
 password, `.env` not ignored or tracked by Git, unsafe CORS, hardcoded secrets).
+This is a configuration check, not a vulnerability scanner or security certification; the installed-package regression suite covers HTTP authorization boundaries.
 
 ## Generators
 
@@ -192,11 +205,9 @@ overwritten without `--force`.
 
 ## Current limitations
 
-- The scaffold supports **pnpm** only (npm/yarn are not offered).
-- **PostgreSQL** ships a baseline migration; **MySQL** and **SQLite** create their
-  initial migration on first `db:migrate`.
-- On **SQLite**, `Json` fields are JSON-encoded in `String` columns at runtime
-  (transparent to the admin UI).
+- pnpm is the reference tested profile; npm/yarn are available but not fully integration-tested.
+- **PostgreSQL** ships reviewed migrations; **MySQL** and **SQLite** use safe development schema push until a reviewed provider-specific migration history is created.
+- New SQLite projects use native Prisma JSON. Legacy text JSON is supported only for existing schemas until migrated.
 - Redis is optional; queue features require a reachable `REDIS_URL`.
 
 ## Production deployment (outline)
@@ -221,8 +232,8 @@ NODE_ENV=production pnpm start
 | Prisma "Environment variable not found: DATABASE_URL" | Ensure `apps/api/.env` exists; the CLI writes it on create |
 | `prisma migrate deploy` fails on a fresh DB | Run `pnpm db:migrate` (dev) once, or check the DB is reachable |
 | `Can't reach database server` (PostgreSQL/MySQL) | Start the database server and verify host/port in `DATABASE_URL` |
-| MySQL/SQLite: no tables after create | Run `pnpm db:migrate` then `pnpm db:seed` — non-PostgreSQL providers do not ship the baseline migration |
-| SQLite: `Json` fields look like strings in Prisma Studio | Expected at rest; the API decodes them at runtime via `json-field-codec.ts` |
+| MySQL/SQLite: no tables after create | Run `pnpm db:init` then `pnpm db:seed` — non-PostgreSQL providers do not ship the PostgreSQL migration history |
+| SQLite: `Json` fields look like strings in Prisma Studio | Legacy projects only; use the reviewed schema upgrade planner to migrate to native JSON |
 | Peer dependency warnings on install | Ensure `@apollo/server@^5` + `@nestjs/apollo@^13.4` + `@as-integrations/express5` (already pinned) |
 | Secrets accidentally committed | Rotate them immediately; `.gitignore` prevents this by default |
 
@@ -232,7 +243,7 @@ NODE_ENV=production pnpm start
 - Auth, RBAC contracts, generic CRUD API, audit log and file/settings modules.
 - Next.js admin shell with login, dashboard, resource screens and operational pages.
 - Generated app `apps/web` for public frontend pages and SEO.
-- CLI: `create`, `dev`, `build`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
+- CLI: `create`, `runtime`, `schema`, `db migrate|seed|studio|reset`, `generate resource|field|plugin`, `doctor`, `security check`.
 
 ## Plugin Platform
 
@@ -245,7 +256,7 @@ OpenAdminJS now uses a broad extension model (no legacy compatibility layer). Pl
 - `jobs` handlers
 - `adminUi` extensions (menus/pages/widgets/actions)
 
-Plugins are controlled by manifest capabilities and trust mode (`trusted` / `sandboxed`) in `apps/api/plugins.manifest.json`.
+Plugins are controlled by manifest capabilities; only trusted in-process code is supported in `apps/api/plugins.manifest.json`.
 
 ### Capability matrix
 
@@ -256,7 +267,7 @@ Plugins are controlled by manifest capabilities and trust mode (`trusted` / `san
 - `jobs.run` — background job handlers.
 - `admin.ui.extend` — admin menu/page/widget/action extensions.
 
-`trusted` mode may run with broad access; `sandboxed` mode should explicitly declare only required capabilities.
+Capabilities are not a security sandbox. Install trusted plugins during build/deployment; never run untrusted code in-process.
 
 Generate a starter plugin:
 
@@ -286,3 +297,11 @@ If you want to support development, hosting and community tooling:
   - BTC (SegWit): `bc1qpcc4hd7w82jjvsdhvx6hgu2kfuz8jgfuvxurd7`
   - ETH / USDC (ERC-20): `0xe5ac19c6f1f5070a7c713973fd25ee02eaf9eb48`
   - USDT (TRC-20): `TWyzMehesWqJS7qs5LYL4QGmgTpohNy3gf`
+
+### Open Core V2 development candidate
+
+The current development branch includes the redesigned admin and additional security, storage, optional integrations and deployment changes. Read [V2 migration notes](docs/v2-migration.md) and the [PostgreSQL deployment guide](docs/deployment.md) before testing. The published package and main branch remain unchanged. Stripe integration is test-mode only; OIDC is opt-in and requires provider acceptance and pre-linked accounts.
+
+### Versioned runtime and modular database schema
+
+See [Runtime packages and modular Prisma](docs/runtime-and-schema.md). Runtime release candidates can be packed and installed independently; existing projects can plan a source-to-package conversion and a provider-aware database upgrade without dropping custom models. The registry release remains gated by acceptance.

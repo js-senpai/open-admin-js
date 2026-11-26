@@ -7,6 +7,8 @@ function fieldSchema(field: ResourceField, mode: "create" | "edit"): z.ZodTypeAn
   const optionalize = <T extends z.ZodTypeAny>(schema: T) => (required ? schema : schema.optional()) as z.ZodTypeAny;
 
   switch (field.type) {
+    case "decimal":
+      return optionalize(z.string().regex(/^-?\d+(?:\.\d+)?$/, "Invalid decimal value"));
     case "number":
     case "money": {
       let num = z.coerce.number();

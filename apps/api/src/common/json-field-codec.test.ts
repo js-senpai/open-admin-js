@@ -37,6 +37,14 @@ describe("encodeWriteArgs / decodeReadResult", () => {
     expect(decoded.after).toEqual({ ...payload, count: 3 });
   });
 
+  it("preserves JSON strings that resemble primitives or arrays", () => {
+    for (const value of ["123", "true", "null", "[1]", "hello"]) {
+      const encoded = encodeWriteArgs("setting", { data: { value } });
+      const decoded = decodeReadResult("setting", encoded.data) as Record<string, unknown>;
+      expect(decoded.value).toBe(value);
+    }
+  });
+
   it("round-trips scopes array for ApiToken", () => {
     const scopes = ["posts.read", "users.read"];
     const encoded = encodeWriteArgs("apiToken", { data: { name: "t", scopes } });

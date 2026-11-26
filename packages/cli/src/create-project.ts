@@ -1,3 +1,5 @@
+import { migrateRuntime } from "./runtime-mode.js";
+import { writeManagedBaseline } from "./upgrade.js";
 import { accessSync, constants as fsConstants, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
 import net from "node:net";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
@@ -40,6 +42,7 @@ export type CreateProjectOptions = {
   git?: boolean;
   install?: boolean;
   templateDir?: string;
+  runtimeMode?: "source" | "registry";
   /**
    * Skip all interactive prompts. Missing optional values fall back to safe
    * defaults; a missing superadmin password is generated (CSPRNG). Used for
@@ -88,6 +91,8 @@ coverage
 .env
 .env.*
 !.env.example
+.openadminjs-runtime-backup/
+prisma/schema.prisma.before-compose
 
 # logs
 *.log
@@ -336,7 +341,7 @@ function runDatabaseSetup(packageManager: PackageManager, database: DatabaseDriv
   const prismaArgs =
     database === "postgresql"
       ? ["migrate", "deploy", ...schemaFlag]
-      : ["db", "push", ...schemaFlag, "--accept-data-loss"];
+      : ["db", "push", ...schemaFlag];
   const label = database === "postgresql" ? "prisma migrate deploy" : "prisma db push";
 
   if (packageManager === "npm") {
@@ -450,6 +455,7 @@ function resolveCreateProjectOptions(
     git: options.git ?? false,
     install: options.install ?? false,
     nonInteractive: options.nonInteractive ?? false,
+    runtimeMode: options.runtimeMode ?? "source",
     templateDir: options.templateDir ?? defaultTemplateDir()
   };
 }
@@ -586,9 +592,20 @@ function generateIntoDir(
       const schema = readFileSync(schemaPath, "utf8");
       writeFileSync(schemaPath, renderSchemaForProvider(schema, resolved.database));
     }
+    // Non-PostgreSQL development profiles do not ship provider-specific migration history.
+    // Bootstrap is non-interactive and must never accept data loss automatically.
+    const apiPackagePath = join(targetDir, "apps", "api", "package.json");
+    if (existsSync(apiPackagePath)) {
+      const apiPackage = JSON.parse(readFileSync(apiPackagePath, "utf8")) as { scripts: Record<string, string> };
+      apiPackage.scripts["db:migrate"] = "prisma db push --schema ../../prisma/schema.prisma";
+      // Production deploy requires the operator to supply provider-correct reviewed migrations.
+      writeFileSync(apiPackagePath, JSON.stringify(apiPackage, null, 2) + "\n");
+    }
   }
 
   adaptProjectForPackageManager(targetDir, resolved.packageManager);
+  writeManagedBaseline(targetDir);
+  if(resolved.runtimeMode==="registry")migrateRuntime(targetDir,resolved.templateDir,{apply:true,initial:true});
 
   // Git safety: write .gitignore + .env.example (tracked, placeholders only) as
   // part of generation, i.e. before any `git init`.
@@ -946,6 +963,7 @@ export async function createProjectInteractive(
     git,
     install,
     nonInteractive: !interactive,
+    runtimeMode: options.runtimeMode,
     templateDir: options.templateDir
   });
   result.passwordGenerated = passwordGenerated;

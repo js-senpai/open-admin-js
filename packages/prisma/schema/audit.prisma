@@ -1,0 +1,13 @@
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  resource  String?
+  resourceId String?
+  action    String
+  before    Json?
+  after     Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}

@@ -1,7 +1,6 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Controller, Delete, ForbiddenException, Get, Inject, Patch, Post, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
-import { AddPluginDto, PatchPluginDto } from "./dto/plugins.dto";
 import { AdminPluginsService } from "./admin-plugins.service";
 
 @UseGuards(AuthGuard)
@@ -20,18 +19,19 @@ export class AdminPluginsController {
     return this.plugins.getDashboardWidgets();
   }
 
+  // Plugin installation and manifest changes are deployment-operator actions.
   @Post()
-  add(@Body() dto: AddPluginDto) {
-    return this.plugins.add(dto);
+  add() {
+    throw new ForbiddenException("Install plugins during build or deployment");
   }
 
   @Patch(":id")
-  patch(@Param("id") id: string, @Body() dto: PatchPluginDto) {
-    return this.plugins.patch(id, dto);
+  patch() {
+    throw new ForbiddenException("Configure plugins in the deployment manifest");
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.plugins.remove(id);
+  remove() {
+    throw new ForbiddenException("Configure plugins in the deployment manifest");
   }
 }

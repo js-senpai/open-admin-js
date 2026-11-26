@@ -11,7 +11,7 @@ import { AdminPluginsController } from "./admin-plugins.controller";
 import { AdminPluginsService } from "./admin-plugins.service";
 import { AdminResourceService } from "./admin-resource.service";
 import { AdminAnalyticsService } from "./admin-analytics.service";
-import { AdminAiService } from "./admin-ai.service";
+import { SafeAiService } from "./safe-ai.service";
 import { PaymentModule } from "../store/payment/payment.module";
 import { LoggingModule } from "../common/logging.module";
 
@@ -21,7 +21,7 @@ import { LoggingModule } from "../common/logging.module";
   providers: [
     AdminResourceService,
     AdminAnalyticsService,
-    AdminAiService,
+    SafeAiService,
     AdminPluginsService,
     PrismaService,
     AuthGuard,

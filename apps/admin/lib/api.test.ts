@@ -13,16 +13,10 @@ describe("api client", () => {
     vi.resetModules();
   });
 
-  it("token returns null without document (SSR context)", async () => {
-    const { token } = await import("./tokens");
-    expect(token()).toBeNull();
-  });
-
-  it("token reads from document.cookie in browser", async () => {
-    const cookieValue = `oajs_at=${encodeURIComponent("my-access-token")}`;
-    vi.stubGlobal("document", { cookie: cookieValue });
-    const { token } = await import("./tokens");
-    expect(token()).toBe("my-access-token");
+  it("does not expose browser token helpers", async () => {
+    const tokens = await import("./tokens");
+    expect("token" in tokens).toBe(false);
+    expect("refreshToken" in tokens).toBe(false);
   });
 
   it("api parses JSON on success", async () => {
@@ -63,56 +57,83 @@ describe("api client", () => {
     expect(isTokenFresh(jwt)).toBe(true);
   });
 
-  it("api refreshes token on 401 via BFF /api/auth/refresh route", async () => {
-    const locationAssign = vi.fn();
-    const freshJwt = fakeJwt({ exp: 9_999_999_999 });
+  const reply = (status: number, data: unknown = {}) => new Response(JSON.stringify(data), { status });
+  function browser(withLock = false) {
+    const assign = vi.fn();
+    vi.stubGlobal("window", {location:{pathname:"/dashboard",assign}});
+    const request = vi.fn(async (_name:string, callback:()=>Promise<unknown>)=>callback());
+    vi.stubGlobal("navigator", withLock ? {locks:{request}} : {});
+    return {assign,request};
+  }
 
-    // Simulate document.cookie returning a fresh access token
-    let cookieStore = `oajs_at=${encodeURIComponent(freshJwt)}; oajs_rt=${encodeURIComponent("rt-token")}`;
-    const cookieDescriptor = { get: () => cookieStore, set: (v: string) => { cookieStore = v; } };
-    vi.stubGlobal("document", Object.defineProperty({}, "cookie", cookieDescriptor));
-    vi.stubGlobal("atob", (v: string) => Buffer.from(v, "base64").toString("utf-8"));
-    vi.stubGlobal("window", {
-      location: { pathname: "/dashboard", assign: locationAssign }
-    });
-
-    const fetchMock = vi
-      .fn()
-      // First call: original request → 401
-      .mockResolvedValueOnce({ ok: false, status: 401, statusText: "Unauthorized", json: vi.fn().mockResolvedValue({ message: "Unauthorized" }) })
-      // Second call: BFF /api/auth/refresh → ok
-      .mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockResolvedValue({ ok: true }) })
-      // Third call: retry original → 200
-      .mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockResolvedValue({ data: "result" }) });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { api } = await import("./api");
-    const response = await api<{ data: string }>("/admin/resources/overview");
-    expect(response.data).toBe("result");
-    expect(locationAssign).not.toHaveBeenCalled();
+  it("refreshes via BFF when Web Locks are unavailable", async () => {
+    const {assign}=browser();
+    const f=vi.fn().mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(200)).mockResolvedValueOnce(reply(200,{data:"result"}));
+    vi.stubGlobal("fetch",f);
+    const {api}=await import("./api");
+    expect(await api("/admin/resources/overview")).toEqual({data:"result"});
+    expect(f.mock.calls[0]?.[0]).toContain("/api/backend/admin/resources/overview");
+    expect(f.mock.calls[1]?.[0]).toBe("/api/auth/refresh");
+    expect(f.mock.calls[2]?.[0]).toBe(f.mock.calls[0]?.[0]);
+    expect(assign).not.toHaveBeenCalled();
   });
 
-  it("api clears cookies and redirects to login when all refresh attempts fail", async () => {
-    const locationAssign = vi.fn();
-    const freshJwt = fakeJwt({ exp: 9_999_999_999 });
-    let cookieStore = `oajs_at=${encodeURIComponent(freshJwt)}; oajs_rt=${encodeURIComponent("rt")}`;
-    const cookieDescriptor = { get: () => cookieStore, set: (v: string) => { cookieStore = v; } };
-    vi.stubGlobal("document", Object.defineProperty({}, "cookie", cookieDescriptor));
-    vi.stubGlobal("atob", (v: string) => Buffer.from(v, "base64").toString("utf-8"));
-    vi.stubGlobal("window", { location: { pathname: "/dashboard", assign: locationAssign } });
+  it("checks the shared session inside a browser lock and refreshes when expired", async ()=>{
+    const {assign,request}=browser(true);
+    const f=vi.fn().mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(200)).mockResolvedValueOnce(reply(200,{ok:true}));
+    vi.stubGlobal("fetch",f);
+    const {api}=await import("./api");
+    expect(await api("/auth/me")).toEqual({ok:true});
+    expect(f.mock.calls.map(c=>c[0])).toEqual(["/api/backend/auth/me","/api/backend/auth/me","/api/auth/refresh","/api/backend/auth/me"]);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(assign).not.toHaveBeenCalled();
+  });
 
-    const fetchMock = vi
-      .fn()
-      // Original request → 401
-      .mockResolvedValueOnce({ ok: false, status: 401, statusText: "Unauthorized", json: vi.fn().mockResolvedValue({ message: "Unauthorized" }) })
-      // BFF /api/auth/refresh → fails
-      .mockResolvedValueOnce({ ok: false, status: 401, json: vi.fn().mockResolvedValue({ message: "No refresh" }) })
-      // Direct NestJS /auth/refresh fallback → also fails
-      .mockResolvedValueOnce({ ok: false, status: 401, json: vi.fn().mockResolvedValue({ message: "No refresh direct" }) });
-    vi.stubGlobal("fetch", fetchMock);
+  it("does not rotate again if another tab already refreshed",async()=>{
+    browser(true);
+    const f=vi.fn().mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(200)).mockResolvedValueOnce(reply(200,{ok:true}));
+    vi.stubGlobal("fetch",f);
+    const {api}=await import("./api");
+    expect(await api("/auth/me")).toEqual({ok:true});
+    expect(f.mock.calls.map(c=>c[0])).not.toContain("/api/auth/refresh");
+  });
 
-    const { api } = await import("./api");
-    await expect(api("/admin/resources/overview")).rejects.toThrow("Unauthorized");
-    expect(locationAssign).toHaveBeenCalledWith("/login");
+  it("coalesces parallel 401 responses into one refresh",async()=>{
+    browser();
+    let refreshed=false;
+    const f=vi.fn(async (url:string)=>{
+      if(url==="/api/auth/refresh"){await Promise.resolve();refreshed=true;return reply(200);}
+      return refreshed?reply(200,{ok:true}):reply(401);
+    });
+    vi.stubGlobal("fetch",f);
+    const {api}=await import("./api");
+    await expect(Promise.all([api("/auth/me"),api("/auth/me"),api("/auth/me")])).resolves.toEqual([{ok:true},{ok:true},{ok:true}]);
+    expect(f.mock.calls.filter(c=>c[0]==="/api/auth/refresh")).toHaveLength(1);
+  });
+
+  it.each([429,500,502,503])("keeps session on transient refresh status %s",async status=>{
+    const {assign}=browser();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(status)));
+    const {api}=await import("./api");
+    await expect(api("/auth/me")).rejects.toMatchObject({status:503});
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("redirects only after confirmed denial",async()=>{
+    const {assign}=browser();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(401)));
+    const {api}=await import("./api");
+    await expect(api("/auth/me")).rejects.toMatchObject({status:401});
+    expect(assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("does not retry endlessly when the new access token is rejected",async()=>{
+    const {assign}=browser();
+    const f=vi.fn().mockResolvedValueOnce(reply(401)).mockResolvedValueOnce(reply(200)).mockResolvedValueOnce(reply(401));
+    vi.stubGlobal("fetch",f);
+    const {api}=await import("./api");
+    await expect(api("/auth/me")).rejects.toMatchObject({status:401});
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(assign).toHaveBeenCalledWith("/login");
   });
 });

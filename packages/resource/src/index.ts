@@ -5,6 +5,7 @@ export type FieldType =
   | "text"
   | "textarea"
   | "number"
+  | "decimal"
   | "boolean"
   | "select"
   | "multiselect"

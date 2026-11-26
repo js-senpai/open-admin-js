@@ -6,14 +6,14 @@ function fakeJwt(payload: Record<string, unknown>): string {
   return `header.${part}.sig`;
 }
 
-describe("auth flow e2e-like (cookie-based tokens)", () => {
+describe("auth client integration (mocked fetch; not browser E2E)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.resetModules();
   });
 
-  it("expired token + failed refresh → clears cookies and redirects to login", async () => {
+  it("expired token + failed refresh → redirects to login", async () => {
     const locationAssign = vi.fn();
 
     // Expired access token (exp in the past)

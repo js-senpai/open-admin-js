@@ -1,5 +1,5 @@
 /**
- * SQLite has no native Json type. The CLI rewrites Json / scalar-list columns to
+ * Legacy SQLite schemas used text for JSON columns. Older CLI versions rewrote Json / scalar-list columns to
  * String when scaffolding for SQLite. This module JSON-encodes those columns on
  * write and JSON-decodes them on read so the rest of the API keeps working with
  * objects/arrays as on PostgreSQL/MySQL.
@@ -31,7 +31,6 @@ function jsonFieldsForModel(model: string): readonly string[] {
 
 function encodeValue(value: unknown): unknown {
   if (value === null || value === undefined) return value;
-  if (typeof value === "string") return value;
   return JSON.stringify(value);
 }
 

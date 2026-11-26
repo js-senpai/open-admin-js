@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -12,7 +13,7 @@ jobs:
   # Unit + CLI e2e tests across every supported Node.js version (Linux).
   cli:
     name: CLI tests (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +38,7 @@ jobs:
   # Full monorepo checks + Prisma integration against a real PostgreSQL.
   checks:
     name: Lint / typecheck / test / build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -88,8 +89,10 @@ jobs:
   # Database matrix: verify a generated project's schema + migrations for every
   # advertised database (PostgreSQL + MySQL) against a real container.
   database-matrix:
+    needs: pack
+    timeout-minutes: 30
     name: DB integration (${{ matrix.db }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -127,32 +130,33 @@ jobs:
               -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=openadminjs -e MYSQL_PASSWORD=openadminjs -e MYSQL_DATABASE=openadminjs \
               ${{ matrix.image }}
           fi
-      - run: pnpm install --frozen-lockfile
-      - name: Build CLI
-        run: pnpm --filter openadminjs build
-      - name: Scaffold a project for ${{ matrix.db }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+      - name: Install actual release candidate
+        env:
+          QA_ADMIN_PASSWORD: quality-test-passphrase-2026
         run: |
-          node --input-type=module -e "
-          import { createProject } from './packages/cli/dist/create-project.js';
-          import { randomBytes } from 'node:crypto';
-          createProject({
-            projectName: 'it-app', cwd: process.env.RUNNER_TEMP, packageManager: 'pnpm',
-            database: '${{ matrix.db }}',
-            superadminEmail: 'admin@localhost.dev', superadminPassword: 'a-strong-passphrase',
-            databaseUrl: '${{ matrix.url }}', redisUrl: 'redis://localhost:6379',
-            jwtSecret: randomBytes(48).toString('base64url'), jwtRefreshSecret: randomBytes(48).toString('base64url'),
-            adminOrigin: 'http://localhost:3000', apiPort: '4000', git: false, install: false
-          });
-          console.log('scaffolded', process.env.RUNNER_TEMP + '/it-app');
-          "
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum -c SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/test-runner"
+          cd "$RUNNER_TEMP/test-runner"
+          npm init -y
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/candidate/*.tgz playwright@1.56.1
+          cp "$GITHUB_WORKSPACE/scripts/installed-smoke.mjs" .
+          npx playwright install --with-deps chromium
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/test-runner/node_modules/.bin/openadminjs" create it-app --pm pnpm --db "${{ matrix.db }}" --db-url "${{ matrix.url }}" --admin-email admin@example.test --admin-password-env QA_ADMIN_PASSWORD --skip-redis --no-git --non-interactive --no-install
       - name: Wait for DB
         if: matrix.db != 'sqlite'
         run: |
           for i in $(seq 1 30); do
             if [ "${{ matrix.db }}" = "postgresql" ]; then
-              docker exec db pg_isready -U openadminjs && break
+              docker exec db pg_isready -h 127.0.0.1 -U openadminjs && break
             else
-              docker exec db mysqladmin ping -uopenadminjs -popenadminjs --silent && break
+              docker exec db mysql --protocol=TCP -h 127.0.0.1 -uopenadminjs -popenadminjs -Dopenadminjs -e 'SELECT 1' && break
             fi
             sleep 2
           done
@@ -167,18 +171,30 @@ jobs:
           # (MySQL users often can't create one → P3014). Use the non-interactive path:
           # PostgreSQL ships a baseline migration → deploy it; MySQL/SQLite have no
           # migration history → push the schema directly (no shadow DB required).
-          if [ "${{ matrix.db }}" = "postgresql" ]; then
-            pnpm exec prisma migrate deploy --schema prisma/schema.prisma
-          else
-            pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate
-          fi
-          pnpm exec prisma generate --schema prisma/schema.prisma
+          pnpm db:init
           pnpm db:seed
 
-  # Verify the published tarball contains only what it should (no secrets).
+      - name: Verify CRM example installer (dry run)
+        working-directory: ${{ runner.temp }}/it-app
+        run: node scripts/install-crm.mjs --dry-run
+
+      - name: Build scaffold and exercise real HTTP and browser flows
+        env:
+          QA_ADMIN_PASSWORD: quality-test-passphrase-2026
+        run: |
+          cd "$RUNNER_TEMP/it-app"
+          pnpm build
+          node "$RUNNER_TEMP/test-runner/installed-smoke.mjs" "$PWD"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.db }}
+          path: ${{ runner.temp }}/smoke-results
+          if-no-files-found: ignore
+
   pack:
-    name: npm pack inspection
-    runs-on: ubuntu-latest
+    name: Build and inspect release candidate
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -190,18 +206,139 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter openadminjs build
-      - name: npm pack --dry-run
-        working-directory: packages/cli
-        run: npm pack --dry-run 2>&1 | tee pack.txt
-      - name: Assert tarball has no secrets / junk
+      - name: Pack and validate contents
         working-directory: packages/cli
         run: |
           set -euo pipefail
-          if grep -E "(^|/)\.env($|[^.])" pack.txt | grep -v "\.env\.example"; then
-            echo "::error::real .env file would be published"; exit 1
+          mkdir -p "$RUNNER_TEMP/candidate"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/candidate"
+          cd "$RUNNER_TEMP/candidate"
+          tar -tzf ./*.tgz > contents.txt
+          if grep -E '(^|/)\.env($|\.)' contents.txt | grep -vE '/\.env(\.production)?\.example$'; then
+            echo "::error::Real env file in candidate"; exit 1
           fi
-          for bad in "apps/api/.env" "coverage/" ".tmp" ".sqlite" "node_modules/"; do
-            if grep -q "$bad" pack.txt; then echo "::error::tarball includes $bad"; exit 1; fi
-          done
-          grep -q "dist/index.js" pack.txt || { echo "::error::dist missing from tarball"; exit 1; }
-          echo "Tarball contents look correct."
+          if grep -E '(^|/)(node_modules|coverage|\.next|\.git)/|\.(test|spec)\.[cm]?[jt]sx?$|\.(db|sqlite|pem|key)$' contents.txt; then
+            echo "::error::Unexpected file in candidate"; exit 1
+          fi
+          grep -q '^package/dist/index.js$' contents.txt
+          sha256sum ./*.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+
+  runtime-packages:
+    name: Independent npm runtime packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/pack-runtime.mjs
+      - run: node scripts/test-runtime.mjs
+      - run: node scripts/test-schema-profiles.mjs
+      - run: node scripts/schema.mjs check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openadminjs-runtime-packages
+          path: runtime-artifacts/
+
+  legacy-migrations:
+    name: Legacy schema/data migration (${{ matrix.db }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [postgresql, mysql, sqlite]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start disposable legacy DB
+        if: matrix.db != 'sqlite'
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          set -euo pipefail
+          if [ "$DB" = "postgresql" ]; then
+            docker run -d --name legacy -p 5432:5432 -e POSTGRES_USER=legacy -e POSTGRES_PASSWORD=legacy -e POSTGRES_DB=legacy postgres:16
+            for i in $(seq 1 60); do docker exec legacy pg_isready -h 127.0.0.1 -U legacy && exit 0; sleep 2; done
+          else
+            docker run -d --name legacy -p 3306:3306 -e MYSQL_ROOT_PASSWORD=local -e MYSQL_USER=legacy -e MYSQL_PASSWORD=legacy -e MYSQL_DATABASE=legacy mysql:8
+            for i in $(seq 1 60); do docker exec legacy mysql --protocol=TCP -h 127.0.0.1 -ulegacy -plegacy -Dlegacy -e 'SELECT 1' && exit 0; sleep 2; done
+          fi
+          exit 1
+      - name: Exercise actual baseline + upgrade migration
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          set -euo pipefail
+          if [ "$DB" = "postgresql" ]; then export LEGACY_DATABASE_URL=postgresql://legacy:legacy@localhost:5432/legacy; fi
+          if [ "$DB" = "mysql" ]; then export LEGACY_DATABASE_URL=mysql://legacy:legacy@localhost:3306/legacy; fi
+          node scripts/test-legacy-migration.mjs "$DB"
+
+  runtime-scaffold:
+    name: Installed scaffold with external runtime archives
+    needs: [pack, runtime-packages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-candidate
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-runtime-packages
+          path: ${{ runner.temp }}/runtime
+      - name: Install CLI and scaffold using published-format runtime packages
+        env:
+          QA_ADMIN_PASSWORD: quality-test-passphrase-2026
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum -c SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/test-runner"
+          cd "$RUNNER_TEMP/test-runner"
+          npm init -y
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/candidate/*.tgz playwright@1.56.1
+          cp "$GITHUB_WORKSPACE/scripts/installed-smoke.mjs" .
+          npx playwright install --with-deps chromium
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/test-runner/node_modules/.bin/openadminjs" create runtime-app --pm pnpm --db sqlite --admin-email admin@example.test --admin-password-env QA_ADMIN_PASSWORD --skip-redis --no-git --non-interactive --no-install
+          cd runtime-app
+          "$RUNNER_TEMP/test-runner/node_modules/.bin/openadminjs" runtime --archives "$RUNNER_TEMP/runtime" --apply
+          test ! -d packages/core
+          pnpm install
+          export DATABASE_URL=file:./dev.db
+          pnpm db:init
+          pnpm db:seed
+          pnpm schema:check
+          pnpm build
+          node "$RUNNER_TEMP/test-runner/installed-smoke.mjs" "$PWD"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-external-runtime
+          path: ${{ runner.temp }}/smoke-results
+          if-no-files-found: ignore

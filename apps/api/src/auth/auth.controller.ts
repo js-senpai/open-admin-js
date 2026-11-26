@@ -27,6 +27,7 @@ export class AuthController {
     );
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post("refresh")
   refresh(@Body() dto: RefreshDto) {
     const realm = dto.realm ?? DEFAULT_AUTH_REALM;
@@ -35,8 +36,8 @@ export class AuthController {
 
   @UseGuards(AuthGuard)
   @Post("logout")
-  logout(@CurrentUser() user: { id: string }, @Req() req: Request & { ip?: string; headers: Record<string, string> }) {
-    return this.auth.logout(user.id, { ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+  logout(@CurrentUser() user: RequestUser, @Req() req: Request & { ip?: string; headers: Record<string, string> }) {
+    return this.auth.logout(user.id, user.sessionId, { ipAddress: req.ip, userAgent: req.headers["user-agent"] });
   }
 
   @UseGuards(AuthGuard)
@@ -53,6 +54,7 @@ export class AuthController {
     return this.auth.membershipSummary(user.id);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post("password/forgot")
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.auth.forgotPassword(dto.email);

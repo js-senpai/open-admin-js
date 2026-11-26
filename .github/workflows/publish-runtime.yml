@@ -1,0 +1,49 @@
+name: Publish independently versioned runtime packages
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        required: true
+        default: false
+        description: Explicit approval to publish verified packages
+      packages:
+        type: string
+        required: true
+        default: all
+        description: all or comma-separated runtime package names
+      dist_tag:
+        type: choice
+        options: [next, latest]
+        default: next
+        required: true
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main' && inputs.publish == true
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && inputs.publish == true
+    runs-on: ubuntu-24.04
+    environment: npm-runtime-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: openadminjs-runtime-packages
+          path: runtime-artifacts
+      - name: Publish selected exact tested archives
+        env:
+          RUNTIME_PACKAGES: ${{ inputs.packages }}
+          RUNTIME_DIST_TAG: ${{ inputs.dist_tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: node scripts/publish-runtime.mjs runtime-artifacts

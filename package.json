@@ -17,7 +17,13 @@
     "security:check": "node packages/cli/dist/index.js security check",
     "db:migrate": "pnpm --filter @openadminjs/api db:migrate",
     "db:seed": "pnpm --filter @openadminjs/api db:seed",
-    "brand:assets": "node packages/brand/src/generate-assets.mjs"
+    "brand:assets": "node packages/brand/src/generate-assets.mjs",
+    "runtime:pack": "node scripts/pack-runtime.mjs",
+    "schema:check": "node scripts/schema.mjs check",
+    "schema:compose": "node scripts/schema.mjs compose",
+    "schema:adopt": "node scripts/schema.mjs adopt",
+    "schema:upgrade-plan": "node scripts/migrate-existing.mjs",
+    "db:init": "node scripts/db-init.mjs"
   },
   "devDependencies": {
     "@prisma/client": "^6.1.0",

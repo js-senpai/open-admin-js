@@ -1,0 +1,47 @@
+{
+  "modules": {
+    "core": [],
+    "audit": [
+      "core"
+    ],
+    "settings": [
+      "core"
+    ],
+    "media": [
+      "core"
+    ],
+    "content": [
+      "core",
+      "media"
+    ],
+    "tokens": [
+      "core"
+    ],
+    "notifications": [
+      "core"
+    ],
+    "jobs": [
+      "core"
+    ],
+    "commerce": [
+      "core"
+    ],
+    "ai": [
+      "core"
+    ]
+  },
+  "optionalRelations": {
+    "User": {
+      "posts": "content",
+      "auditLogs": "audit",
+      "apiTokens": "tokens",
+      "notifications": "notifications",
+      "orders": "commerce",
+      "aiConversations": "ai",
+      "aiArtifacts": "ai"
+    },
+    "FileAsset": {
+      "posts": "content"
+    }
+  }
+}

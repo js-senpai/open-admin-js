@@ -35,10 +35,13 @@ export default function ProfilePage() {
     setLoggingOut(true);
     try {
       await api("/auth/logout", { method: "POST" });
-    } finally {
       localStorage.removeItem("openadminjs.accessToken");
       localStorage.removeItem("openadminjs.refreshToken");
-      router.push("/login");
+      router.replace("/login");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Logout failed");
+    } finally {
+      setLoggingOut(false);
     }
   }
 

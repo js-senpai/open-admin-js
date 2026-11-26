@@ -126,7 +126,7 @@ describe("openadminjs CLI e2e", () => {
       const r = run(["generate", "field", "post", "title", "--type", "text", "--required"], proj);
       expect(r.status).toBe(0);
       const updated = readFileSync(join(resDir, "post.resource.ts"), "utf8");
-      expect(updated).toContain("title:");
+      expect(updated).toMatch(/fields:\s*\{[\s\S]*?title:\s*\{/);
       expect(updated).toContain("required: true");
     } finally {
       rmSync(proj, { recursive: true, force: true });
@@ -138,7 +138,12 @@ describe("openadminjs CLI e2e", () => {
     try {
       const ok = run(["generate", "resource", "BlogPost"], proj);
       expect(ok.status).toBe(0);
-      expect(existsSync(join(proj, "apps", "api", "src", "resources", "blog-post.resource.ts"))).toBe(true);
+      const generated = join(proj, "apps", "api", "src", "resources", "blog-post.resource.ts");
+      expect(existsSync(generated)).toBe(true);
+      expect(readFileSync(generated, "utf8")).toContain("model: 'blogPost'");
+      const decimal = run(["generate", "field", "blog-post", "price", "--type", "decimal"], proj);
+      expect(decimal.status).toBe(0);
+      expect(decimal.stdout).toContain("price Decimal?");
 
       const bad = run(["generate", "resource", "../evil"], proj);
       expect(bad.status).not.toBe(0);

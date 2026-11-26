@@ -1,0 +1,8 @@
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  group     String
+  type      String
+  value     Json
+  updatedAt DateTime @updatedAt
+}

@@ -9,7 +9,7 @@ function httpContext(): ExecutionContext {
     getType: () => "http",
     switchToHttp: () => ({
       getRequest: () => ({ method: "POST", url: "/auth/login", ip: "127.0.0.1" }),
-      getResponse: () => ({ statusCode: 200 })
+      getResponse: () => ({ statusCode: 200, setHeader: vi.fn() })
     })
   } as ExecutionContext;
 }
@@ -32,7 +32,7 @@ describe("RequestLoggingInterceptor", () => {
       expect.objectContaining({
         method: "POST",
         path: "/auth/login",
-        errorMessage: "db down"
+        errorMessage: "Internal request failure"
       })
     );
   });

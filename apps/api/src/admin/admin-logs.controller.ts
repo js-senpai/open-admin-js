@@ -1,6 +1,7 @@
-import { Controller, Get, Inject, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Inject, Query, UseGuards, ForbiddenException } from "@nestjs/common";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
+import { CurrentUser } from "../common/current-user.decorator";
 import { AppLoggerService } from "../common/app-logger.service";
 
 @UseGuards(AuthGuard)
@@ -11,6 +12,7 @@ export class AdminLogsController {
 
   @Get()
   list(
+    @CurrentUser() user: {permissions:string[]},
     @Query("level") level: "info" | "error" | undefined,
     @Query("search") search: string | undefined,
     @Query("from") from: string | undefined,
@@ -18,6 +20,7 @@ export class AdminLogsController {
     @Query("page") page: string | undefined,
     @Query("limit") limit: string | undefined
   ) {
+    if (!user.permissions.includes("*") && !user.permissions.includes("system-logs.read")) throw new ForbiddenException("Missing permission");
     return this.logs.query({
       level,
       search,

@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: openadmin
+      POSTGRES_USER: openadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: ["db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openadmin -d openadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    build: .
+    command: ["pnpm","exec","prisma","migrate","deploy","--schema","prisma/schema.prisma"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: .
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:?Set ADMIN_ORIGIN}
+      API_PORT: "4000"
+      UPLOADS_ROOT: /app/storage
+      NODE_ENV: production
+    volumes: ["storage:/app/storage"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD","node","-e","fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+  admin:
+    build: .
+    command: ["pnpm","--filter","@openadminjs/admin","start"]
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://api:4000
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:?Set ADMIN_ORIGIN}
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  db:
+  storage:

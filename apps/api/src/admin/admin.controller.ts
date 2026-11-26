@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Inject, Optional, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Inject, Optional, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
 import { CurrentUser } from "../common/current-user.decorator";
@@ -68,6 +69,17 @@ export class AdminController {
     return this.resources.uploadFile(body, user);
   }
 
+  @Get("files/:id/download")
+  async download(@Param("id") id:string,@CurrentUser() user:UserContext,@Res() res:Response) {
+    const file=await this.resources.downloadFile(id,user);
+    const name=encodeURIComponent(file.filename).replace(/['()*]/g,c=>"%"+c.charCodeAt(0).toString(16));
+    res.setHeader("Content-Disposition","attachment; filename*=UTF-8''"+name);
+    res.setHeader("Content-Type","application/octet-stream");
+    res.setHeader("Cache-Control","no-store");
+    res.setHeader("X-Content-Type-Options","nosniff");
+    res.send(file.bytes);
+  }
+
   @Get(":resource/:id")
   get(@Param("resource") resource: string, @Param("id") id: string, @CurrentUser() user: UserContext) {
     return this.resources.get(resource, id, user);
@@ -89,9 +101,10 @@ export class AdminController {
   }
 
   @Post("orders/:id/refund")
-  refundOrder(@Param("id") id: string) {
-    if (!this.payments) throw new Error("PaymentService not available");
-    return this.payments.refundOrder(id);
+  refundOrder(@Param("id") id: string, @CurrentUser() user: UserContext) {
+    if (!user.permissions.includes("orders.refund") && !user.permissions.includes("*")) throw new ForbiddenException("Missing permission");
+    if (!this.payments) throw new ForbiddenException("Payments unavailable");
+    return this.payments.refundOrder(id,user.id);
   }
 
   @Post(":resource/:id/actions/:action")

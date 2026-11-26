@@ -1,4 +1,3 @@
-import type { PrismaClient } from "@prisma/client";
 import { defineResource } from "@openadminjs/core";
 
 export const productsResource = defineResource({
@@ -58,7 +57,9 @@ export const ordersResource = defineResource({
     status: {
       type: "badge",
       label: { en: "Status", ru: "Статус" },
-      options: ["pending", "paid", "failed", "refunded", "cancelled"],
+      options: ["pending", "paid", "failed", "refund_pending", "refunded", "cancelled"],
+      edit: false,
+      create: false,
       filterable: true,
       sortable: true
     },
@@ -66,38 +67,6 @@ export const ordersResource = defineResource({
     currency: { type: "text", label: "Currency", edit: false },
     notes: { type: "textarea", label: { en: "Notes", ru: "Заметки" }, list: false },
     createdAt: { type: "datetime", label: { en: "Created", ru: "Создан" }, create: false, edit: false, sortable: true }
-  },
-  actions: {
-    refund: {
-      label: { en: "Refund", ru: "Возврат" },
-      variant: "destructive",
-      confirm: true,
-      permission: "orders.refund",
-      async handler(ctx) {
-        const db = ctx.prisma as PrismaClient;
-        const order = await db.order.findUnique({
-          where: { id: ctx.id },
-          include: { transactions: true }
-        });
-        if (!order || order.status !== "paid") {
-          throw new Error("Order is not paid or not found");
-        }
-        return db.order.update({ where: { id: ctx.id }, data: { status: "refunded" } });
-      }
-    },
-    cancel: {
-      label: { en: "Cancel", ru: "Отменить" },
-      variant: "destructive",
-      confirm: true,
-      permission: "orders.update",
-      async handler(ctx) {
-        const db = ctx.prisma as PrismaClient;
-        return db.order.update({
-          where: { id: ctx.id },
-          data: { status: "cancelled" }
-        });
-      }
-    }
   }
 });
 

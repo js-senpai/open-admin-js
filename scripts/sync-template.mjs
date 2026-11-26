@@ -10,7 +10,7 @@
  *   - *.test.ts, *.e2e.test.ts, vitest.config.ts  (internal framework tests)
  *   - packages/cli, packages/create-openadminjs    (the scaffolder itself)
  */
-import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,13 +26,21 @@ const SKIP_DIRS = new Set([
   "storybook-static",
   "coverage",
   "build",
-  "out"
+  "out", ".git", ".kilo", ".cursor", ".idea", ".pnpm-store", ".cache", "uploads", "logs", ".storybook"
 ]);
 const SKIP_PKG_NAMES = new Set(["cli", "create-openadminjs"]);
 
 function filter(source) {
   const name = basename(source);
-  return !SKIP_DIRS.has(name);
+  const stat = lstatSync(source);
+  if (stat.isSymbolicLink() || SKIP_DIRS.has(name)) return false;
+  if (stat.isDirectory()) return !name.startsWith(".");
+  if (/^\.env(?:\.|$)/.test(name) && name !== ".env.example") return false;
+  if (/\.(?:test|spec|stories)\.[cm]?[jt]sx?$/.test(name) || /^vitest\.config\./.test(name)) return false;
+  if (/\.(?:db|sqlite|sqlite3|log|tsbuildinfo|pem|key|map|tgz|swp)(?:[-.]|$)/i.test(name) || name === ".DS_Store") return false;
+  // Explicit source/config/document/media extensions; no compiled JS adjacent to TS source.
+  if (source.replaceAll("\\", "/").includes("/src/") && /\.js$/.test(name)) return false;
+  return /\.(?:ts|tsx|mts|cts|mjs|cjs|js|jsx|json|yaml|yml|toml|prisma|sql|md|txt|css|svg|png|jpg|jpeg|webp|ico|woff2?|html|sh)$/.test(name) || [".gitignore", ".env.example", "Dockerfile", "LICENSE"].includes(name);
 }
 
 function copyDir(src, dest) {
@@ -61,6 +69,12 @@ copyDir(join(root, "prisma"), join(templateDir, "prisma"));
 // ── root TypeScript base config (required by apps/*/tsconfig.json extends) ───
 cpSync(join(root, "tsconfig.base.json"), join(templateDir, "tsconfig.base.json"));
 
+// Include reviewed deployment and example installation assets in generated apps.
+for (const path of ["Dockerfile",".dockerignore","compose.yaml",".env.production.example"]) cpSync(join(root,path),join(templateDir,path));
+mkdirSync(join(templateDir,"scripts"),{recursive:true});
+for(const name of ["install-crm.mjs","schema.mjs","migrate-existing.mjs","db-init.mjs"]) cpSync(join(root,"scripts",name),join(templateDir,"scripts",name));
+copyDir(join(root,"examples","crm-admin"),join(templateDir,"examples","crm-admin"));
+
 // Patch prisma schema: replace hardcoded provider with template placeholder so
 // createProject can substitute the user's chosen database driver.
 const schemaPath = join(templateDir, "prisma", "schema.prisma");
@@ -68,3 +82,10 @@ const schema = readFileSync(schemaPath, "utf8");
 writeFileSync(schemaPath, schema.replace(/provider\s*=\s*"postgresql"/, 'provider = "__DATABASE_PROVIDER__"'));
 
 console.log("✓ Template synced from apps/, packages/, prisma/");
+
+const runtimeNames = ["resource","core","auth","permissions","plugin-sdk","storage","queue","notifications","mail","payments","nest","admin-client","prisma"];
+const versions = Object.fromEntries(runtimeNames.map(name => {
+  const pkg = JSON.parse(readFileSync(join(root,"packages",name,"package.json"),"utf8"));
+  return [pkg.name,pkg.version];
+}));
+writeFileSync(join(templateDir,"runtime-versions.json"),JSON.stringify(versions,null,2)+"\n");

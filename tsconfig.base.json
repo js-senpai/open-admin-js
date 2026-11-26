@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
@@ -14,10 +18,24 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@openadminjs/core": ["packages/core/src/index.ts"],
-      "@openadminjs/resource": ["packages/resource/src/index.ts"],
-      "@openadminjs/auth": ["packages/auth/src/index.ts"],
-      "@openadminjs/permissions": ["packages/permissions/src/index.ts"]
+      "@openadminjs/core": [
+        "packages/core/src/index.ts"
+      ],
+      "@openadminjs/resource": [
+        "packages/resource/src/index.ts"
+      ],
+      "@openadminjs/auth": [
+        "packages/auth/src/index.ts"
+      ],
+      "@openadminjs/permissions": [
+        "packages/permissions/src/index.ts"
+      ],
+      "@openadminjs/nest": [
+        "packages/nest/src/index.ts"
+      ],
+      "@openadminjs/admin-client": [
+        "packages/admin-client/src/index.ts"
+      ]
     }
   }
 }

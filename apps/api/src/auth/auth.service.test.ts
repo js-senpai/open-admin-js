@@ -20,6 +20,8 @@ function createPrismaMock() {
       findMany: vi.fn(),
       update: vi.fn()
     },
+    session: { create: vi.fn().mockResolvedValue({ id: "s1" }) },
+    sessionToken: { findUnique: vi.fn() },
     auditLog: {
       create: vi.fn()
     }
@@ -32,7 +34,8 @@ describe("AuthService", () => {
     const jwt = { signAsync: vi.fn().mockResolvedValue("jwt") };
     prisma.user.findUnique.mockResolvedValue({
       id: "u1",
-      email: "openadminjs@proton.me",
+      email: "admin@example.test",
+      status: "active",
       name: "Admin",
       passwordHash: "hash",
       roles: [{ role: { name: "admin", realm: "admin", permissions: [{ permission: { name: "*" } }] } }]
@@ -41,10 +44,11 @@ describe("AuthService", () => {
 
     const config = { get: vi.fn().mockReturnValue(undefined) };
     const service = new AuthService(prisma as never, jwt as never, config as never);
-    const result = await service.login("openadminjs@proton.me", "password", {}, "admin");
+    const result = await service.login("admin@example.test", "password", {}, "admin");
 
     expect(result.accessToken).toBe("jwt");
-    expect(result.user.email).toBe("openadminjs@proton.me");
+    expect(jwt.signAsync).toHaveBeenCalledWith({ sub: "u1", realm: "admin", sid: "s1" });
+    expect(result.user.email).toBe("admin@example.test");
     expect(prisma.auditLog.create).toHaveBeenCalled();
   });
 
@@ -53,7 +57,8 @@ describe("AuthService", () => {
     const jwt = { signAsync: vi.fn().mockResolvedValue("jwt") };
     prisma.user.findUnique.mockResolvedValue({
       id: "u1",
-      email: "openadminjs@proton.me",
+      email: "admin@example.test",
+      status: "active",
       name: "Admin",
       passwordHash: "hash",
       roles: [{ role: { name: "admin", realm: "public", permissions: [] } }]
@@ -62,17 +67,28 @@ describe("AuthService", () => {
 
     const config = { get: vi.fn().mockReturnValue(undefined) };
     const service = new AuthService(prisma as never, jwt as never, config as never);
-    await expect(service.login("openadminjs@proton.me", "password", {}, "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.login("admin@example.test", "password", {}, "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it("rejects blocked accounts before issuing a session", async () => {
+    const prisma = createPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "blocked", passwordHash: "hash" });
+    const jwt = { signAsync: vi.fn() };
+    const service = new AuthService(prisma as never, jwt as never, { get: vi.fn() } as never);
+    await expect(service.login("admin@example.test", "password", {}, "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(jwt.signAsync).not.toHaveBeenCalled();
   });
 
   it("refresh fails when token does not match any user", async () => {
     const prisma = createPrismaMock();
     const jwt = { signAsync: vi.fn().mockResolvedValue("jwt") };
-    prisma.user.findMany.mockResolvedValue([{ id: "u1", refreshTokenHash: "hash-1" }]);
+    prisma.sessionToken.findUnique.mockResolvedValue(null);
     bcryptCompareMock.mockResolvedValue(false);
 
     const config = { get: vi.fn().mockReturnValue(undefined) };
     const service = new AuthService(prisma as never, jwt as never, config as never);
-    await expect(service.refresh("bad-token", "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh("a".repeat(64), "admin")).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.sessionToken.findUnique).toHaveBeenCalledOnce();
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
   });
 });

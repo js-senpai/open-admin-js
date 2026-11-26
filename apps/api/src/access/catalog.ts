@@ -37,6 +37,10 @@ const PERMISSION_LABEL_OVERRIDES: Record<string, { en: string; ru: string }> = {
   "notifications.delete": { en: "Delete notifications", ru: "Удаление уведомлений" },
   "jobs.read": { en: "View jobs", ru: "Задачи" },
   "jobs.dispatch": { en: "Dispatch jobs", ru: "Запуск задач" },
+  "orders.refund": { en: "Refund orders", ru: "Возврат средств" },
+  "ai.config.read": { en: "View AI configuration", ru: "Настройки AI (чтение)" },
+  "ai.config.update": { en: "Change AI configuration", ru: "Настройки AI (запись)" },
+  "system-logs.read": {en:"View system logs",ru:"Системные журналы"},
   "ai.chat": { en: "Use AI consultant", ru: "AI-консультант" }
 };
 

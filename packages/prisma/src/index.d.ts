@@ -1,0 +1,12 @@
+export type Provider="postgresql"|"mysql"|"sqlite";
+export type SchemaModule="core"|"audit"|"settings"|"media"|"content"|"tokens"|"notifications"|"jobs"|"commerce"|"ai";
+export const moduleNames:readonly SchemaModule[];
+export const providers:readonly Provider[];
+export function resolveModules(requested?:readonly SchemaModule[]):SchemaModule[];
+export function renderProvider(schema:string,provider:Provider):string;
+export function composeSchema(options?:{provider?:Provider;modules?:readonly SchemaModule[];customFragments?:readonly string[]}):string;
+export function splitSchema(schema:string):{name:string;content:string}[];
+export const legacySqliteJsonFields:Readonly<Record<string,readonly string[]>>;
+export function legacySqliteNormalizationSql():string;
+export function mergeLegacySchema(schema:string,provider:Provider):{schema:string;changes:string[];normalizations:{table:string;field:string}[];clearLegacyRefresh:boolean;revokeLegacyKeys:boolean};
+export function schemaProvider(schema:string):string;

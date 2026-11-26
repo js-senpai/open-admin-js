@@ -1,0 +1,37 @@
+name: Runtime security diagnostics
+on:
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'scripts/**'
+      - '.github/workflows/runtime-codeql-diagnostics.yml'
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    name: CodeQL diagnostic locations
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          upload: never
+          output: results
+      - name: Inspect scanner findings without suppressing them
+        run: |
+          node --input-type=module <<'JS'
+          import {readdirSync,readFileSync} from "node:fs";
+          for(const file of readdirSync("results").filter(f=>f.endsWith(".sarif"))){
+            const sarif=JSON.parse(readFileSync("results/"+file,"utf8"));
+            for(const run of sarif.runs||[]){
+              for(const result of run.results||[]){
+                const loc=result.locations?.[0]?.physicalLocation;
+                console.log(JSON.stringify({rule:result.ruleId,message:result.message?.text,file:loc?.artifactLocation?.uri,line:loc?.region?.startLine}));
+              }
+            }
+          }
+          JS

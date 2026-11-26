@@ -42,15 +42,28 @@ describe("renderSchemaForProvider", () => {
     expect(out).toContain("posts Post[]");
   });
 
-  it("converts scalar lists and Json to String for sqlite", () => {
+  it("uses native JSON for sqlite and keeps relation lists", () => {
     const out = renderSchemaForProvider(SAMPLE, "sqlite");
     expect(out).not.toContain("String[]");
-    expect(out).not.toMatch(/\bJson\b/);
-    expect(out).toMatch(/scopes\s+String/);
-    expect(out).toMatch(/tags\s+String/);
-    expect(out).toMatch(/before\s+String\?/);
-    expect(out).toMatch(/after\s+String\?/);
+    expect(out).toMatch(/scopes\s+Json/);
+    expect(out).toMatch(/tags\s+Json/);
+    expect(out).toMatch(/before\s+Json\?/);
+    expect(out).toMatch(/after\s+Json\?/);
     expect(out).toContain("posts Post[]");
+  });
+});
+
+describe("schema rendering preserves data", () => {
+  it("preserves comments and string defaults for all providers", () => {
+    const schema = 'model Sample {\n  label String @default("Json")\n  other String @default("String[]")\n  // tags String[]\n  value Json?\n  tags String[]\n}\n';
+    for (const provider of ["sqlite", "mysql"] as const) {
+      const out = renderSchemaForProvider(schema, provider);
+      expect(out).toContain('@default("Json")');
+      expect(out).toContain('@default("String[]")');
+      expect(out).toContain("// tags String[]");
+      expect(out).toContain("value Json?");
+      expect(out).toContain("tags Json");
+    }
   });
 });
 

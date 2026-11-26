@@ -1,0 +1,25 @@
+import assert from "node:assert/strict";
+import {defineResource} from "@openadminjs/core";
+import {safeData,sanitizeRecord,buildWhere} from "@openadminjs/nest";
+import {can} from "@openadminjs/permissions";
+import {loadDensity} from "@openadminjs/admin-client";
+import {LocalStorage} from "@openadminjs/storage";
+import {composeSchema} from "@openadminjs/prisma";
+const r=defineResource({name:"things",label:"Things",model:"thing",permissions:{read:"things.read"},fields:{id:{type:"id"},name:{type:"text",searchable:true},passwordHash:{type:"password"}}});
+const user={id:"u",permissions:["things.read"]};
+assert(can(user.permissions,"things.read"));
+assert.deepEqual(safeData(r,{name:"ok"},"create",user),{name:"ok"});
+assert.deepEqual(sanitizeRecord(r,{id:"1",name:"x",passwordHash:"secret"},user),{id:"1",name:"x"});
+assert(buildWhere(r,{search:"x"},user));
+assert.equal(loadDensity("things"),"comfortable");
+assert.equal(typeof LocalStorage,"function");
+assert(composeSchema({provider:"sqlite",modules:["core"]}).includes("model Session"));
+import "@openadminjs/auth";
+import "@openadminjs/resource";
+import "@openadminjs/plugin-sdk";
+import "@openadminjs/queue";
+import "@openadminjs/notifications";
+import "@openadminjs/mail";
+import "@openadminjs/payments";
+console.log("Independent npm runtime consumer passed");
+

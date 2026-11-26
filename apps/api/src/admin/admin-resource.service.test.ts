@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../common/prisma.service.js", () => ({
@@ -51,6 +51,24 @@ describe("AdminResourceService", () => {
     expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, pages: 1 });
     expect(result.data).toHaveLength(1);
     expect(findMany).toHaveBeenCalled();
+  });
+
+  it("never returns undeclared secrets", async () => {
+    const service = new AdminResourceService(prismaMock({ user: { findUnique: vi.fn().mockResolvedValue({ id: "u1", email: "admin@example.test", passwordHash: "secret", refreshTokenHash: "secret" }) } }));
+    const record = await service.get("users", "u1", { id: "admin", permissions: ["users.read"] });
+    expect(record).toEqual({ id: "u1", email: "admin@example.test" });
+  });
+
+  it("rejects invalid pagination before querying Prisma", async () => {
+    const findMany = vi.fn();
+    const service = new AdminResourceService(prismaMock({ post: { findMany } }));
+    await expect(service.list("posts", { page: "abc" }, { id: "1", permissions: ["posts.read"] })).rejects.toBeInstanceOf(BadRequestException);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects custom upload paths before performing I/O", async () => {
+    const service = new AdminResourceService(prismaMock());
+    await expect(service.uploadFile({ filename: "test.txt", mimeType: "text/plain", contentBase64: "dGVzdA==", targetPath: ".env" }, { id: "1", permissions: ["files.create"] })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("throws when resource is missing", async () => {

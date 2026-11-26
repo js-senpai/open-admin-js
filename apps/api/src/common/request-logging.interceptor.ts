@@ -5,6 +5,7 @@ import {
   Injectable,
   NestInterceptor
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { Observable, catchError, tap, throwError } from "rxjs";
 import { AppLoggerService } from "./app-logger.service";
 
@@ -20,10 +21,12 @@ export class RequestLoggingInterceptor implements NestInterceptor {
       ip?: string;
       user?: { id?: string };
     }>();
-    const res = context.switchToHttp().getResponse<{ statusCode?: number }>();
+    const res = context.switchToHttp().getResponse<{ statusCode?: number; setHeader(name:string,value:string):void; getHeader?(name:string):unknown }>();
     const started = Date.now();
     const method = req.method ?? "UNKNOWN";
-    const path = req.url ?? "/";
+    const path = (req.url ?? "/").split("?")[0];
+    const requestId = String(res.getHeader?.("x-request-id") ?? randomUUID());
+    res.setHeader("x-request-id",requestId);
     const ip = req.ip ?? "";
     const userId = req.user?.id;
     const logger = this.logger;
@@ -33,6 +36,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
         const durationMs = Date.now() - started;
         logger.info("request.completed", {
           context: "http",
+          requestId,
           method,
           path,
           statusCode: res.statusCode ?? 200,
@@ -56,13 +60,14 @@ export class RequestLoggingInterceptor implements NestInterceptor {
 
         logger.error("request.failed", {
           context: "http",
+          requestId,
           method,
           path,
           statusCode,
           durationMs,
           ip,
           userId,
-          errorMessage: message
+          errorMessage: statusCode >= 500 ? "Internal request failure" : message.slice(0,200)
         });
         return throwError(() => err);
       })

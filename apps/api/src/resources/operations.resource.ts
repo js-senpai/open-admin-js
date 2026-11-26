@@ -7,6 +7,7 @@ export const apiTokensResource = defineResource({
   model: "apiToken",
   titleField: "name",
   icon: "KeyRound",
+  listScope: { type: "userOwns", field: "userId", bypassPermissions: [] },
   i18n: { defaultLocale: "en", locales: ["en", "ru"] },
   permissions: {
     read: "api-tokens.read",

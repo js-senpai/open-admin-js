@@ -1,0 +1,9 @@
+model FileAsset {
+  id        String   @id @default(cuid())
+  filename  String
+  path      String
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+  posts     Post[]
+}
