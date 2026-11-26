@@ -62,11 +62,22 @@ function withAdminLocale(path: string): string {
 // ──────────────────────────────────────────────
 
 let refreshInFlight: Promise<boolean> | undefined;
+let authGeneration = 0;
 function tryRefreshToken(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (!refreshInFlight) {
-    refreshInFlight = fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" })
-      .then(res => res.ok).catch(() => false).finally(() => { refreshInFlight = undefined; });
+    const refresh = async () => {
+      // Another tab may already have refreshed the shared cookies. Check after obtaining a browser-wide lock.
+      const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+      if (response.ok) authGeneration++;
+      return response.ok;
+    };
+    const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+    refreshInFlight = (locks ? locks.request("openadminjs-refresh", async () => {
+      const check = await fetch("/api/backend/auth/me", { credentials: "same-origin", cache: "no-store" });
+      if(check.ok) { authGeneration++; return true; }
+      return refresh();
+    }) : refresh()).catch(() => false).finally(() => { refreshInFlight = undefined; });
   }
   return refreshInFlight;
 }
@@ -112,9 +123,10 @@ async function requestWithAuthRetry(url: string, options: RequestInit): Promise<
   headers.delete("authorization");
   if (!headers.has("content-type")) headers.set("content-type", "application/json");
   const makeRequest = () => fetch(url, { ...options, headers, credentials: "same-origin", ...(body !== undefined ? { body } : {}) });
+  const generation = authGeneration;
   const res = await makeRequest();
   if (res.status === 401 && typeof window !== "undefined") {
-    if (await tryRefreshToken()) return makeRequest();
+    if (authGeneration !== generation || await tryRefreshToken()) return makeRequest();
     if (!window.location.pathname.startsWith("/login")) window.location.assign("/login");
   }
   return res;
