@@ -13,7 +13,7 @@ jobs:
   # Unit + CLI e2e tests across every supported Node.js version (Linux).
   cli:
     name: CLI tests (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +38,7 @@ jobs:
   # Full monorepo checks + Prisma integration against a real PostgreSQL.
   checks:
     name: Lint / typecheck / test / build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -92,7 +92,7 @@ jobs:
     needs: pack
     timeout-minutes: 30
     name: DB integration (${{ matrix.db }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -195,7 +195,7 @@ jobs:
 
   pack:
     name: Build and inspect release candidate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
