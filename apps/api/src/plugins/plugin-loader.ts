@@ -62,7 +62,6 @@ function createContext(entry: PluginManifestEntry): PluginRegistrationContext {
   const config = (entry.config ?? {}) as Record<string, unknown>;
   const capabilities = new Set(entry.capabilities ?? []);
   const ensureCap = (name: string) => {
-    if ((entry.trustMode ?? "trusted") === "trusted" && capabilities.size === 0) return;
     if (!capabilities.has(name as never)) {
       throw new Error(`Plugin "${entry.id}" attempted to use capability "${name}" but it is not declared in manifest.`);
     }
@@ -87,8 +86,10 @@ function createContext(entry: PluginManifestEntry): PluginRegistrationContext {
     config,
     trustMode: entry.trustMode ?? "trusted",
     capabilities: [...capabilities],
-    registerResourceHooks: (resourceName, hooks, options) =>
-      registerResourceHooks(resourceName, hooks, { ...options, source: entry.id }),
+    registerResourceHooks: (resourceName, hooks, options) => {
+      ensureCap("resource.hooks");
+      registerResourceHooks(resourceName, hooks, { ...options, source: entry.id });
+    },
     registerSurface
   };
 }
@@ -96,6 +97,7 @@ function createContext(entry: PluginManifestEntry): PluginRegistrationContext {
 /** Register hooks for one manifest entry (same as bootstrap). Throws on failure. */
 export async function applyManifestPluginEntry(entry: PluginManifestEntry): Promise<void> {
   if (entry.enabled === false) return;
+  if (entry.trustMode === "sandboxed") throw new Error("Sandboxed plugins are unsupported: Node modules are not isolated");
   const plugin: OpenAdminPlugin = entry.bundled ? resolveBundledPlugin(entry) : resolveNpmPlugin(entry);
   const ctx = createContext(entry);
   await plugin.register(ctx as PluginRegistrationContext);

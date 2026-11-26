@@ -7,7 +7,7 @@ import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.use(cookieParser());
   app.use(helmet());
   const prodOrigins = (process.env.ADMIN_ORIGIN ?? "")
@@ -33,7 +33,7 @@ async function bootstrap() {
     .setVersion("0.1.0")
     .addBearerAuth()
     .build();
-  SwaggerModule.setup("api/docs", app, SwaggerModule.createDocument(app, config));
+  if (process.env.NODE_ENV !== "production" || process.env.OPENADMIN_SWAGGER === "1") SwaggerModule.setup("api/docs", app, SwaggerModule.createDocument(app, config));
 
   await app.listen(Number(process.env.API_PORT ?? 4000));
 }

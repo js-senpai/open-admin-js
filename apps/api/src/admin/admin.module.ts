@@ -5,7 +5,7 @@ import { AuthGuard } from "../common/auth.guard";
 import { PermissionsGuard } from "../common/permissions.guard";
 import { CaslAbilityFactory } from "../common/casl-ability.factory";
 import { AdminController } from "./admin.controller";
-import { AdminAiController } from "./admin-ai.controller";
+import { AdminAiController, AiDisabledGuard } from "./admin-ai.controller";
 import { AdminLogsController } from "./admin-logs.controller";
 import { AdminPluginsController } from "./admin-plugins.controller";
 import { AdminPluginsService } from "./admin-plugins.service";
@@ -22,6 +22,7 @@ import { LoggingModule } from "../common/logging.module";
     AdminResourceService,
     AdminAnalyticsService,
     AdminAiService,
+    AiDisabledGuard,
     AdminPluginsService,
     PrismaService,
     AuthGuard,

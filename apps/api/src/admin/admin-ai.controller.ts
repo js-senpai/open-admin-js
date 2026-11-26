@@ -1,5 +1,9 @@
 import {
   Body,
+  ForbiddenException,
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
   Controller,
   Delete,
   Get,
@@ -20,7 +24,14 @@ import type { AiStreamErrorEvent } from "./admin-ai.events";
 
 type UserContext = { id: string; email?: string; permissions: string[] };
 
-@UseGuards(AuthGuard)
+@Injectable()
+export class AiDisabledGuard implements CanActivate {
+  canActivate(_context: ExecutionContext): boolean {
+    throw new ForbiddenException({ message: "AI is disabled pending provider security validation", code: "AI_DISABLED" });
+  }
+}
+
+@UseGuards(AuthGuard, AiDisabledGuard)
 @RequireAuthRealm("admin")
 @Controller("admin/ai")
 export class AdminAiController {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, Optional, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Inject, Optional, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../common/auth.guard";
 import { RequireAuthRealm } from "../common/auth-realm.decorator";
 import { CurrentUser } from "../common/current-user.decorator";
@@ -89,9 +89,11 @@ export class AdminController {
   }
 
   @Post("orders/:id/refund")
-  refundOrder(@Param("id") id: string) {
-    if (!this.payments) throw new Error("PaymentService not available");
-    return this.payments.refundOrder(id);
+  refundOrder(@Param("id") id: string, @CurrentUser() user: UserContext) {
+    void id;
+    if (!user.permissions.includes("orders.refund") && !user.permissions.includes("*")) throw new ForbiddenException("Missing permission");
+    if (!this.payments) throw new ForbiddenException("Payments unavailable");
+    throw new ForbiddenException({ message: "Refunds are disabled pending idempotency validation", code: "COMMERCE_DISABLED" });
   }
 
   @Post(":resource/:id/actions/:action")

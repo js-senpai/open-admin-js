@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  ForbiddenException,
   Headers,
   Inject,
   Param,
@@ -46,11 +47,8 @@ export class PaymentController {
     @Body() body: CreateOrderInput & { guestEmail?: string },
     @Req() req: RequestLike
   ) {
-    return this.paymentService.createCheckout({
-      ...body,
-      userId: req.user?.id,
-      email: body.email ?? body.guestEmail ?? req.user?.email
-    });
+    void body; void req;
+    throw new ForbiddenException({ message: "Checkout is disabled pending payment validation", code: "COMMERCE_DISABLED" });
   }
 
   /**
@@ -59,7 +57,8 @@ export class PaymentController {
    */
   @Get("orders/:id/status")
   orderStatus(@Param("id") id: string) {
-    return this.paymentService.getOrderStatus(id);
+    void id;
+    throw new ForbiddenException({ message: "Public order status is disabled pending ownership validation", code: "COMMERCE_DISABLED" });
   }
 
   /**
@@ -74,9 +73,8 @@ export class PaymentController {
     @Headers("x-webhook-signature") genericSignature: string | undefined,
     @Req() req: RawBodyRequest<RequestLike>
   ) {
-    const signature = stripeSignature ?? genericSignature ?? "";
-    const rawBody = req.rawBody ?? Buffer.from("{}");
-    return this.paymentService.handleWebhook(provider, rawBody, signature);
+    void provider; void stripeSignature; void genericSignature; void req;
+    throw new ForbiddenException({ message: "Webhooks are disabled pending signature and idempotency validation", code: "COMMERCE_DISABLED" });
   }
 
   // ──────────────────────────────────────────────

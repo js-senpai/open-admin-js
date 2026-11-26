@@ -144,10 +144,7 @@ async function main() {
 
   const user = await prisma.user.upsert({
     where: { email: superadmin.email },
-    update: {
-      name: "Admin",
-      passwordHash: await bcrypt.hash(superadmin.password, 12)
-    },
+    update: {},
     create: {
       email: superadmin.email,
       name: "Admin",
@@ -167,41 +164,19 @@ async function main() {
     create: { userId: user.id, roleId: publicMemberRole.id }
   });
 
-  const viewerRole = await prisma.role.findUnique({
-    where: { name_realm: { name: "viewer", realm: "admin" } }
-  });
-  if (viewerRole) {
-    const viewerUser = await prisma.user.upsert({
-      where: { email: "viewer@example.com" },
-      update: {},
-      create: {
-        email: "viewer@example.com",
-        name: "Viewer",
-        passwordHash: await bcrypt.hash("password", 12)
-      }
-    });
-    await prisma.userRole.upsert({
-      where: { userId_roleId: { userId: viewerUser.id, roleId: viewerRole.id } },
-      update: {},
-      create: { userId: viewerUser.id, roleId: viewerRole.id }
-    });
-  }
-
-  const shopper = await prisma.user.upsert({
-    where: { email: "shopper@example.com" },
-    update: {},
-    create: {
-      email: "shopper@example.com",
-      name: "Shopper",
-      passwordHash: await bcrypt.hash("password", 12)
+  // Previous releases seeded known credentials. Disable only unchanged demo accounts.
+  for (const email of ["viewer@example.com", "shopper@example.com"]) {
+    if (email === superadmin.email) throw new Error("Choose a non-demo administrator email");
+    const legacy = await prisma.user.findUnique({ where: { email } });
+    if (legacy && await bcrypt.compare("password", legacy.passwordHash)) {
+      await prisma.$transaction(async tx => {
+        const updated = await tx.user.updateMany({ where: { id: legacy.id, passwordHash: legacy.passwordHash }, data: { status: "blocked", refreshTokenHash: null } });
+        if (updated.count) await tx.session.updateMany({ where: { userId: legacy.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      });
     }
-  });
-  await prisma.userRole.upsert({
-    where: { userId_roleId: { userId: shopper.id, roleId: publicMemberRole.id } },
-    update: {},
-    create: { userId: shopper.id, roleId: publicMemberRole.id }
-  });
-
+  }
+  // No fixed demo accounts are created by normal seed.
+  if (process.env.NODE_ENV !== "production" && process.env.SEED_DEMO_DATA === "1") {
   const category = await prisma.category.upsert({
     where: { slug: "announcements" },
     update: {},
@@ -240,6 +215,7 @@ async function main() {
       update: {},
       create: { ...product, active: true }
     });
+  }
   }
 }
 
