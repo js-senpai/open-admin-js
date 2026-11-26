@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/.next
+**/.env
+**/.env.*
+!**/.env.example
+.git
+**/uploads
+**/logs
+**/*.db
+**/*.sqlite
+**/*.pem
+**/*.key
+**/*.tgz
+**/coverage

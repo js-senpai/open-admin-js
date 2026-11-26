@@ -1,4 +1,7 @@
 import "reflect-metadata";
+import { randomUUID } from "node:crypto";
+import type { Request, Response, NextFunction } from "express";
+import { ApiExceptionFilter } from "./common/api-exception.filter";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -9,6 +12,8 @@ import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.use((_req:Request,res:Response,next:NextFunction)=>{res.setHeader("x-request-id",randomUUID());next();});
+  app.useGlobalFilters(new ApiExceptionFilter());
   app.useBodyParser("json", { limit: "15mb" });
   app.use(cookieParser());
   app.use(helmet());

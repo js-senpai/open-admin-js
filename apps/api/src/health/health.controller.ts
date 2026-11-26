@@ -6,6 +6,12 @@ import { PrismaService } from "../common/prisma.service";
 export class HealthController {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  @Get("live")
+  live() { return {status:"ok"}; }
+
+  @Get("ready")
+  async ready() { await this.prisma.$queryRaw`SELECT 1`; return {status:"ok"}; }
+
   @Get()
   async health() {
     await this.prisma.$queryRaw`SELECT 1`;

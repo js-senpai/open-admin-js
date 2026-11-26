@@ -416,6 +416,10 @@ export function ResourceTable({
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => onColDrop(name)}
                       className={`${padClass} ${sortable ? "cursor-pointer select-none" : "cursor-grab active:cursor-grabbing"}`}
+                      scope="col"
+                      aria-sort={sortable ? sort?.field === name ? sort.dir === "asc" ? "ascending" : "descending" : "none" : undefined}
+                      tabIndex={sortable ? 0 : undefined}
+                      onKeyDown={(e) => {if(sortable && (e.key==="Enter"||e.key===" ")){e.preventDefault();handleSort(name);}}}
                       onClick={() => sortable && handleSort(name)}
                     >
                       <div className="group flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">

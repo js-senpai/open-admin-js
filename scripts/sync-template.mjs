@@ -69,6 +69,12 @@ copyDir(join(root, "prisma"), join(templateDir, "prisma"));
 // ── root TypeScript base config (required by apps/*/tsconfig.json extends) ───
 cpSync(join(root, "tsconfig.base.json"), join(templateDir, "tsconfig.base.json"));
 
+// Include reviewed deployment and example installation assets in generated apps.
+for (const path of ["Dockerfile",".dockerignore","compose.yaml",".env.production.example"]) cpSync(join(root,path),join(templateDir,path));
+mkdirSync(join(templateDir,"scripts"),{recursive:true});
+cpSync(join(root,"scripts","install-crm.mjs"),join(templateDir,"scripts","install-crm.mjs"));
+copyDir(join(root,"examples","crm-admin"),join(templateDir,"examples","crm-admin"));
+
 // Patch prisma schema: replace hardcoded provider with template placeholder so
 // createProject can substitute the user's chosen database driver.
 const schemaPath = join(templateDir, "prisma", "schema.prisma");

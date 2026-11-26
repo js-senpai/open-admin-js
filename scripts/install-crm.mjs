@@ -1,0 +1,30 @@
+import {readFileSync,writeFileSync,existsSync,mkdirSync,rmSync} from "node:fs";
+import {resolve,join} from "node:path";
+import {fileURLToPath} from "node:url";
+const root=process.cwd();
+const example=fileURLToPath(new URL("../examples/crm-admin/",import.meta.url));
+const schemaPath=join(root,"prisma/schema.prisma");
+const registryPath=join(root,"apps/api/src/resources/registry.ts");
+const args=process.argv.slice(2);
+if(args.length!==1||!["--dry-run","--apply"].includes(args[0]))throw Error("Usage: node scripts/install-crm.mjs --dry-run|--apply");
+const schema=readFileSync(schemaPath,"utf8"),registry=readFileSync(registryPath,"utf8");
+const names=["companies","contacts","deals","activities"];
+const fragment=readFileSync(join(example,"prisma/models.fragment.prisma"),"utf8");
+for(const name of ["Contact","Company","Deal","Activity"])if(new RegExp("\\bmodel\\s+"+name+"\\s*\\{").test(schema))throw Error("Existing model: "+name);
+const resourceDir=join(root,"apps/api/src/resources/crm");
+if(existsSync(resourceDir))throw Error("CRM directory already exists");
+const marker="export const resources = [";
+if(registry.split(marker).length!==2)throw Error("Registry changed; merge the example manually");
+for(const name of names)if(registry.includes("crm/"+name+".resource"))throw Error("Already registered");
+const source=names.map(name=>[name,readFileSync(join(example,"src/resources/"+name+".resource.ts"),"utf8")]);
+const imports=names.map(name=>"import crm_"+name+" from \"./crm/"+name+".resource\";").join("\n");
+const nextRegistry=imports+"\n"+registry.replace(marker,marker+"\n  "+names.map(n=>"crm_"+n).join(",\n  ")+",");
+console.log("Plan: append 4 models; add 4 resource modules; register 4 resources. No database commands.");
+if(args[0]==="--dry-run")process.exit(0);
+try{
+ mkdirSync(resourceDir);
+ for(const [name,body] of source)writeFileSync(join(resourceDir,name+".resource.ts"),body,{flag:"wx"});
+ writeFileSync(schemaPath,schema+"\n"+fragment+"\n");
+ writeFileSync(registryPath,nextRegistry);
+}catch(error){writeFileSync(schemaPath,schema);writeFileSync(registryPath,registry);rmSync(resourceDir,{recursive:true,force:true});throw error;}
+console.log("CRM installed. Review schema, create a migration and seed permissions before starting.");
