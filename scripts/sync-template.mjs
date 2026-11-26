@@ -82,3 +82,10 @@ const schema = readFileSync(schemaPath, "utf8");
 writeFileSync(schemaPath, schema.replace(/provider\s*=\s*"postgresql"/, 'provider = "__DATABASE_PROVIDER__"'));
 
 console.log("✓ Template synced from apps/, packages/, prisma/");
+
+const runtimeNames = ["resource","core","auth","permissions","plugin-sdk","storage","queue","notifications","mail","payments","nest","admin-client","prisma"];
+const versions = Object.fromEntries(runtimeNames.map(name => {
+  const pkg = JSON.parse(readFileSync(join(root,"packages",name,"package.json"),"utf8"));
+  return [pkg.name,pkg.version];
+}));
+writeFileSync(join(templateDir,"runtime-versions.json"),JSON.stringify(versions,null,2)+"\n");

@@ -1,3 +1,4 @@
+import { migrateRuntime } from "./runtime-mode.js";
 import { writeManagedBaseline } from "./upgrade.js";
 import { accessSync, constants as fsConstants, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
 import net from "node:net";
@@ -41,6 +42,7 @@ export type CreateProjectOptions = {
   git?: boolean;
   install?: boolean;
   templateDir?: string;
+  runtimeMode?: "source" | "registry";
   /**
    * Skip all interactive prompts. Missing optional values fall back to safe
    * defaults; a missing superadmin password is generated (CSPRNG). Used for
@@ -89,6 +91,8 @@ coverage
 .env
 .env.*
 !.env.example
+.openadminjs-runtime-backup/
+prisma/schema.prisma.before-compose
 
 # logs
 *.log
@@ -451,6 +455,7 @@ function resolveCreateProjectOptions(
     git: options.git ?? false,
     install: options.install ?? false,
     nonInteractive: options.nonInteractive ?? false,
+    runtimeMode: options.runtimeMode ?? "source",
     templateDir: options.templateDir ?? defaultTemplateDir()
   };
 }
@@ -600,6 +605,7 @@ function generateIntoDir(
 
   adaptProjectForPackageManager(targetDir, resolved.packageManager);
   writeManagedBaseline(targetDir);
+  if(resolved.runtimeMode==="registry")migrateRuntime(targetDir,resolved.templateDir,{apply:true,initial:true});
 
   // Git safety: write .gitignore + .env.example (tracked, placeholders only) as
   // part of generation, i.e. before any `git init`.
@@ -957,6 +963,7 @@ export async function createProjectInteractive(
     git,
     install,
     nonInteractive: !interactive,
+    runtimeMode: options.runtimeMode,
     templateDir: options.templateDir
   });
   result.passwordGenerated = passwordGenerated;

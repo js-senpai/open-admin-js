@@ -4,6 +4,7 @@ const nodeExternals = require("webpack-node-externals");
 module.exports = function configureWebpack(options) {
   return {
     ...options,
+    resolve: {...options.resolve, extensionAlias: {...options.resolve?.extensionAlias, ".js": [".js", ".ts", ".tsx"]}},
     externals: [
       nodeExternals({
         allowlist: [/^@openadminjs\//, /^openid-client(?:\/|$)/, /^oauth4webapi(?:\/|$)/, /^jose(?:\/|$)/],

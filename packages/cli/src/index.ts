@@ -19,6 +19,7 @@ import {
 import { buildDbCommand, runInherit, type DbAction } from "./db-commands.js";
 import { detectPackageManager } from "./detect-package-manager.js";
 import { runDoctorChecks, type CheckResult } from "./doctor.js";
+import { migrateRuntime } from "./runtime-mode.js";
 import { upgradeManaged } from "./upgrade.js";
 import { runSecurityChecks, type Finding } from "./security.js";
 
@@ -353,6 +354,7 @@ async function dbCommand(
 // ── command registrations ─────────────────────────────────────────────────────
 
 type CreateFlags = {
+  runtime?: string;
   packageManager?: string;
   pm?: string;
   database?: string;
@@ -424,6 +426,7 @@ cli
   .option("--skip-redis", "Disable Redis-backed queues")
   .option("--api-port <port>", "API port (default 4000)")
   .option("--admin-origin <origin>", "Admin origin for CORS (default http://localhost:3000)")
+  .option("--runtime <mode>", "Runtime mode: source (default) or registry (after packages are published)")
   .option("--no-install", "Skip dependency install and DB setup")
   .option("--no-git", "Skip git initialization")
   .option("--non-interactive", "Do not prompt; use flags and safe defaults")
@@ -433,6 +436,7 @@ cli
       const nonInteractive = Boolean(flags.yes || flags.nonInteractive) || !process.stdin.isTTY;
       await createProjectInteractive({
         projectName,
+        runtimeMode: flags.runtime === undefined || flags.runtime === 'source' ? 'source' : flags.runtime === 'registry' ? 'registry' : (()=>{throw Error('Invalid runtime mode')})(),
         packageManager: normalizePackageManager(flags.packageManager ?? flags.pm),
         database: normalizeDatabase(flags.database ?? flags.db),
         superadminEmail: flags.adminEmail,
@@ -551,6 +555,17 @@ function usageError(usage: string): void {
   console.error(pc.red(`Usage: ${usage}`));
   process.exitCode = 1;
 }
+
+cli
+  .command("runtime", "Plan migration from copied runtime sources to versioned packages")
+  .option("--apply", "Switch package manifests and preserve old runtime sources in a backup")
+  .option("--archives <dir>", "Use verified candidate tarballs instead of registry packages (pnpm only)")
+  .option("--accept-local-runtime", "Acknowledge customized or untracked runtime source; preserve it in the backup")
+  .action((flags:{apply?:boolean;archives?:string;acceptLocalRuntime?:boolean})=>{
+    const result=migrateRuntime(process.cwd(),defaultTemplateDir(),flags);
+    console.log(JSON.stringify(result,null,2));
+    if(result.conflicts.length && flags.apply && !flags.acceptLocalRuntime)process.exitCode=1;
+  });
 
 cli
   .command("upgrade", "Plan a conservative framework source patch (does not migrate the database)")
