@@ -15,6 +15,6 @@ export default function SettingsPage() {
         </select>
       </label>
     </section>
-    <section className="mt-4 rounded-xl border border-slate-200 p-5 dark:border-slate-700"><h2 className="font-semibold">Experimental integrations</h2><p className="mt-2 text-sm text-slate-500">AI provider configuration and OIDC are disabled until their security validation is complete.</p></section>
+    <section className="mt-4 rounded-xl border border-slate-200 p-5 dark:border-slate-700"><h2 className="font-semibold">Experimental integrations</h2><p className="mt-2 text-sm text-slate-500">AI is opt-in and read-only. The deployment operator manages provider credentials. OIDC remains disabled pending verified server-side exchange.</p></section>
   </AppShell>;
 }
