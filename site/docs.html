@@ -3,21 +3,57 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenAdminJS — Documentation</title>
-    <meta name="description" content="OpenAdminJS documentation — full platform reference: Nest.js API routes (auth, admin CRUD, analytics, AI, plugins, jobs, storefront), Next.js admin &amp; web, CLI, Prisma, resources, RBAC, deployment. Copy-ready examples." />
+    <title>OpenAdminJS Documentation — CLI, Resources, API &amp; Prisma</title>
     <link rel="icon" href="./assets/brand/favicon.svg" type="image/svg+xml" />
     
     <link rel="stylesheet" href="./assets/css/styles.css" />
     <link rel="stylesheet" href="./assets/css/open-core.css">
   <meta name="theme-color" content="#ffffff">
-  </head>
+    <meta name="description" content="OpenAdminJS developer documentation: setup, resource-driven CRUD, CLI, permissions, NestJS API, admin UI, V2 runtime packages and Prisma schema migration.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://js-senpai.github.io/open-admin-js/docs.html">
+  <link rel="alternate" type="text/plain" title="LLM-readable documentation" href="https://js-senpai.github.io/open-admin-js/llms.txt">
+  <link rel="sitemap" type="application/xml" href="https://js-senpai.github.io/open-admin-js/sitemap.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="OpenAdminJS">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://js-senpai.github.io/open-admin-js/docs.html">
+  <meta property="og:title" content="OpenAdminJS Documentation — CLI, Resources, API &amp; Prisma">
+  <meta property="og:description" content="OpenAdminJS developer documentation: setup, resource-driven CRUD, CLI, permissions, NestJS API, admin UI, V2 runtime packages and Prisma schema migration.">
+  <meta property="og:image" content="https://js-senpai.github.io/open-admin-js/assets/brand/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OpenAdminJS Documentation — CLI, Resources, API &amp; Prisma">
+  <meta name="twitter:description" content="OpenAdminJS developer documentation: setup, resource-driven CRUD, CLI, permissions, NestJS API, admin UI, V2 runtime packages and Prisma schema migration.">
+  <meta name="twitter:image" content="https://js-senpai.github.io/open-admin-js/assets/brand/og-image.png">
+  <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://js-senpai.github.io/open-admin-js/docs.html#article",
+      "headline": "OpenAdminJS documentation",
+      "description": "OpenAdminJS developer documentation: setup, resource-driven CRUD, CLI, permissions, NestJS API, admin UI, V2 runtime packages and Prisma schema migration.",
+      "url": "https://js-senpai.github.io/open-admin-js/docs.html",
+      "inLanguage": "en",
+      "isPartOf": {
+        "@id": "https://js-senpai.github.io/open-admin-js/#website"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "OpenAdminJS contributors",
+        "url": "https://github.com/js-senpai/open-admin-js"
+      }
+    }
+  ]
+}</script>
+</head>
   <body class="site-body site-body--docs oc-docs">
     <a class="oc-skip" href="#docs-content">Skip to content</a>
 <header class="oc-header">
     <div class="oc-wrap oc-header-inner">
-      <a class="oc-brand" href="./index.html"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M29 13a19 19 0 1 0 0 38h9l11-23 7 15H45l-4 8h18L42 13h-8L21 42a11 11 0 1 1 8-21l3-7z"/></svg><span>OpenAdminJS</span></a>
+      <a class="oc-brand" href="./"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M29 13a19 19 0 1 0 0 38h9l11-23 7 15H45l-4 8h18L42 13h-8L21 42a11 11 0 1 1 8-21l3-7z"/></svg><span>OpenAdminJS</span></a>
       <nav class="oc-nav" aria-label="Main navigation">
-        <a href="./index.html#features">Resources</a><a href="./docs.html" aria-current="page">Documentation</a><a href="https://github.com/js-senpai/open-admin-js">GitHub <span aria-hidden="true">↗</span></a>
+        <a href="./#features">Resources</a><a href="./docs.html" aria-current="page">Documentation</a><a href="https://github.com/js-senpai/open-admin-js">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
       <a class="oc-btn oc-primary" href="#installation">Get started <span aria-hidden="true">→</span></a>
     </div>
@@ -43,6 +79,7 @@
           <div class="docs-nav-group">
             <span class="docs-nav-heading">First steps</span>
             <a href="#overview">Overview</a>
+            <a href="#v2-runtime">V2 runtime &amp; release status</a>
             <a href="#installation">Quickstart</a>
             <a href="#structure">Project structure</a>
             <a href="#configuration">Configuration</a>
@@ -150,16 +187,33 @@
             </ul>
           </section>
 
-          <section id="installation">
-            <h2>Quickstart</h2>
+          <section id="v2-runtime"><h2>V2 Open Core: runtime packages and release status</h2>
+<div class="docs-callout"><strong>Development candidate:</strong> The repository contains V2 changes; the published npm CLI does not yet include them. No production certification or package publication is implied. Review the <a href="https://github.com/js-senpai/open-admin-js/blob/main/docs/v2-migration.md">V2 migration and release gates</a> before deployment.</div>
+<p>Thirteen independently versioned libraries under <code>@openadminjs</code> are built as ESM with TypeScript declarations and SHA-256 manifests: resource, core, auth, permissions, plugin-sdk, storage, queue, notifications, mail, payments, nest, admin-client and prisma. The initial candidate runtime version is <code>0.2.0-rc.1</code>; CLI is <code>0.3.0-rc.1</code>. Application entry points, custom registries and Next.js pages remain project code.</p>
+<div class="docs-code-block" data-language="bash"><div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>pnpm install --frozen-lockfile
+pnpm runtime:pack
+node scripts/test-runtime.mjs</code></pre></div>
+<h3 id="runtime-migration">Convert an existing source project</h3><p>Use the matching CLI built from V2 source. Back up your project, database and uploads; upgrade application code first. Preview runtime conversion; archive mode requires pnpm and verifies checksums. Registry mode requires actual package publication.</p>
+<div class="docs-code-block" data-language="bash"><div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>openadminjs runtime
+openadminjs runtime --archives /path/to/runtime-artifacts
+openadminjs runtime --archives /path/to/runtime-artifacts --apply
+pnpm install
+pnpm build</code></pre></div>
+<p>Custom packages are reported as conflicts; backups are retained. The converter does not change your database. See <a href="https://github.com/js-senpai/open-admin-js/blob/main/docs/runtime-and-schema.md">runtime architecture and schema migration</a> for compatibility, local archives, rollback and publication gates.</p>
+<h3 id="v2-security">Security and optional integrations</h3><p>Admin authentication uses same-origin BFF and HttpOnly session cookies; refresh rotation and replay revocation are server-side. Newly issued API tokens are hashed and read-only scoped; legacy tokens are revoked by migration. Plugins are trusted deployment-time extensions only. Files are private with authorized download. AI, OIDC and Stripe test commerce are disabled by default. Review the <a href="#security">security checklist</a> and <a href="https://github.com/js-senpai/open-admin-js/blob/main/docs/deployment.md">deployment reference</a>.</p>
+</section>
+<section id="installation">
+            <h2>Quickstart</h2><p>These npx commands use the published CLI, not the unpublished V2 candidate. For V2 build from the repository and follow the <a href="#v2-runtime">runtime candidate guide</a>.</p>
             <p>
-              Prerequisites: <strong>Node.js 20+</strong>, <strong>pnpm</strong> (recommended) or npm/yarn, and the OpenAdminJS CLI.
+              Prerequisites: <strong>Node.js 20+</strong>, <strong>pnpm 9+</strong> (reference profile; npm/yarn compatibility requires separate validation), and the OpenAdminJS CLI.
               The flow mirrors a typical Nest.js workspace bootstrap: scaffold, migrate, seed, run. Dependency installation and core env prompts (DB/Redis/JWT) happen automatically during project creation, while admin origin and API port are prefilled with local defaults.
             </p>
             <div class="docs-code-block" data-language="bash">
               <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>npx openadminjs create my-app
 cd my-app
+pnpm db:init
+pnpm db:seed
 pnpm dev</code></pre>
             </div>
             <p>Default local URLs after <code>pnpm dev</code>:</p>
@@ -205,14 +259,14 @@ prisma/
               During <code>openadminjs create</code>, the wizard asks for DB credentials and key env values, then writes ready-to-use values into <code>apps/api/.env</code>
               (including <code>SUPERADMIN_EMAIL</code> / <code>SUPERADMIN_PASSWORD</code> for non-interactive seed).
               <code>ADMIN_ORIGIN</code> and <code>API_PORT</code> are written with defaults (<code>http://localhost:3000</code> and <code>4000</code>) so you only change them when your environment differs.
-              New apps do <strong>not</strong> get a root <code>.env.example</code> or root <code>.env</code>—treat <code>apps/api/.env</code> as the API env source of truth.
+              Keep real secrets in <code>apps/api/.env</code>; V2 tracks an example configuration without real secrets.
               Values are read by the Nest API and Next apps through <code>@nestjs/config</code> and
               <code>NEXT_PUBLIC_*</code> variables—treat secrets like you would in a Nest <code>ConfigModule</code> setup.
             </p>
             <div class="docs-code-block" data-language="env">
               <div class="docs-code-toolbar"><span class="docs-code-lang">.env</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>DATABASE_URL="postgresql://user:pass@localhost:5432/openadminjs"
-JWT_SECRET="change-me-use-long-random-string"
+JWT_SECRET="&lt;generated random secret&gt;"
 NEXT_PUBLIC_API_URL="http://localhost:4000"
 NEXT_PUBLIC_SITE_URL="http://localhost:3001"</code></pre>
             </div>
@@ -313,22 +367,16 @@ pnpm exec openadminjs db studio</code></pre>
           </section>
 
           <section id="prisma-workflow">
-            <h2>Prisma &amp; migrations</h2>
-            <p>Edit <code>prisma/schema.prisma</code> (or fragment files merged into it), then apply migrations from the workspace root. Regenerate the client after every schema pull or merge.</p>
-            <div class="docs-code-block" data-language="bash">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code># after editing models
-pnpm db:migrate
-pnpm prisma generate
-
-# optional: open GUI
-pnpm --filter @openadminjs/api exec prisma studio</code></pre>
-            </div>
-            <ul class="docs-list">
-              <li>Keep Prisma model names aligned with <code>model</code> on each resource (<code>model: "invoice"</code> → Prisma model <code>Invoice</code> maps to delegate <code>invoice</code>).</li>
-              <li>Example repos under <code>examples/</code> show <code>models.fragment.prisma</code> merged into a full schema—use the same pattern for modular schemas.</li>
-            </ul>
-          </section>
+<h2>Prisma &amp; migrations</h2><p>V2 schema fragments live in <code>packages/prisma/schema</code>: core, audit, settings, media, content, tokens, notifications, jobs, commerce and ai. The composer resolves dependencies and provider-specific differences; the generated <code>prisma/schema.prisma</code> preserves existing PostgreSQL migration paths. The complete standalone API still requires all built-in modules; reduced profiles are for custom/embedded consumers.</p>
+<div class="docs-code-block" data-language="bash"><div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>pnpm schema:check
+pnpm schema:compose
+node scripts/schema.mjs profile postgresql core content > /tmp/schema.prisma</code></pre></div>
+<p>Put custom models in <code>prisma/modules/*.prisma</code>, preview composition, then explicitly write a reviewed schema. Existing customized schemas can be adopted losslessly with the matching V2 CLI:</p><div class="docs-code-block" data-language="bash"><div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>openadminjs schema adopt
+pnpm schema:compose
+pnpm schema:compose --write</code></pre></div>
+<h3 id="schema-upgrade">Plan an existing database migration</h3><p>Use a disposable staging database copy, never production. Back up data and uploaded files; set DATABASE_URL to the staging copy. Review generated SQL, target schema, checksums and actual migration history.</p><div class="docs-code-block" data-language="bash"><div class="docs-code-toolbar"><span class="docs-code-lang">bash</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>openadminjs schema upgrade-plan --out ./migration-review</code></pre></div>
+<p>For original PostgreSQL history use the existing shipped migrations; do not apply a duplicate generated migration. For legacy MySQL/SQLite db-push installations, baseline the actual existing schema only after checking migration records, then apply a reviewed provider-specific upgrade. Never use accept-data-loss or reset production. See the <a href="https://github.com/js-senpai/open-admin-js/blob/main/docs/runtime-and-schema.md">full migration and rollback guide</a>.</p>
+</section>
 
           <section id="creating-resources">
             <h2>Creating resources (end-to-end)</h2>
@@ -788,7 +836,8 @@ await prisma.role.create({
             <div class="docs-code-block" data-language="http">
               <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>GET /api/docs               # Swagger UI
-GET /health                  # Nest health ping</code></pre>
+GET /health/live             # Liveness
+GET /health/ready            # Readiness</code></pre>
             </div>
 
             <div class="docs-table-wrap">
@@ -815,20 +864,19 @@ GET /health                  # Nest health ping</code></pre>
                       <code>POST …/orders/:id/refund</code> (payment bridge),
                       <code>POST …/:resource/:id/actions/:action</code>
                     </td>
-                    <td>Admin realm JWT; refunds require working <code>PaymentModule</code>.</td>
+                    <td>Admin realm JWT; refunds require explicit permission and enabled Stripe test mode.</td>
                   </tr>
                   <tr>
                     <td><code>/admin/plugins</code></td>
-                    <td><code>GET /</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
-                    <td>Admin realm; manifests drive runtime loader.</td>
+                    <td><code>GET /</code>, <code>GET /widgets</code>; mutation endpoints return 403.</td>
+                    <td>Admin realm; trusted deployment-time manifests only.</td>
                   </tr>
                   <tr>
                     <td><code>/admin/ai</code></td>
                     <td>
-                      <code>GET|PUT …/config</code>, <code>POST …/chat</code>, <code>POST …/chat/stream</code> (SSE),
-                      conversations CRUD, <code>GET …/artifacts/:id/download</code>
+                      <code>GET …/status</code>, <code>GET …/config</code>, <code>POST …/chat</code>; config writes return 403.
                     </td>
-                    <td>Admin realm; chat paths require permission <code>ai.chat</code> in service guards.</td>
+                    <td>Admin realm; opt-in, read-only chat requires <code>ai.chat</code>.</td>
                   </tr>
                   <tr>
                     <td><code>/jobs</code></td>
@@ -841,7 +889,7 @@ GET /health                  # Nest health ping</code></pre>
                       <code>GET /products</code>, <code>POST /checkout</code>, <code>GET /orders/:id/status</code>, <code>POST /webhook/:provider</code>,
                       plus <code>GET /session</code> &amp; <code>GET /orders</code> (<strong>public</strong> realm JWT)
                     </td>
-                    <td>Hybrid: public storefront + Stripe-style webhooks via signature headers.</td>
+                    <td>Opt-in Stripe test mode only; authenticated public checkout/order reads; signed webhook.</td>
                   </tr>
                 </tbody>
               </table>
@@ -854,7 +902,7 @@ GET /health                  # Nest health ping</code></pre>
           </section>
 
           <section id="api-auth">
-            <h2>Authentication</h2>
+            <h2>Authentication</h2><div class="docs-callout"><strong>Admin browser:</strong> use the same-origin Next.js BFF (<code>/api/auth/login</code>, <code>/api/auth/refresh</code>, <code>/api/auth/logout</code>, <code>/api/backend/...</code>) and HttpOnly cookies. The raw JWT examples below are for direct API clients only. Do not put access or refresh tokens in localStorage. Refresh replay revokes the session family.</div>
             <p>
               The API uses JWT access + refresh tokens. Login and refresh accept a <code>realm</code> string (defaults align with <code>DEFAULT_AUTH_REALM</code>); back-office users use <code>&quot;admin&quot;</code>
               while storefront sessions use <code>&quot;public&quot;</code> for routes like <code>GET /store/session</code>.
@@ -882,8 +930,8 @@ Accept: application/json</code></pre>
             <h3 id="api-auth-surfaces">What ships on <code>/auth</code></h3>
             <ul class="docs-list">
               <li><code>POST /auth/login</code> — throttle-limited credential exchange (realm aware).</li>
-              <li><code>POST /auth/refresh</code> — rotate access tokens.</li>
-              <li><code>POST /auth/logout</code> — revoke session server-side metadata (Bearer required).</li>
+              <li><code>POST /auth/refresh</code> — rotate refresh/access tokens and reject replay.</li>
+              <li><code>POST /auth/logout</code> — revoke the server-side session.</li>
               <li><code>GET /auth/me</code> — hydrate profile + permissions snapshot.</li>
               <li><code>GET /auth/me/realms</code> — admin-only rollup of memberships across realms.</li>
               <li><code>POST /auth/password/forgot</code> &amp; <code>/auth/password/reset</code> — token-based reset funnel (email delivery via <code>MailService</code>).</li>
@@ -1002,65 +1050,29 @@ Content-Type: application/json
           </section>
 
           <section id="api-plugins-jobs-ai">
-            <h2>Plugins, background jobs &amp; AI endpoints</h2>
-
-            <h3 id="api-plugins-manifest">Plugins (<code>/admin/plugins</code>)</h3>
-            <p>
-              Runtime plugin metadata is manipulated through REST while the authoritative manifest remains <code>apps/api/plugins.manifest.json</code>.
-              After changing entries you may need to restart the API depending on loader behavior (<code>AdminPluginsService</code>).</p>
-            <div class="docs-code-block" data-language="http">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>GET    /admin/plugins
-POST   /admin/plugins
-PATCH  /admin/plugins/:id
-DELETE /admin/plugins/:id</code></pre>
-            </div>
-
-            <h3 id="api-jobs-bullmq">Queues (<code>/jobs</code>)</h3>
-            <p>Operational hooks for observing BullMQ / worker health (<code>@openadminjs/queue</code> integration). Requires explicit permission grants on the JWT.</p>
-            <div class="docs-code-block" data-language="http">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>GET  /jobs/stats      # Permission: jobs.read
-POST /jobs/dispatch   # Permission: jobs.dispatch</code></pre>
-            </div>
-
-            <h3 id="api-ai-rest">Assistant (<code>/admin/ai</code>)</h3>
-            <p>
-              Conversation persistence, streamed completions, downloadable artifacts.
-              Calls into chat/stream require the <strong><code>ai.chat</code></strong> permission on the authenticated admin user (<code>AdminAiService.ensureChatPermission</code>).
-              Configuration is persisted via mutable settings payloads—tokens should never be echoed to browser logs.
-            </p>
-            <div class="docs-code-block" data-language="http">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>GET    /admin/ai/config
-PUT    /admin/ai/config
-POST   /admin/ai/chat
-POST   /admin/ai/chat/stream        # SSE: text/event-stream
-GET    /admin/ai/conversations
-GET    /admin/ai/conversations/:id
-PATCH  /admin/ai/conversations/:id
-DELETE /admin/ai/conversations/:id
-GET    /admin/ai/artifacts/:id/download</code></pre>
-            </div>
-            <p>Streaming payloads mirror the envelopes described under <a href="#ai-streaming">AI streaming events</a>.</p>
-          </section>
+<h2>Plugins, background jobs &amp; AI endpoints</h2><h3 id="api-plugins-manifest">Plugins (<code>/admin/plugins</code>)</h3><p>List configured plugins and dashboard widgets; install trusted packages at deployment time. POST, PATCH and DELETE return 403.</p><div class="docs-code-block" data-language="http"><div class="docs-code-toolbar"><span class="docs-code-lang">http</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>GET /admin/plugins
+GET /admin/plugins/widgets</code></pre></div><h3 id="api-jobs-bullmq">Queues (<code>/jobs</code>)</h3><p>Redis is optional; queue operations require explicit grants.</p><div class="docs-code-block" data-language="http"><div class="docs-code-toolbar"><span class="docs-code-lang">http</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>GET /jobs/stats     # jobs.read
+POST /jobs/dispatch # jobs.dispatch</code></pre></div><h3 id="api-ai-rest">Assistant (<code>/admin/ai</code>)</h3><p>V2 uses the opt-in SafeAiService. Configuration is deployment-managed, and chat requires <code>ai.chat</code>. No streaming, artifact, autonomous action or conversation management routes are exposed by the V2 controller.</p><div class="docs-code-block" data-language="http"><div class="docs-code-toolbar"><span class="docs-code-lang">http</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>GET /admin/ai/status
+GET /admin/ai/config # ai.config.read
+POST /admin/ai/chat  # ai.chat; body: {&quot;message&quot;:&quot;...&quot;}</code></pre></div><p>PUT /admin/ai/config is forbidden. See <a href="#ai-assistant">AI assistant</a>.</p>
+</section>
 
           <section id="storefront-http">
             <h2>Storefront HTTP API (<code>/store</code>)</h2>
             <p>
               Example commerce routes coexist with generic admin resources.
-              Checkout can run anonymously (guest checkout) while authenticated shoppers send the same Bearer token minted from the <code>public</code> realm (<code>@RequireAuthRealm(&quot;public&quot;)</code>).
-              Webhooks authenticate via provider signatures forwarded as <code>stripe-signature</code> or <code>x-webhook-signature</code>; raw bodies must remain unparsed upstream for Stripe compatibility.
+              Checkout requires an authenticated public-realm JWT with <code>public.orders.create</code>; order status and listing require <code>public.orders.read_own</code> and ownership checks. Commerce is disabled by default and limited to Stripe test mode.
+              Webhooks authenticate via the <code>stripe-signature</code> header; raw bodies must remain unparsed upstream for Stripe compatibility.
             </p>
             <div class="docs-code-block" data-language="http">
               <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code># Public storefront
+              <pre><code># Public product listing and signed webhook
 GET  /store/products
-POST /store/checkout
-GET  /store/orders/:id/status
 POST /store/webhook/:provider
 
 # Authenticated storefront (JWT, public realm)
+POST /store/checkout
+GET /store/orders/:id/status
 GET /store/session
 GET /store/orders?page=1&amp;limit=20</code></pre>
             </div>
@@ -1082,7 +1094,7 @@ GET /store/orders?page=1&amp;limit=20</code></pre>
               <li><strong>Relations</strong> render searchable pickers using <code>resource</code> + <code>displayField</code> metadata.</li>
               <li><strong>Actions</strong> render as primary/destructive buttons when <code>actions</code> are defined and the JWT includes the action permission.</li>
             </ul>
-            <p>Point the admin at your API with <code>NEXT_PUBLIC_API_URL</code>; session cookies or bearer tokens are injected by the generated auth provider.</p>
+            <p>The admin uses a same-origin Next.js BFF with HttpOnly cookies and server-side API access; configure the API origin and exact ADMIN_ORIGIN according to the deployment guide.</p>
 
             <h3 id="admin-route-map">Shipped routes in <code>apps/admin/app</code></h3>
             <p>Besides dynamic CRUD screens, these App Router segments ship in the scaffold:</p>
@@ -1097,7 +1109,7 @@ GET /store/orders?page=1&amp;limit=20</code></pre>
 /audit-logs       — immutable audit feed
 /notifications    — inbox pattern
 /api-tokens       — issued token management + revoke actions
-/plugins          — manifest editor + sandbox controls
+/plugins          — read-only deployment plugin status
 /jobs             — queue stats / dispatch tooling
 /resources/*      — generated list/detail/create/edit driven by metadata</code></pre>
             </div>
@@ -1137,65 +1149,17 @@ GET /store/orders?page=1&amp;limit=20</code></pre>
             </p>
             <ul class="docs-list">
               <li><strong>Delete flows</strong> should use confirmation modals or guarded chat confirmations for destructive actions.</li>
-              <li><strong>Long-running operations</strong> should stream step status (queued, running, completed, failed).</li>
-              <li><strong>Workflow failures</strong> should display <code>failedStep</code>, <code>partialResults</code>, <code>rolledBack</code>, and <code>rollbackFailures</code>.</li>
-              <li><strong>Retry UX</strong> should provide one-click rerun for last failed workflow payload where safe.</li>
+              <li><strong>Long-running operations</strong> should expose status where implemented.</li>
+              <li>Review operation failures before retrying; autonomous AI workflows are disabled.</li>
             </ul>
           </section>
 
           <section id="ai-assistant">
-            <h2>AI assistant</h2>
-            <p>
-              OpenAdminJS includes a built-in admin AI assistant with provider configuration (<code>GET/PUT /admin/ai/config</code>),
-              streaming replies, action execution, conversation storage, and downloadable artifacts.
-              Chat entry points require permission <code>ai.chat</code> (enforced in <code>AdminAiService</code>).
-            </p>
-            <h3 id="ai-config">Provider configuration</h3>
-            <p>
-              Providers are edited through the REST config endpoint and mirrored in the Next admin settings UI when present.
-              Secrets are stored via the API and must never be echoed into client bundles or static exports.
-            </p>
-            <ul class="docs-list">
-              <li><strong>Built-in provider patterns</strong>: OpenAI/compatible, Anthropic, Gemini.</li>
-              <li><strong>Active provider switch</strong> allows runtime fallback without code changes.</li>
-              <li><strong>System prompt</strong> should stay in English and enforce JSON action schema output.</li>
-            </ul>
+<h2>AI assistant</h2><p>Experimental, read-only, disabled by default. Enable only after staging acceptance. The deployment operator sets <code>OPENADMIN_AI_ENABLED=1</code> and <code>OPENAI_API_KEY</code> in server-side secrets. The V2 service uses OpenAI with a fixed provider endpoint; no client-configurable provider or API keys are accepted.</p><h3 id="ai-config">Provider configuration</h3><p>GET /admin/ai/config requires ai.config.read and returns non-secret configuration. PUT returns 403. The chat endpoint accepts only a message, requires ai.chat, and is rate-limited.</p><div class="docs-code-block" data-language="http"><div class="docs-code-toolbar"><span class="docs-code-lang">http</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div><pre><code>POST /admin/ai/chat
+Content-Type: application/json
 
-            <h3 id="ai-streaming">AI streaming events</h3>
-            <p>
-              Chat streaming uses SSE with normalized event envelopes shared by API and admin app.
-              Each stream emits token deltas and a final completion payload with optional action metadata.
-            </p>
-            <div class="docs-code-block" data-language="json">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>{ "type": "delta", "delta": "Partial token..." }
-{ "type": "done", "reply": "Final text", "actionResult": { "ok": true } }
-{ "type": "error", "message": "Provider timeout", "code": "AI_STREAM_ERROR" }</code></pre>
-            </div>
-            <ul class="docs-list">
-              <li><strong>delta</strong> appends text progressively for typing effect.</li>
-              <li><strong>done</strong> finalizes message and can include pending/confirmed action payloads.</li>
-              <li><strong>error</strong> must surface visibly in UI and stop loading state immediately.</li>
-            </ul>
-
-            <h3 id="ai-workflows">AI workflows &amp; rollback</h3>
-            <p>
-              Workflow actions chain multiple steps (for example: generate image → create artifact → update resource).
-              Use <code>transactionMode</code> to control failure behavior:
-            </p>
-            <ul class="docs-list">
-              <li><strong>best_effort</strong> — keep completed steps even if a later step fails.</li>
-              <li><strong>rollback_on_error</strong> — attempt compensation for completed reversible steps.</li>
-            </ul>
-            <p>
-              On failure, return rich diagnostics so operators can understand exactly what happened and safely retry:
-              <code>failedStep</code>, <code>completedSteps</code>, <code>partialResults</code>, <code>rolledBack</code>, <code>rollbackFailures</code>.
-            </p>
-            <div class="docs-callout">
-              <strong>Guardrails:</strong> Require explicit user confirmation before destructive operations (delete, revoke, irreversible side effects),
-              and always enforce server-side permission checks even if the assistant proposes the action.
-            </div>
-          </section>
+{&quot;message&quot;:&quot;Explain how resource permissions work.&quot;}</code></pre></div><h3 id="ai-streaming">Streaming status</h3><p>V2 exposes a synchronous chat response only. SSE is not part of the current SafeAiService API.</p><h3 id="ai-workflows">Workflow and artifact status</h3><p>Autonomous actions, workflow execution, artifact generation and provider switching are not enabled in V2. Never grant an assistant mutation authority based on old documentation.</p>
+</section>
 
           <section id="web">
             <h2>Web layer (<code>apps/web</code>)</h2>
@@ -1310,12 +1274,12 @@ export function generateMetadata({ params }) {
           <!-- Plugins & hooks -->
           <!-- ======================================================= -->
           <section id="plugins">
-            <div class="docs-callout"><strong>V2 security change:</strong> HTTP plugin installation and manifest mutation are disabled. Install trusted packages during build/deployment and edit the manifest as an operator. Existing route descriptions below are historical reference, not an enabled management workflow.</div>
+            <div class="docs-callout"><strong>V2 security change:</strong> HTTP plugin installation and manifest mutation are disabled. Install trusted packages during build/deployment and edit the manifest as an operator. Mutation endpoints return 403.</div>
             <h2>Plugin system</h2>
             <p>
               OpenAdminJS Plugin Platform is a broad extension system (WordPress-style) with explicit capability gating.
               Plugins can register resource hooks, API hooks/routes, media pipeline transforms, SEO contributors, job handlers, and admin UI extensions.
-              Plugins are loaded from <code>plugins.manifest.json</code> and enforced by trust mode + capabilities.
+              Plugins are loaded from <code>plugins.manifest.json</code> and checked for explicit capabilities; trusted modules still run in process.
             </p>
             <div class="docs-code-block" data-language="typescript">
               <div class="docs-code-toolbar"><span class="docs-code-lang">TypeScript</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
@@ -1352,7 +1316,7 @@ export const seoAndMediaPlugin: OpenAdminPlugin = {
       "id": "com.example.seo-media",
       "enabled": true,
       "package": "@example/openadmin-seo-media",
-      "trustMode": "sandboxed",
+      "trustMode": "trusted",
       "capabilities": ["seo.extend", "media.pipeline"]
     }
   ]
@@ -1361,7 +1325,7 @@ export const seoAndMediaPlugin: OpenAdminPlugin = {
             <p class="mt-3">
               Capability matrix: <code>resource.hooks</code>, <code>api.hooks</code>, <code>api.routes</code>,
               <code>media.pipeline</code>, <code>seo.extend</code>, <code>jobs.run</code>, <code>admin.ui.extend</code>.
-              Use <code>sandboxed</code> trust mode and request only minimal capabilities by default.
+              Use <code>trusted</code> mode only with audited code and minimal capabilities. Sandboxed mode is explicitly rejected; Node modules are not isolated.
             </p>
           </section>
 
@@ -1496,7 +1460,7 @@ return &lt;img src={isDark ? BRAND.logoMonochromePng : BRAND.logoNew} alt="OpenA
           </section>
 
           <section id="security">
-            <h2>Security</h2>
+            <h2>Security</h2><p>Read the <a href="https://github.com/js-senpai/open-admin-js/blob/main/docs/v2-migration.md">V2 migration and security acceptance gates</a>. Use HttpOnly BFF cookies, rotated server-side sessions, scoped hashed API keys, private uploads and trusted deployment-time plugins. AI, OIDC and Stripe test mode require explicit enablement and staging validation.</p>
             <ul class="docs-list">
               <li>Enforce permission checks on every mutating route (never trust the UI alone).</li>
               <li>Keep JWT secrets long and rotate them with a maintenance window.</li>
@@ -1519,7 +1483,7 @@ return &lt;img src={isDark ? BRAND.logoMonochromePng : BRAND.logoNew} alt="OpenA
           </section>
 
           <section id="deployment">
-            <h2>Deployment</h2>
+            <h2>Deployment</h2><div class="docs-callout">V2 includes a PostgreSQL Docker Compose reference stack, not a production certification. Review the <a href="https://github.com/js-senpai/open-admin-js/blob/main/docs/deployment.md">deployment, health checks and backup/restore guide</a>; test recovery and review migrations before deploying.</div>
             <p>
               Deploy API, admin and web as separate services (Kubernetes, Fly.io, Railway, etc.) or as a single VM with process supervision.
               Run database migrations as a release phase hook before swapping traffic—same discipline as Nest.js apps using Prisma in production.
@@ -1555,8 +1519,8 @@ node apps/api/dist/main.js</code></pre>
                   <tr><td>Auth &amp; realms</td><td>JWT issuance, refresh, logout, password/email flows</td><td><code>auth/auth.controller.ts</code>, <code>auth/auth.service.ts</code></td></tr>
                   <tr><td>Storefront</td><td>Products, checkout, webhooks, shopper session</td><td><code>store/*.controller.ts</code>, <code>store/payment/*</code></td></tr>
                   <tr><td>Queue ops</td><td>Stats + manual dispatch testing</td><td><code>queue/queue.controller.ts</code></td></tr>
-                  <tr><td>AI assistant</td><td>Chat, stream, conversations, artifacts</td><td><code>admin-ai.*</code>, permission <code>ai.chat</code></td></tr>
-                  <tr><td>Plugins</td><td>Manifest CRUD + sandbox loading</td><td><code>admin-plugins.*</code>, <code>plugins/bootstrap.ts</code></td></tr>
+                  <tr><td>AI assistant</td><td>Opt-in read-only chat</td><td><code>admin-ai.*</code>, permission <code>ai.chat</code></td></tr>
+                  <tr><td>Plugins</td><td>Read-only state; trusted deployment-time loading</td><td><code>admin-plugins.*</code>, <code>plugins/bootstrap.ts</code></td></tr>
                   <tr><td>Mail transport</td><td>Password resets &amp; transactional email</td><td><code>mail/mail.service.ts</code> (internal only—no HTTP router)</td></tr>
                   <tr><td>Cross-cutting</td><td>CORS, helmet, validation pipes, <code>PluginApiInterceptor</code>, throttler</td><td><code>app.module.ts</code>, <code>main.ts</code></td></tr>
                   <tr><td>Admin UI</td><td>Next.js App Router pages + resource shell</td><td><code>apps/admin/app/*</code>, <code>components/app-shell.tsx</code></td></tr>
@@ -1688,76 +1652,8 @@ Content-Type: application/json
               <li><strong>Mobile mode</strong> should preserve core actions and avoid hidden destructive controls.</li>
             </ul>
 
-            <h3>AI assistant configuration</h3>
-            <p>
-              AI provider setup is managed in admin settings and resolved by API service on each chat request.
-              Access is gated by <code>ai.chat</code> permission.
-            </p>
-            <div class="docs-code-block" data-language="json">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>{
-  "activeProviderId": "openai",
-  "providers": [
-    { "id": "openai", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4.1-mini" },
-    { "id": "anthropic", "model": "claude-3-5-sonnet-latest" },
-    { "id": "gemini", "model": "gemini-1.5-pro" }
-  ],
-  "systemPrompt": "Respond with plain text reply and optional structured action JSON."
-}</code></pre>
-            </div>
-
-            <h3>AI streaming protocol (SSE)</h3>
-            <div class="docs-code-block" data-language="json">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>{ "type": "delta", "delta": "Analyzing..." }
-{ "type": "done", "reply": "Found 12 records.", "actionResult": { "count": 12 } }
-{ "type": "error", "message": "Provider timeout", "code": "AI_STREAM_ERROR" }</code></pre>
-            </div>
-            <ul class="docs-list">
-              <li><strong>delta</strong>: append progressive response text.</li>
-              <li><strong>done</strong>: finalize reply and attach action results if present.</li>
-              <li><strong>error</strong>: immediately stop loading and show diagnostics in UI.</li>
-            </ul>
-
-            <h3>AI actions, artifacts, and autofill</h3>
-            <p>
-              Assistant can generate files/images and save them as artifacts. Artifacts can be downloaded or injected into subsequent workflow steps.
-            </p>
-            <div class="docs-code-block" data-language="json">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>{
-  "action": {
-    "type": "image",
-    "prompt": "Generate minimal product hero image",
-    "filename": "hero.png"
-  }
-}</code></pre>
-            </div>
-            <p>
-              Common refs: <code>{{latest_image}}</code>, <code>{{latest_artifact}}</code>, <code>ai-artifact:&lt;id&gt;</code>.
-            </p>
-
-            <h3>AI workflows and rollback diagnostics</h3>
-            <div class="docs-code-block" data-language="json">
-              <div class="docs-code-toolbar"><span class="docs-code-lang">JSON</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
-              <pre><code>{
-  "action": {
-    "type": "workflow",
-    "transactionMode": "rollback_on_error",
-    "steps": [
-      { "type": "image", "prompt": "Create post cover" },
-      { "type": "update", "resource": "posts", "id": "clx123", "data": { "coverImageId": "{{latest_image}}" } }
-    ]
-  }
-}</code></pre>
-            </div>
-            <ul class="docs-list">
-              <li><strong>best_effort</strong>: keep completed steps if later step fails.</li>
-              <li><strong>rollback_on_error</strong>: attempt compensating actions.</li>
-              <li>Expose <code>failedStep</code>, <code>partialResults</code>, <code>rolledBack</code>, <code>rollbackFailures</code>.</li>
-            </ul>
-
-            <h3>Commerce and payment flow</h3>
+            <h3>AI assistant configuration</h3><p>See <a href="#ai-config">deployment-managed read-only configuration</a>. Streaming, workflow execution and artifact generation are not available in V2.</p>
+<h3>Commerce and payment flow</h3><p>Opt-in Stripe test mode only. Checkout and own-order access require authentication and permissions. Review the <a href="#storefront-http">current route contract</a>.</p>
             <div class="docs-code-block" data-language="http">
               <div class="docs-code-toolbar"><span class="docs-code-lang">HTTP</span><button type="button" class="docs-code-copy" data-copy-code>Copy</button></div>
               <pre><code>GET  /store/products
@@ -1787,7 +1683,7 @@ POST /admin/resources/orders/:id/refund   # admin Ops (PaymentService)</code></p
               <li>Strict CORS allowlist for admin/web origins.</li>
               <li>Least privilege role design and action permissions.</li>
               <li>No provider tokens in client bundles.</li>
-              <li>Destructive AI actions require explicit confirmation.</li>
+              <li>Autonomous or destructive AI actions are disabled in V2.</li>
               <li>Migrations run before traffic switch in deploy pipeline.</li>
             </ul>
           </section>
@@ -1814,14 +1710,14 @@ POST /admin/resources/orders/:id/refund   # admin Ops (PaymentService)</code></p
             </p>
             <div class="docs-callout">
               <strong>Status key:</strong>
-              🟢 stable &nbsp;|&nbsp; 🟡 in progress &nbsp;|&nbsp; ⚪ planned &nbsp;|&nbsp; 💡 community request
+              🟢 implemented (not production-certified) &nbsp;|&nbsp; 🟡 in progress &nbsp;|&nbsp; ⚪ planned &nbsp;|&nbsp; 💡 community request
             </div>
 
             <h3>Core platform</h3>
             <ul class="docs-list">
               <li>🟢 Resource CRUD — list, create, edit, delete with field-level permissions</li>
               <li>🟢 RBAC — roles, permissions, realm-scoped tokens</li>
-              <li>🟢 Audit logs — immutable per-resource action records</li>
+              <li>🟢 Audit logs — resource action records with snapshot redaction</li>
               <li>🟢 JWT auth — access + refresh token flow with rotation</li>
               <li>🟢 Resource relations — picker UI for <code>relation</code> fields against other resources</li>
               <li>🟢 File uploads — local upload endpoint + storage abstraction via <code>@openadminjs/storage</code></li>
@@ -1855,8 +1751,8 @@ POST /admin/resources/orders/:id/refund   # admin Ops (PaymentService)</code></p
             <ul class="docs-list">
               <li>🟢 OpenAPI / Swagger docs at <code>/api/docs</code></li>
               <li>🟢 Webhook plugin — fire events after create/update/delete</li>
-              <li>🟢 SSO bridge — OIDC Authorization Code + PKCE (<code>/auth/sso/oidc/*</code>), links users via <code>User.oidcKey</code></li>
-              <li>🟢 OIDC hardening — provider presets, stricter callback validation, richer error surfaces, callback test matrix</li>
+              <li>🟡 Experimental, opt-in SSO bridge — OIDC Authorization Code + PKCE (<code>/auth/sso/oidc/*</code>), links users via <code>User.oidcKey</code></li>
+              <li>🟡 OIDC integration acceptance pending; hardening — provider presets, stricter callback validation, richer error surfaces, callback test matrix</li>
               <li>🟢 Rate limiting — dual token buckets: IP (<code>default</code>) + per-user JWT (<code>perUser</code>, <code>RATE_LIMIT_USER_PER_MIN</code>)</li>
               <li>🟢 GraphQL — admin read queries at <code>/graphql</code> with pagination/search/sort and filter parity (<code>adminResourceList</code>, <code>adminResourceRecord</code>, bearer auth, realm <code>admin</code>)</li>
               <li>🟢 GraphQL parity tests — resolver filter mapping checks to stay aligned with REST query semantics</li>

@@ -1,0 +1,21 @@
+# OpenAdminJS
+
+> Open-source, resource-driven Node.js admin platform built with NestJS, Prisma, Next.js and TypeScript. Define resources to drive CRUD APIs, access policies and admin interfaces; self-host and own the application code.
+
+The repository contains a V2 Open Core development candidate. Runtime libraries 0.2.0-rc.1 and CLI 0.3.0-rc.1 are not published as part of this candidate. Use the published CLI only for its documented version. The full standalone API requires all built-in Prisma modules. AI, OIDC and Stripe test commerce are opt-in; the assistant is read-only. Review release gates before production.
+
+## Documentation
+- [Landing page](https://js-senpai.github.io/open-admin-js/): Product overview and quickstart.
+- [Developer documentation](https://js-senpai.github.io/open-admin-js/docs.html): Resource contract, CLI, HTTP API, admin UI, security and V2 migration.
+- [README](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/README.md): Requirements, quickstart, configuration and repository structure.
+- [Runtime packages and Prisma schema](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/docs/runtime-and-schema.md): Independently versioned packages, archive conversion, schema composition and reviewed migration planning.
+- [V2 migration and release gates](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/docs/v2-migration.md): Candidate status, security changes, limitations and acceptance criteria.
+- [RBAC reference](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/docs/rbac.md): Roles, realms and permissions.
+- [Deployment reference](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/docs/deployment.md): PostgreSQL Compose, health checks and recovery.
+- [Development guide](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/docs/development.md): Contributor workflow and tests.
+
+## Optional
+- [CRM example](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/examples/crm-admin/README.md): Example domain installer and migration notes.
+- [GitHub repository](https://github.com/js-senpai/open-admin-js): Source code, issues and release history.
+- [MIT license](https://raw.githubusercontent.com/js-senpai/open-admin-js/main/LICENSE): License text.
+- [Published CLI](https://www.npmjs.com/package/openadminjs): Published npm package; verify version and release notes.
